@@ -1,0 +1,123 @@
+<article class="doc-article" data-slug="planning/m2-visual-editing-assets/2.6-asset-browser-v2">
+<h1>🔧 Asset Browser (v2)</h1>
+<blockquote>
+<p><strong>Milestone:</strong> M2 — Visual Editing &amp; Assets
+<strong>Namespace:</strong> <code>Caffeine::Editor</code>
+<strong>Arquivos:</strong> <code>src/editor/AssetBrowser.hpp</code>, <code>src/editor/AssetBrowser.cpp</code>
+<strong>Status:</strong> 📅 Planeado
+<strong>RF:</strong> RF6.6</p>
+</blockquote>
+<hr>
+<h2>Visão Geral</h2>
+<p>O Asset Browser v2 é uma evolução significativa da gestão de ficheiros dentro do Caffeine Studio. Enquanto a v1 servia apenas para listar ficheiros, a v2 introduz capacidades de visualização ricas, incluindo thumbnails gerados pela GPU para texturas, um painel de preview detalhado e ferramentas de organização avançadas como filtros e pesquisa.</p>
+<p>Esta ferramenta é o centro nevrálgico para a interação com assets, fornecendo a interface de origem para o sistema de Drag-and-Drop e permitindo a gestão direta da hierarquia de ficheiros do projeto sem sair do editor.</p>
+<hr>
+<h2>Implementação</h2>
+<p>O Asset Browser utiliza um sistema de caching para thumbnails e uma vista de grelha (Grid View) otimizada para lidar com centenas de assets.</p>
+<h3>Estrutura de Classes</h3>
+<pre><code class="language-cpp">namespace Caffeine::Editor {
+
+    class AssetBrowser {
+    public:
+        void OnImGuiRender();
+        void Refresh(); // Recarrega a árvore de diretórios
+
+    private:
+        void RenderToolbar();
+        void RenderSidebar(); // Árvore de pastas
+        void RenderContent(); // Grelha de assets
+        void RenderPreviewPanel(); // Detalhes do asset selecionado
+
+        void GenerateThumbnails();
+        
+        std::filesystem::path m_CurrentDirectory;
+        std::string m_SearchFilter;
+        float m_ThumbnailSize = 64.0f;
+        
+        // Cache de texturas para ícones
+        std::map&lt;AssetHandle, RHI::Texture*&gt; m_Thumbnails;
+        AssetHandle m_SelectedAsset = 0;
+    };
+}
+</code></pre>
+<h3>Thumbnail Generation</h3>
+<p>Para texturas, o motor carrega uma versão reduzida (downsampled) para a GPU para usar como ícone na grelha.</p>
+<pre><code class="language-cpp">void AssetBrowser::GenerateThumbnails() {
+    for (auto&amp; entry : std::filesystem::directory_iterator(m_CurrentDirectory)) {
+        if (IsTexture(entry) &amp;&amp; !m_Thumbnails.count(GetHandle(entry))) {
+            m_Thumbnails[GetHandle(entry)] = m_AssetManager-&gt;LoadThumbnail(entry.path());
+        }
+    }
+}
+</code></pre>
+<h3>Funcionalidades de UI</h3>
+<ul>
+<li><strong>Grid View</strong>: Ícones grandes com nomes por baixo.</li>
+<li><strong>List View</strong>: Detalhes técnicos (tamanho, tipo, data).</li>
+<li><strong>Search Bar</strong>: Filtra os itens visíveis por nome em tempo real.</li>
+</ul>
+<hr>
+<h2>Decisões de Design</h2>
+<table>
+<thead>
+<tr>
+<th>Decisão</th>
+<th>Justificativa</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>GPU Thumbnails</td>
+<td>Usar a GPU para renderizar os previews permite que o editor permaneça responsivo durante o scroll de grandes pastas de imagens.</td>
+</tr>
+<tr>
+<td>Drag Preview</td>
+<td>Mostrar o ícone do asset junto ao rato durante o drag (Drag-and-Drop) melhora o feedback visual.</td>
+</tr>
+<tr>
+<td>Breadcrumbs Navigation</td>
+<td>Permite navegar rapidamente de volta para pastas superiores na hierarquia sem usar a barra lateral.</td>
+</tr>
+</tbody></table>
+<hr>
+<h2>Critério de Aceitação</h2>
+<ul>
+<li><input disabled="" type="checkbox"> Texturas (PNG/JPG) aparecem com thumbnails visuais na grelha.</li>
+<li><input disabled="" type="checkbox"> O painel de Preview mostra informações detalhadas (resolução, formato) ao selecionar um asset.</li>
+<li><input disabled="" type="checkbox"> A barra de pesquisa filtra assets por nome instantaneamente.</li>
+<li><input disabled="" type="checkbox"> É possível alternar entre vista de grelha e vista de lista.</li>
+<li><input disabled="" type="checkbox"> Clicar com o botão direito permite criar novas pastas (&quot;New Folder&quot;).</li>
+<li><input disabled="" type="checkbox"> Arrastar um asset mostra uma miniatura flutuante que segue o cursor.</li>
+</ul>
+<hr>
+<h2>Dependências</h2>
+<ul>
+<li><strong>Upstream:</strong> <code>Caffeine::Assets::AssetManager</code>, <code>Caffeine::Editor::DragDropSystem</code></li>
+<li><strong>Downstream:</strong> <code>Caffeine::Editor::Inspector</code></li>
+</ul>
+<hr>
+<h2>🔗 Tópicos Relacionados</h2>
+<table>
+<thead>
+<tr>
+<th>Tópico</th>
+<th>Descrição</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Drag-and-Drop</td>
+<td>O Asset Browser é a fonte de dados para o sistema de drag.</td>
+</tr>
+<tr>
+<td>Project Manager</td>
+<td>Define a pasta raiz onde o Asset Browser opera.</td>
+</tr>
+</tbody></table>
+<hr>
+<h2>Referências</h2>
+<ul>
+<li>Windows Explorer / macOS Finder (UX reference)</li>
+<li>Adobe Bridge (Asset management reference)</li>
+<li>Unreal Engine Content Browser.</li>
+</ul>
+
+</article>

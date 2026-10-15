@@ -1,0 +1,52 @@
+<article class="doc-article" data-slug="docs/plans/2026-10-02-editor-backlog-phase-b">
+<h1>Editor backlog — Phase B–D (Oct 2026)</h1>
+<p>Phase A (materials save, asset previews, ImGui IDs) landed in the same sprint. This document tracks items 4–7 from the product list.</p>
+<h2>4. Image Manager tab</h2>
+<p><strong>Goal:</strong> Preview, manipulate, and edit 2D images, textures, and related assets.</p>
+<p><strong>Proposed slices:</strong></p>
+<ol>
+<li>Docked panel <code>ImageManagerPanel</code> — open from View/Modules; list recent + project textures.</li>
+<li>Canvas: zoom/pan, channel view (RGBA), sRGB toggle, metadata (resolution, format).</li>
+<li>Non-destructive ops first: resize, flip, generate mips preview; export to <code>.png</code>/recompile to <code>.caf</code> via <code>TextureCompiler</code>.</li>
+<li>Optional: simple paint/rect fill (can delegate heavy work to Convoy Architect long term).</li>
+</ol>
+<p><strong>Touch points:</strong> <code>AssetBrowser</code> (open image here), <code>TextureCompiler</code>, <code>EditorContext</code>, layout profiles in settings.</p>
+<h2>5. Animation core + tab + animator</h2>
+<p><strong>Goal:</strong> 2D and 3D animation with state-machine style transitions; scriptable from Lua and C++.</p>
+<p><strong>Proposed slices:</strong></p>
+<ol>
+<li><strong>Core (<code>src/animation/</code>):</strong> <code>AnimationClip</code> (keyframes: transform, sprite frame, morph), <code>AnimationPlayer</code> component, clock/evaluator shared by 2D/3D.</li>
+<li><strong>Editor tab:</strong> timeline already stubbed (<code>animationTimeline</code>, <code>animatorController</code>) — wire to core assets (<code>.anim</code>, <code>.controller</code>).</li>
+<li><strong>Animator:</strong> graph nodes (states, transitions, conditions: float/bool/trigger), blend trees for 3D.</li>
+<li><strong>API:</strong> C++ public headers in <code>caffeine-core</code>; Lua bindings mirroring <code>AnimationPlayer</code> + <code>AnimatorController</code> setters.</li>
+</ol>
+<p><strong>Dependencies:</strong> scene serialization, existing skeletal/mesh path for 3D; sprite/tile components for 2D.</p>
+<h2>6. Post-processing plugin (complete)</h2>
+<p><strong>Goal:</strong> Use HDR forward + <code>PostProcessStack</code> end-to-end in editor and runtime.</p>
+<p><strong>Proposed slices:</strong></p>
+<ol>
+<li>Audit <code>PostProcessEditorUI</code> vs runtime stack — ensure same effect order and parameter IDs.</li>
+<li>Register plugin with editor menu; persist stack per scene or global volume component.</li>
+<li>Viewport + gameplay preview both route through stack when enabled.</li>
+<li>Document effect list and Lua/C++ hooks for toggling volumes.</li>
+</ol>
+<p><strong>Touch points:</strong> recent commit “HDR forward PBR pipeline, GPU post stack”; <code>doppio-plugins/</code> if packaged separately.</p>
+<h2>7. Pathfinding base + AI development plugin</h2>
+<p><strong>Goal:</strong> Engine-level nav/path API; editor plugin to author NPC behaviour (not combat-only).</p>
+<p><strong>Proposed slices:</strong></p>
+<ol>
+<li><strong>Core:</strong> nav mesh or grid abstraction (<code>NavMesh</code>, <code>PathQuery</code>), async request queue, debug draw in viewport.</li>
+<li><strong>ECS:</strong> <code>NavAgent</code> + <code>AIController</code> components; steering along path.</li>
+<li><strong>Plugin:</strong> behaviour trees or state scripts (Lua), templates for patrol/chase/interact; visual debugger.</li>
+<li><strong>Integration:</strong> use physics/world queries from existing Bullet integration where applicable.</li>
+</ol>
+<hr>
+<h2>Suggested PR order</h2>
+<ol>
+<li>Image Manager (vertical slice, user-visible).</li>
+<li>Animation core + minimal clip playback in viewport.</li>
+<li>Post-process plugin completion (smaller, builds on recent pipeline work).</li>
+<li>Pathfinding + AI plugin (largest; split core vs plugin).</li>
+</ol>
+
+</article>

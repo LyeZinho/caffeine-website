@@ -1,0 +1,162 @@
+<article class="doc-article" data-slug="docs/plans/2026-05-15-hot-reload-design">
+<h1>Hot-Reload de Assets — Design</h1>
+<p><strong>Date:</strong> 2026-05-15
+<strong>Issue:</strong> #93
+<strong>Milestone:</strong> M2 — Visual Editing &amp; Assets
+<strong>Namespace:</strong> <code>Caffeine::Assets</code></p>
+<h2>Overview</h2>
+<p>Monitoramento em background do diretório <code>assets/processed/</code> para detectar alterações em arquivos <code>.caf</code> recém-compilados pelo Asset Pipeline e acionar recargas in-place no <code>AssetManager</code> — sem reiniciar a engine ou perder o estado da cena no editor.</p>
+<h2>Arquitetura</h2>
+<pre><code>[ assets/processed/*.caf ]  ←── AssetPipeline escreve .caf atualizado
+       │
+       ▼
+  HotReloader (background thread)
+       │  poll a cada 500ms
+       │  debounce 100ms (configurável)
+       │
+       ├── detecta timestamp change
+       ├── aguarda estabilidade (debounce)
+       └── enfileira path em m_PendingReloads (mutex)
+       │
+       ▼
+  HotReloader::Update()  ←── chamado na main thread (ex: EditorContext::Update)
+       │
+       ├── desenfileira batch sob mutex
+       ├── AssetManager::reloadAsset(path)
+       │     ├── reseta LinearAllocator + resolved data
+       │     ├── loadInternal(id) — fopen, BlobLoader, resolveEntry
+       │     └── retorna assetId
+       ├── determina tipo via getResolved&lt;T&gt;()
+       └── NotificationCallback(assetInfo) — editor toast
+</code></pre>
+<h2>Componentes</h2>
+<h3><code>HotReloader</code> (class)</h3>
+<table>
+<thead>
+<tr>
+<th>Método</th>
+<th>Descrição</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>Start(manager, processedDir, debounceMs)</code></td>
+<td>Inicia thread de polling</td>
+</tr>
+<tr>
+<td><code>Stop()</code></td>
+<td>Join thread, limpa estado</td>
+</tr>
+<tr>
+<td><code>Update()</code></td>
+<td>Processa fila de reloads na main thread</td>
+</tr>
+<tr>
+<td><code>SetNotificationCallback(cb)</code></td>
+<td>Hook para notificação visual (editor toast)</td>
+</tr>
+<tr>
+<td><code>IsRunning()</code></td>
+<td>Estado atual</td>
+</tr>
+</tbody></table>
+<h3><code>HotReloadedAsset</code> (struct)</h3>
+<table>
+<thead>
+<tr>
+<th>Campo</th>
+<th>Tipo</th>
+<th>Descrição</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>assetId</code></td>
+<td><code>u32</code></td>
+<td>ID do asset recarregado</td>
+</tr>
+<tr>
+<td><code>name</code></td>
+<td><code>std::string</code></td>
+<td>Nome do arquivo sem extensão</td>
+</tr>
+<tr>
+<td><code>type</code></td>
+<td><code>AssetType</code></td>
+<td>Texture / Audio / Shader</td>
+</tr>
+</tbody></table>
+<h3><code>AssetManager::reloadAsset(path)</code></h3>
+<p>Método público adicionado para trigger externo de reload:</p>
+<ol>
+<li>Busca <code>path</code> em <code>m_pathIndex</code> (com <code>m_basePath</code> prefixado)</li>
+<li>Reseta: <code>allocator.reset()</code>, <code>header/metadata/payload = nullptr</code>, <code>resolved = {}</code></li>
+<li>Subtrai <code>sizeBytes</code> de <code>m_cachedBytes</code></li>
+<li>Status → <code>Unloaded</code></li>
+<li>Libera mutex</li>
+<li><code>loadInternal(id)</code> — recarrega do disco, re-resolve</li>
+<li>Retorna <code>assetId</code> (ou <code>~0u</code> se não encontrado)</li>
+</ol>
+<h2>Threading</h2>
+<ul>
+<li><strong>Poll thread</strong> (criada em <code>Start()</code>):<ul>
+<li>Itera <code>directory_iterator</code> no diretório processado a cada 500ms</li>
+<li>Compara <code>last_write_time</code> com snapshot anterior</li>
+<li>Máquina de estados 3-state: <em>unmodified → debouncing → ready</em></li>
+<li>Escreve em <code>m_PendingReloads</code> sob <code>m_Mutex</code></li>
+</ul>
+</li>
+<li><strong>Main thread</strong> (via <code>Update()</code>):<ul>
+<li>Lê <code>m_PendingReloads</code> sob <code>m_Mutex</code>, troca com vetor vazio</li>
+<li>Executa reload fora do lock</li>
+<li>Dispara callback de notificação</li>
+</ul>
+</li>
+</ul>
+<h2>Debounce</h2>
+<p>Três estados por arquivo monitorado:</p>
+<ol>
+<li><strong>Unmodified</strong> (<code>debounceStart == -1</code>): timestamp estável entre polls</li>
+<li><strong>First change detected</strong> (<code>debounceStart &gt;= 0</code>): timestamp mudou, timer inicia</li>
+<li><strong>Debounce elapsed</strong> (<code>&gt;= debounceMs</code> sem novas mudanças): reload é enfileirado</li>
+</ol>
+<h2>Testes</h2>
+<p>5 testes em <code>tests/test_assetmanager.cpp</code>:</p>
+<table>
+<thead>
+<tr>
+<th>Teste</th>
+<th>O que verifica</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>default state is not running</code></td>
+<td><code>IsRunning() == false</code> sem <code>Start()</code></td>
+</tr>
+<tr>
+<td><code>Start/Stop lifecycle</code></td>
+<td>Transições de estado, idempotência de <code>Stop()</code></td>
+</tr>
+<tr>
+<td><code>Start twice does not crash</code></td>
+<td><code>Start()</code> → <code>Start()</code> → <code>Stop()</code></td>
+</tr>
+<tr>
+<td><code>Update is safe when not running</code></td>
+<td><code>Update()</code> antes de <code>Start()</code> e após <code>Stop()</code></td>
+</tr>
+<tr>
+<td><code>integration reload and callback</code></td>
+<td>Poll descobre mudança, <code>Update()</code> recarrega, callback dispara</td>
+</tr>
+</tbody></table>
+<h2>Uso no Editor</h2>
+<pre><code class="language-cpp">// Inicialização
+m_HotReloader.Start(&amp;m_AssetManager, &quot;assets/processed/&quot;, 100);
+m_HotReloader.SetNotificationCallback([](const HotReloadedAsset&amp; a) {
+    EditorToast::Show(ICON_FA_SYNC &quot; {} recarregado&quot;, a.name);
+});
+
+// A cada frame (main thread)
+m_HotReloader.Update();
+</code></pre>
+
+</article>

@@ -1,0 +1,133 @@
+<article class="doc-article" data-slug="planning/m2-visual-editing-assets/2.2-drag-and-drop">
+<h1>🔧 Drag-and-Drop</h1>
+<blockquote>
+<p><strong>Milestone:</strong> M2 — Visual Editing &amp; Assets
+<strong>Namespace:</strong> <code>Caffeine::Editor</code>
+<strong>Arquivos:</strong> <code>src/editor/DragDropSystem.hpp</code>, <code>src/editor/DragDropSystem.cpp</code>
+<strong>Status:</strong> 📅 Planeado
+<strong>RF:</strong> RF6.2</p>
+</blockquote>
+<hr>
+<h2>Visão Geral</h2>
+<p>O sistema de Drag-and-Drop (Arrastar e Largar) é o principal facilitador de fluxo de trabalho no Caffeine Studio. Ele permite que os utilizadores interajam de forma fluida entre os diferentes painéis do editor, como o Asset Browser, o Viewport, o Inspector e o Hierarchy. </p>
+<p>Esta funcionalidade visa reduzir o número de cliques necessários para tarefas comuns, como instanciar entidades, atribuir texturas a componentes ou reorganizar a hierarquia de uma cena. A implementação utiliza as APIs nativas do ImGui para gerir o estado de arrasto e os payloads de dados entre widgets.</p>
+<hr>
+<h2>Implementação</h2>
+<p>O sistema baseia-se em <code>DragSource</code> (origem) e <code>DropTarget</code> (destino), identificados por strings de tipo únicas (ex: <code>ASSET_BROWSER_ITEM</code>).</p>
+<h3>Fluxos de Trabalho Principais</h3>
+<ol>
+<li><strong>Asset Browser → Viewport</strong>: Cria uma nova entidade na posição do rato com um <code>SpriteRenderer</code> se o asset for uma imagem.</li>
+<li><strong>Asset Browser → Inspector</strong>: Atribui um asset (Textura, Shader, Material) a um campo específico de um componente.</li>
+<li><strong>Hierarchy → Hierarchy</strong>: Reorganiza a árvore ECS, alterando relações pai/filho.</li>
+</ol>
+<h3>Código de Exemplo (C++)</h3>
+<pre><code class="language-cpp">namespace Caffeine::Editor {
+
+    struct DragDropPayload {
+        std::string Type;
+        void* Data;
+        size_t DataSize;
+    };
+
+    class DragDropManager {
+    public:
+        // Define um item como arrastável
+        static void Source(const std::string&amp; type, const void* data, size_t size, const std::string&amp; previewText) {
+            if (ImGui::BeginDragDropSource()) {
+                ImGui::SetDragDropPayload(type.c_str(), data, size);
+                ImGui::Text(&quot;%s&quot;, previewText.c_str());
+                ImGui::EndDragDropSource();
+            }
+        }
+
+        // Define uma área como recetora
+        template&lt;typename T&gt;
+        static T* Target(const std::string&amp; type) {
+            if (ImGui::BeginDragDropTarget()) {
+                if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload(type.c_str())) {
+                    return static_cast&lt;T*&gt;(payload-&gt;Data);
+                }
+                ImGui::EndDragDropTarget();
+            }
+            return nullptr;
+        }
+    };
+}
+</code></pre>
+<h3>Integração no Viewport</h3>
+<pre><code class="language-cpp">// No loop de renderização do Viewport
+if (AssetMetadata* asset = DragDropManager::Target&lt;AssetMetadata&gt;(&quot;ASSET_ITEM&quot;)) {
+    if (asset-&gt;Type == AssetType::Texture) {
+        Entity e = scene.CreateEntity(asset-&gt;Name);
+        auto&amp; sprite = e.AddComponent&lt;SpriteRenderer&gt;();
+        sprite.Texture = asset-&gt;Handle;
+        
+        // Posicionar na coordenada do mundo correspondente ao rato
+        auto&amp; transform = e.GetComponent&lt;Transform&gt;();
+        transform.Position = m_ViewportCamera.ScreenToWorld(ImGui::GetMousePos());
+    }
+}
+</code></pre>
+<hr>
+<h2>Decisões de Design</h2>
+<table>
+<thead>
+<tr>
+<th>Decisão</th>
+<th>Justificativa</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Preview Visual durante Drag</td>
+<td>Mostrar o nome ou ícone do asset junto ao cursor confirma ao utilizador o que está a ser movido.</td>
+</tr>
+<tr>
+<td>Validação de Tipo no Destino</td>
+<td>O campo do Inspector só deve aceitar o &quot;Drop&quot; se o tipo do asset (ex: .png) for compatível com o campo (ex: Texture Slot).</td>
+</tr>
+<tr>
+<td>Delayed Action</td>
+<td>O processamento do drop ocorre apenas no frame em que o botão do rato é solto, evitando operações pesadas durante o movimento.</td>
+</tr>
+</tbody></table>
+<hr>
+<h2>Critério de Aceitação</h2>
+<ul>
+<li><input disabled="" type="checkbox"> Arrastar uma textura do Asset Browser para o Viewport cria uma entidade com SpriteRenderer.</li>
+<li><input disabled="" type="checkbox"> Arrastar um asset para um campo compatível no Inspector (ex: campo &quot;Albedo&quot;) atualiza o valor do campo.</li>
+<li><input disabled="" type="checkbox"> Arrastar uma entidade no Hierarchy para cima de outra torna-a filha desta última.</li>
+<li><input disabled="" type="checkbox"> O cursor muda visualmente quando está sobre um destino válido.</li>
+<li><input disabled="" type="checkbox"> Tentar largar um asset num destino incompatível não executa qualquer ação e mostra feedback visual negativo.</li>
+</ul>
+<hr>
+<h2>Dependências</h2>
+<ul>
+<li><strong>Upstream:</strong> <code>Caffeine::Editor::AssetBrowser</code>, <code>Caffeine::Editor::Inspector</code></li>
+<li><strong>Downstream:</strong> <code>Caffeine::ECS::HierarchySystem</code></li>
+</ul>
+<hr>
+<h2>🔗 Tópicos Relacionados</h2>
+<table>
+<thead>
+<tr>
+<th>Tópico</th>
+<th>Descrição</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Asset Browser</td>
+<td>Fonte principal de itens para arrastar.</td>
+</tr>
+<tr>
+<td>ECS Core</td>
+<td>Gestão de entidades criadas via drag-and-drop.</td>
+</tr>
+</tbody></table>
+<hr>
+<h2>Referências</h2>
+<ul>
+<li>Dear ImGui Drag and Drop API Documentation</li>
+<li>UX patterns in Godot/Unity for asset placement.</li>
+</ul>
+
+</article>

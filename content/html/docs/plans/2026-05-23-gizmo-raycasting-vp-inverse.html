@@ -1,0 +1,508 @@
+<article class="doc-article" data-slug="docs/plans/2026-05-23-gizmo-raycasting-vp-inverse">
+<h1>Transform Gizmo Raycasting with VP⁻¹ Implementation Plan</h1>
+<blockquote>
+<p><strong>For Claude:</strong> REQUIRED SUB-SKILL: Use superpowers/executing-plans to implement this plan task-by-task.</p>
+</blockquote>
+<p><strong>Goal:</strong> Upgrade gizmo axis picking from screen-space distance to 3D raycasting via VP⁻¹ inverse matrix, eliminating foreshortening-related picking errors across all viewing angles.</p>
+<p><strong>Architecture:</strong> </p>
+<ol>
+<li>Compute VP⁻¹ once per gizmo render frame</li>
+<li>Convert mouse screen coords to 3D world-space ray via NDC + perspective divide</li>
+<li>Test ray intersection against finite axis segments (with world-space threshold)</li>
+<li>Replace <code>pointToLineDistance()</code> call in <code>intersectTest()</code> with proper ray-to-segment tests</li>
+<li>Keep existing drag/transform logic (still screen-delta based, which works fine)</li>
+</ol>
+<p><strong>Tech Stack:</strong> C++20, Mat4 (in-house), Vec3/Vec4, ImGui for mouse input</p>
+<p><strong>Critical Technical Notes:</strong></p>
+<ul>
+<li><strong>NDC Perspective Divide:</strong> <code>worldCoords = vpInverse * ndc4</code>, then <code>worldCoords /= worldCoords.w</code></li>
+<li><strong>Axis Segment Clipping:</strong> Clamp closest point on ray to axis segment <code>[0, gizmoSize]</code>, not infinite line</li>
+<li><strong>World-Space Threshold:</strong> Use ~0.05f units (not pixels). Future: multiply by camera distance for visual consistency</li>
+</ul>
+<hr>
+<h2>Task 1: Add <code>screenToWorldRay()</code> Helper Function</h2>
+<p><strong>Files:</strong></p>
+<ul>
+<li>Modify: <code>src/editor/TransformGizmo.hpp</code> (add function declaration)</li>
+<li>Modify: <code>src/editor/TransformGizmo.cpp</code> (add function implementation)</li>
+</ul>
+<p><strong>Step 1: Add function declaration to header</strong></p>
+<p>In <code>TransformGizmo.hpp</code>, add to private section after line 56:</p>
+<pre><code class="language-cpp">struct Ray3D {
+    Vec3 origin;
+    Vec3 direction;  // normalized
+};
+
+// Convert screen coordinates to 3D world-space ray via VP⁻¹
+Ray3D screenToWorldRay(const Vec2&amp; screenPos, const Mat4&amp; vpInverse, 
+                       const ImVec2&amp; viewportSize, const Vec3&amp; camPos);
+</code></pre>
+<p><strong>Step 2: Implement in TransformGizmo.cpp</strong></p>
+<p>Add this function after <code>pointToLineDistance()</code> (around line 510):</p>
+<pre><code class="language-cpp">TransformGizmo::Ray3D TransformGizmo::screenToWorldRay(
+    const Vec2&amp; screenPos, const Mat4&amp; vpInverse, 
+    const ImVec2&amp; viewportSize, const Vec3&amp; camPos) {
+    
+    // Convert screen coords to NDC [-1, 1]
+    f32 ndcX = (2.0f * screenPos.x) / viewportSize.x - 1.0f;
+    f32 ndcY = 1.0f - (2.0f * screenPos.y) / viewportSize.y;
+    
+    // Near plane point in NDC (z = -1 in OpenGL convention)
+    Vec4 ndcNear(ndcX, ndcY, -1.0f, 1.0f);
+    
+    // Unproject to world via vpInverse
+    Vec4 worldNear = vpInverse.transformVec4(ndcNear);
+    
+    // Perspective divide (CRITICAL: must normalize by w)
+    if (std::abs(worldNear.w) &gt; 0.0001f) {
+        worldNear.x /= worldNear.w;
+        worldNear.y /= worldNear.w;
+        worldNear.z /= worldNear.w;
+    }
+    
+    Vec3 rayOrigin = camPos;
+    Vec3 rayTarget(worldNear.x, worldNear.y, worldNear.z);
+    Vec3 rayDir = (rayTarget - rayOrigin).normalized();
+    
+    return Ray3D{rayOrigin, rayDir};
+}
+</code></pre>
+<p><strong>Step 3: Verify function signature matches usage pattern</strong></p>
+<p>Check: File compiles and Ray3D type is available in private scope.</p>
+<p>Run: <code>cd /home/pedro/repo/caffeine/build &amp;&amp; make doppio 2&gt;&amp;1 | grep -E &quot;error|Ray3D&quot;</code></p>
+<p>Expected: No errors mentioning Ray3D or screenToWorldRay.</p>
+<p><strong>Step 4: Commit</strong></p>
+<pre><code class="language-bash">cd /home/pedro/repo/caffeine
+git add src/editor/TransformGizmo.hpp src/editor/TransformGizmo.cpp
+git commit -m &quot;feat(gizmo): add screenToWorldRay helper for VP-inverse raycasting&quot;
+</code></pre>
+<hr>
+<h2>Task 2: Add <code>rayToAxisSegmentDistance()</code> Function</h2>
+<p><strong>Files:</strong></p>
+<ul>
+<li>Modify: <code>src/editor/TransformGizmo.cpp</code> (new function)</li>
+</ul>
+<p><strong>Step 1: Understand the algorithm</strong></p>
+<p>Ray-to-segment distance:</p>
+<ol>
+<li>Ray defined by <code>rayOrigin + t * rayDir</code> (t ≥ 0)</li>
+<li>Axis segment from <code>axisOrigin</code> to <code>axisOrigin + axisDir * axisLength</code></li>
+<li>Find closest point on ray to axis segment via minimizing: <code>distance² = |ray(t) - axisSegment(s)|²</code></li>
+<li><strong>CRITICAL:</strong> Clamp <code>s</code> to <code>[0, axisLength]</code> (not infinite line)</li>
+</ol>
+<p><strong>Step 2: Add function declaration to header</strong></p>
+<p>In <code>TransformGizmo.hpp</code>, add after <code>screenToWorldRay</code>:</p>
+<pre><code class="language-cpp">// Compute closest distance from ray to finite axis segment
+// Returns distance and clamped parameter s on axis [0, axisLength]
+struct RayAxisTest {
+    f32 distance;
+    f32 t_ray;      // parameter on ray where closest point lies
+    f32 s_axis;     // parameter on axis [0, axisLength]
+};
+
+RayAxisTest rayToAxisSegmentDistance(
+    const Ray3D&amp; ray, 
+    const Vec3&amp; axisOrigin, const Vec3&amp; axisDir, f32 axisLength);
+</code></pre>
+<p><strong>Step 3: Implement in TransformGizmo.cpp</strong></p>
+<p>Add after <code>screenToWorldRay()</code>:</p>
+<pre><code class="language-cpp">TransformGizmo::RayAxisTest TransformGizmo::rayToAxisSegmentDistance(
+    const Ray3D&amp; ray, 
+    const Vec3&amp; axisOrigin, const Vec3&amp; axisDir, f32 axisLength) {
+    
+    // Vector from ray origin to axis origin
+    Vec3 w = axisOrigin - ray.origin;
+    
+    // Solve for closest points:
+    // ray(t) = rayOrigin + t * rayDir
+    // axis(s) = axisOrigin + s * axisDir, s ∈ [0, axisLength]
+    // Minimize: |ray(t) - axis(s)|²
+    
+    f32 a = ray.direction.dot(ray.direction);     // |rayDir|² = 1 (normalized)
+    f32 b = ray.direction.dot(axisDir);
+    f32 c = axisDir.dot(axisDir);
+    f32 d = ray.direction.dot(w);
+    f32 e = axisDir.dot(w);
+    
+    f32 denom = a * c - b * b;
+    f32 t_ray = 0.0f;
+    f32 s_axis = 0.0f;
+    
+    if (std::abs(denom) &gt; 1e-6f) {
+        t_ray = (b * e - c * d) / denom;
+        s_axis = (a * e - b * d) / denom;
+    } else {
+        // Rays are parallel; use perpendicular distance
+        s_axis = (std::abs(c) &gt; 1e-6f) ? (e / c) : 0.0f;
+    }
+    
+    // Clamp t_ray to positive direction (ray goes forward)
+    t_ray = std::max(0.0f, t_ray);
+    
+    // CRITICAL: Clamp s_axis to axis segment bounds [0, axisLength]
+    s_axis = std::max(0.0f, std::min(axisLength, s_axis));
+    
+    // Compute closest points
+    Vec3 closestOnRay = ray.origin + ray.direction * t_ray;
+    Vec3 closestOnAxis = axisOrigin + axisDir * s_axis;
+    
+    // Distance between them
+    f32 distance = (closestOnRay - closestOnAxis).length();
+    
+    return RayAxisTest{distance, t_ray, s_axis};
+}
+</code></pre>
+<p><strong>Step 4: Verify compilation</strong></p>
+<p>Run: <code>cd /home/pedro/repo/caffeine/build &amp;&amp; make doppio 2&gt;&amp;1 | grep -E &quot;error|undefined&quot;</code></p>
+<p>Expected: No errors about RayAxisTest or rayToAxisSegmentDistance.</p>
+<p><strong>Step 5: Commit</strong></p>
+<pre><code class="language-bash">cd /home/pedro/repo/caffeine
+git add src/editor/TransformGizmo.hpp src/editor/TransformGizmo.cpp
+git commit -m &quot;feat(gizmo): add rayToAxisSegmentDistance for finite axis picking&quot;
+</code></pre>
+<hr>
+<h2>Task 3: Refactor <code>intersectTest()</code> to Use Raycasting</h2>
+<p><strong>Files:</strong></p>
+<ul>
+<li>Modify: <code>src/editor/TransformGizmo.cpp</code> lines 389-416</li>
+</ul>
+<p><strong>Step 1: Understand current <code>intersectTest()</code> signature</strong></p>
+<p>Current call (line 122):</p>
+<pre><code class="language-cpp">m_hoveredAxis = intersectTest(mousePosGlm, screenPos, endX, endY, endZ, handleLen, ctx.gizmoMode, zDimmed, xCollapsed, yCollapsed, zCollapsed);
+</code></pre>
+<p>We need:</p>
+<ul>
+<li>Screen mouse position ✓</li>
+<li>Gizmo screen position ✓</li>
+<li>Projected axis endpoints (for visualization, not picking) - keep for reference</li>
+<li>Handle length in screen space - keep for visualization</li>
+<li><strong>NEW:</strong> VP⁻¹ matrix, camera position, viewport size, world-space axis positions</li>
+</ul>
+<p><strong>Step 2: Update <code>intersectTest()</code> signature</strong></p>
+<p>Replace the function declaration at line 52-55 in <code>TransformGizmo.hpp</code>:</p>
+<pre><code class="language-cpp">GizmoAxis intersectTest(const Vec2&amp; mousePos, 
+                        const Mat4&amp; vpInverse, const Vec3&amp; camPos,
+                        const ImVec2&amp; viewportSize,
+                        const Vec3&amp; axisX, const Vec3&amp; axisY, const Vec3&amp; axisZ,
+                        f32 axisLength,
+                        EditorContext::GizmoMode mode, bool zDimmed,
+                        bool xCollapsed, bool yCollapsed, bool zCollapsed);
+</code></pre>
+<p><strong>Step 3: Replace <code>intersectTest()</code> implementation</strong></p>
+<p>In <code>TransformGizmo.cpp</code> at line 389, replace the entire function with:</p>
+<pre><code class="language-cpp">GizmoAxis TransformGizmo::intersectTest(
+    const Vec2&amp; mousePos, 
+    const Mat4&amp; vpInverse, const Vec3&amp; camPos,
+    const ImVec2&amp; viewportSize,
+    const Vec3&amp; axisX, const Vec3&amp; axisY, const Vec3&amp; axisZ,
+    f32 axisLength,
+    EditorContext::GizmoMode mode, bool zDimmed,
+    bool xCollapsed, bool yCollapsed, bool zCollapsed) {
+    
+    // Test center first (close proximity in world units ~0.2f)
+    Vec3 gizmoOrigin = axisX; // All axes share same origin point
+    Ray3D ray = screenToWorldRay(mousePos, vpInverse, viewportSize, camPos);
+    
+    Vec3 toOrigin = gizmoOrigin - ray.origin;
+    f32 distToOrigin = (toOrigin - ray.direction * toOrigin.dot(ray.direction)).length();
+    if (distToOrigin &lt; 0.2f) {  // Center grab area (world units)
+        return GizmoAxis::Center;
+    }
+    
+    // World-space threshold for axis picking (0.05f units)
+    const f32 AXIS_THRESHOLD = 0.05f;
+    
+    // Test X axis
+    if (!xCollapsed) {
+        Vec3 axisDir = axisX.normalized();  // Direction from origin
+        RayAxisTest testX = rayToAxisSegmentDistance(ray, axisX, axisDir, axisLength);
+        if (testX.distance &lt; AXIS_THRESHOLD) {
+            return GizmoAxis::X;
+        }
+    }
+    
+    // Test Y axis
+    if (!yCollapsed) {
+        Vec3 axisDir = axisY.normalized();
+        RayAxisTest testY = rayToAxisSegmentDistance(ray, axisY, axisDir, axisLength);
+        if (testY.distance &lt; AXIS_THRESHOLD) {
+            return GizmoAxis::Y;
+        }
+    }
+    
+    // Test Z axis (respect zDimmed in 2D mode)
+    if (!zDimmed &amp;&amp; !zCollapsed &amp;&amp; mode != EditorContext::GizmoMode::None) {
+        Vec3 axisDir = axisZ.normalized();
+        RayAxisTest testZ = rayToAxisSegmentDistance(ray, axisZ, axisDir, axisLength);
+        if (testZ.distance &lt; AXIS_THRESHOLD) {
+            return GizmoAxis::Z;
+        }
+    }
+    
+    return GizmoAxis::None;
+}
+</code></pre>
+<p><strong>Step 4: Update call site in <code>onImGuiRender()</code></strong></p>
+<p>At line 122, replace:</p>
+<pre><code class="language-cpp">m_hoveredAxis = intersectTest(mousePosGlm, screenPos, endX, endY, endZ, handleLen, ctx.gizmoMode, zDimmed, xCollapsed, yCollapsed, zCollapsed);
+</code></pre>
+<p>With:</p>
+<pre><code class="language-cpp">// Build VP matrix for raycasting
+f32 sinY = std::sin(ctx.camYaw), cosY = std::cos(ctx.camYaw);
+f32 sinP = std::sin(ctx.camPitch), cosP = std::cos(ctx.camPitch);
+Vec3 camPos = ctx.camFocus + Vec3(sinY * cosP, -sinP, -cosY * cosP) * ctx.camDistance;
+Mat4 view = Mat4::lookAt(camPos, ctx.camFocus, Vec3(0.0f, 1.0f, 0.0f));
+f32 aspect = vpSize.x / std::max(vpSize.y, 1.0f);
+Mat4 proj = Mat4::perspective(1.0472f, aspect, 0.1f, 10000.0f);
+Mat4 vp = proj * view;
+Mat4 vpInverse = vp.inverted();
+
+// World-space axis vectors (from entity origin, in world units)
+Vec3 entityPos = transform-&gt;position;
+Vec3 worldAxisX = entityPos + Vec3(handleWorld, 0.0f, 0.0f);
+Vec3 worldAxisY = entityPos + Vec3(0.0f, handleWorld, 0.0f);
+Vec3 worldAxisZ = entityPos + Vec3(0.0f, 0.0f, handleWorld);
+
+// Perform raycasting intersection test
+m_hoveredAxis = intersectTest(
+    mousePosGlm, vpInverse, camPos, vpSize,
+    worldAxisX, worldAxisY, worldAxisZ, handleWorld,
+    ctx.gizmoMode, zDimmed, xCollapsed, yCollapsed, zCollapsed);
+</code></pre>
+<p><strong>Step 5: Compile and verify</strong></p>
+<p>Run: <code>cd /home/pedro/repo/caffeine/build &amp;&amp; make doppio 2&gt;&amp;1 | tail -20</code></p>
+<p>Expected: Successful build with no errors. May have warnings about unused variables (that&#39;s OK for now).</p>
+<p><strong>Step 6: Commit</strong></p>
+<pre><code class="language-bash">cd /home/pedro/repo/caffeine
+git add src/editor/TransformGizmo.hpp src/editor/TransformGizmo.cpp
+git commit -m &quot;feat(gizmo): integrate raycasting into intersectTest for world-space picking&quot;
+</code></pre>
+<hr>
+<h2>Task 4: Manual Testing &amp; Visual Validation</h2>
+<p><strong>Files:</strong></p>
+<ul>
+<li>None (testing only)</li>
+</ul>
+<p><strong>Step 1: Build and launch editor</strong></p>
+<pre><code class="language-bash">cd /home/pedro/repo/caffeine/build
+make doppio -j8
+./doppio
+</code></pre>
+<p><strong>Step 2: Create a test scene</strong></p>
+<ol>
+<li>Open/create a scene with a simple cube or mesh</li>
+<li>Enter 3D viewport (click &quot;3D&quot; button top-right)</li>
+<li>Rotate the camera aggressively (yaw ~90°, pitch varying)</li>
+<li>Check that gizmo axes are visible and centered on entity</li>
+</ol>
+<p><strong>Step 3: Test axis picking</strong></p>
+<p>For each axis (X, Y, Z):</p>
+<ol>
+<li>Hover over the axis line in screen space</li>
+<li><strong>Expect:</strong> Axis turns yellow (hovered)</li>
+<li><strong>Critical test:</strong> Move camera to an angle where the axis is heavily foreshortened (pointing nearly at camera)<ul>
+<li><strong>Old behavior:</strong> Click becomes impossible or unreliable</li>
+<li><strong>New behavior:</strong> Click should still work reliably (raycasting in world space)</li>
+</ul>
+</li>
+<li>Try clicking and dragging along each axis<ul>
+<li>Entity should move along that axis in world space</li>
+</ul>
+</li>
+</ol>
+<p><strong>Step 4: Test center grab</strong></p>
+<ol>
+<li>Hover over the center (gizmo origin)</li>
+<li><strong>Expect:</strong> Entity stays in place, no axis selected</li>
+<li>Click near center (not on any axis)</li>
+<li><strong>Expect:</strong> Gizmo doesn&#39;t activate (Center grab not fully implemented yet, but shouldn&#39;t crash)</li>
+</ol>
+<p><strong>Step 5: Document observations</strong></p>
+<p>Write down:</p>
+<ul>
+<li>✓ Does hover detection work at all angles?</li>
+<li>✓ Does picking remain stable when axes are foreshortened?</li>
+<li>✓ Any visual glitches or unexpected behavior?</li>
+</ul>
+<hr>
+<h2>Task 5: Handle Edge Cases &amp; Debug</h2>
+<p><strong>Files:</strong></p>
+<ul>
+<li>Modify: <code>src/editor/TransformGizmo.cpp</code> (debugging &amp; fixes)</li>
+</ul>
+<p><strong>Step 1: Verify perspective divide correctness</strong></p>
+<p>Add temporary debug output in <code>screenToWorldRay()</code> after perspective divide:</p>
+<pre><code class="language-cpp">// DEBUG: Verify perspective divide worked
+if (std::abs(worldNear.w) &gt; 0.0001f) {
+    worldNear.x /= worldNear.w;
+    worldNear.y /= worldNear.w;
+    worldNear.z /= worldNear.w;
+    // Optional: printf(&quot;[DEBUG] World point after divide: (%.3f, %.3f, %.3f) w=%.3f\n&quot;, 
+    //     worldNear.x, worldNear.y, worldNear.z, worldNear.w);
+}
+</code></pre>
+<p><strong>Step 2: Check VP⁻¹ validity</strong></p>
+<p>Before calling <code>intersectTest()</code>, verify inversion succeeded:</p>
+<pre><code class="language-cpp">if (!vp.inverted().isValid()) {
+    // Fallback: skip raycasting this frame
+    m_hoveredAxis = GizmoAxis::None;
+} else {
+    // ... perform raycasting
+}
+</code></pre>
+<p>(Add <code>Mat4::isValid()</code> method if needed: checks <code>det(M) ≠ 0</code>)</p>
+<p><strong>Step 3: Clamp axis length in world space</strong></p>
+<p>Verify <code>handleWorld</code> is reasonable (e.g., &gt; 0.01f). If it&#39;s too small, raycasting becomes difficult:</p>
+<pre><code class="language-cpp">if (handleWorld &lt; 0.01f) {
+    handleWorld = 0.01f;  // Minimum axis length for picking
+}
+</code></pre>
+<p><strong>Step 4: Recompile and test</strong></p>
+<pre><code class="language-bash">cd /home/pedro/repo/caffeine/build &amp;&amp; make doppio -j8
+./doppio
+</code></pre>
+<p>Run the same visual tests from Task 4.</p>
+<p><strong>Step 5: Remove debug output if successful</strong></p>
+<p>If tests pass, comment out or remove debug printf statements.</p>
+<p><strong>Step 6: Commit</strong></p>
+<pre><code class="language-bash">cd /home/pedro/repo/caffeine
+git add src/editor/TransformGizmo.cpp src/editor/TransformGizmo.hpp
+git commit -m &quot;fix(gizmo): add edge case handling for VP inverse and threshold validation&quot;
+</code></pre>
+<hr>
+<h2>Task 6: Performance &amp; Threshold Tuning</h2>
+<p><strong>Files:</strong></p>
+<ul>
+<li>Modify: <code>src/editor/TransformGizmo.cpp</code> (constants)</li>
+</ul>
+<p><strong>Step 1: Measure performance impact</strong></p>
+<p>Profile the <code>intersectTest()</code> call:</p>
+<ul>
+<li>Ray casting 3 axes per frame</li>
+<li>Ray-segment distance × 3 = ~9 dot products + 3 sqrts</li>
+<li>Should be <strong>negligible</strong> (~0.01ms for gizmo picking alone)</li>
+</ul>
+<p>If you notice frame drops:</p>
+<ul>
+<li>Check if VP⁻¹ inversion is being called unnecessarily</li>
+<li>Consider caching VP⁻¹ in EditorContext (Task 7 follow-up)</li>
+</ul>
+<p><strong>Step 2: Tune AXIS_THRESHOLD</strong></p>
+<p>Current: <code>0.05f</code> world units</p>
+<p>Test different distances:</p>
+<ul>
+<li>Too small (0.01f): Hard to click, especially from distance</li>
+<li>Too large (0.2f): Can click &quot;empty&quot; space and activate gizmo</li>
+<li>Sweet spot: ~0.05f-0.1f</li>
+</ul>
+<p><strong>If camera is far away and gizmo is hard to click:</strong>
+Optionally implement distance-based threshold scaling:</p>
+<pre><code class="language-cpp">f32 distToCam = (axisX - camPos).length();
+f32 effectiveThreshold = AXIS_THRESHOLD * (distToCam * 0.01f);  // Scale by distance
+</code></pre>
+<p>For now, keep it simple: <code>0.05f</code> fixed.</p>
+<p><strong>Step 3: Commit threshold tuning</strong></p>
+<pre><code class="language-bash">cd /home/pedro/repo/caffeine
+git add src/editor/TransformGizmo.cpp
+git commit -m &quot;perf(gizmo): tune raycasting threshold and verify performance&quot;
+</code></pre>
+<hr>
+<h2>Task 7: (Follow-up) Cache VP⁻¹ in EditorContext</h2>
+<p><strong>Files:</strong></p>
+<ul>
+<li>Modify: <code>src/editor/EditorContext.hpp</code> (add fields)</li>
+<li>Modify: <code>src/editor/SceneViewport.cpp</code> (populate cache)</li>
+</ul>
+<p><strong>Context:</strong> The VP and VP⁻¹ matrices are rebuilt for every gizmo frame (and grid, mesh, etc.). Caching them in EditorContext avoids recomputation.</p>
+<p><strong>Files to modify:</strong></p>
+<ul>
+<li><code>EditorContext.hpp</code>: Add <code>Mat4 cachedVP</code>, <code>Mat4 cachedVPInverse</code></li>
+<li><code>onImGuiRender()</code> in SceneViewport: Build VP/VP⁻¹ once per frame and cache in ctx</li>
+</ul>
+<p><strong>This is a performance optimization—do it after raycasting is fully working.</strong></p>
+<hr>
+<h2>Summary</h2>
+<table>
+<thead>
+<tr>
+<th>Task</th>
+<th>What</th>
+<th>Time</th>
+<th>Files</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>1</td>
+<td>Add <code>screenToWorldRay()</code></td>
+<td>5 min</td>
+<td>TransformGizmo.hpp/cpp</td>
+</tr>
+<tr>
+<td>2</td>
+<td>Add <code>rayToAxisSegmentDistance()</code></td>
+<td>10 min</td>
+<td>TransformGizmo.hpp/cpp</td>
+</tr>
+<tr>
+<td>3</td>
+<td>Refactor <code>intersectTest()</code> + integrate raycasting</td>
+<td>15 min</td>
+<td>TransformGizmo.hpp/cpp</td>
+</tr>
+<tr>
+<td>4</td>
+<td>Manual testing &amp; validation</td>
+<td>10 min</td>
+<td>(test only)</td>
+</tr>
+<tr>
+<td>5</td>
+<td>Edge case handling &amp; debug</td>
+<td>10 min</td>
+<td>TransformGizmo.cpp</td>
+</tr>
+<tr>
+<td>6</td>
+<td>Performance tuning &amp; threshold</td>
+<td>5 min</td>
+<td>TransformGizmo.cpp</td>
+</tr>
+<tr>
+<td>7</td>
+<td>(Follow-up) VP⁻¹ caching in EditorContext</td>
+<td>10 min</td>
+<td>EditorContext + SceneViewport</td>
+</tr>
+</tbody></table>
+<p><strong>Total: ~65 minutes for Tasks 1-6 (full working raycasting gizmo)</strong></p>
+<p><strong>Key Deliverables:</strong></p>
+<ul>
+<li>✅ Screen-to-world raycasting via VP⁻¹</li>
+<li>✅ Finite axis-segment collision detection</li>
+<li>✅ World-space threshold for stable picking</li>
+<li>✅ Translate gizmo with accurate axis picking at any viewing angle</li>
+<li>✅ Ready for pattern-matching to Rotate/Scale modes</li>
+</ul>
+<hr>
+<h2>Testing Checklist</h2>
+<ul>
+<li><input disabled="" type="checkbox"> Gizmo renders at entity position in 3D</li>
+<li><input disabled="" type="checkbox"> Hover detection works at all camera angles</li>
+<li><input disabled="" type="checkbox"> Hover detection reliable when axes are foreshortened</li>
+<li><input disabled="" type="checkbox"> Axis drag moves entity along correct world axis</li>
+<li><input disabled="" type="checkbox"> Center grab area works (or fails gracefully)</li>
+<li><input disabled="" type="checkbox"> No crashes when VP⁻¹ inversion fails (fallback to no-hover)</li>
+<li><input disabled="" type="checkbox"> Performance acceptable (no frame drops from raycasting)</li>
+<li><input disabled="" type="checkbox"> Threshold tuning feels right (not too sensitive, not too hard)</li>
+</ul>
+<hr>
+<h2>Next Steps After This Plan</h2>
+<ol>
+<li><strong>Pattern-match to Rotate/Scale modes</strong> (same raycasting logic)</li>
+<li><strong>Implement center grab</strong> (move entity freely on XY plane)</li>
+<li><strong>Cache VP/VP⁻¹ in EditorContext</strong> (performance optimization)</li>
+<li><strong>Add Orthographic Camera for Mode2D/Isometric</strong> (use Mat4::ortho)</li>
+<li><strong>VP matrix cache &amp; reuse</strong> across grid, gizmo, mesh rendering</li>
+</ol>
+
+</article>

@@ -1,0 +1,174 @@
+<article class="doc-article" data-slug="planning/m4-advanced-tools-polish/4.3-material-shader-editor">
+<h1>🔧 Material &amp; Shader Editor</h1>
+<blockquote>
+<p><strong>Milestone:</strong> M4 — Advanced Tools &amp; Polish
+<strong>Namespace:</strong> <code>Caffeine::Editor</code>
+<strong>Arquivos:</strong> <code>src/editor/ShaderEditor.hpp</code>, <code>src/editor/ShaderEditor.cpp</code>
+<strong>Status:</strong> 📅 Planeado
+<strong>RF:</strong> RF6.3</p>
+</blockquote>
+<hr>
+<h2>Visão Geral</h2>
+<p>O Material &amp; Shader Editor é a ferramenta de criação visual e técnica para a aparência dos objetos no Caffeine Studio. Ele oferece um equilíbrio entre a facilidade de uso de um editor de grafos (nodos) e o controlo total de um editor de código HLSL/GLSL. Os utilizadores podem criar materiais complexos ligando texturas, cores e operações matemáticas que determinam como a luz interage com a superfície.</p>
+<p>A característica principal é a pré-visualização em tempo real. Qualquer alteração no grafo ou no código é compilada instantaneamente em background, refletindo-se num objeto de teste (esfera, cubo ou malha personalizada) dentro do editor. Este feedback imediato é crucial para o processo iterativo de artistas técnicos.</p>
+<hr>
+<h2>Implementação</h2>
+<p>O editor de shaders gere dois modos principais: o Visual Graph e o Text Editor. Ambos resultam num recurso de <code>Material</code> que é consumido pelo Renderer.</p>
+<h3>Estrutura do Grafo de Shaders</h3>
+<pre><code class="language-cpp">namespace Caffeine::Editor {
+
+enum class NodeType {
+    TextureSample,
+    ColorConstant,
+    FloatConstant,
+    Multiply,
+    Add,
+    Lerp,
+    Time,
+    VertexPosition,
+    OutputPBR
+};
+
+struct NodePin {
+    std::string name;
+    std::string type; // ex: &quot;vec3&quot;, &quot;float&quot;
+    int connectionID = -1;
+};
+
+class ShaderNode {
+public:
+    uint32_t ID;
+    std::string title;
+    NodeType type;
+    std::vector&lt;NodePin&gt; inputs;
+    std::vector&lt;NodePin&gt; outputs;
+    
+    virtual std::string GenerateCode() = 0;
+};
+
+class ShaderGraph {
+public:
+    std::vector&lt;Ref&lt;ShaderNode&gt;&gt; m_nodes;
+    std::vector&lt;std::pair&lt;int, int&gt;&gt; m_connections;
+
+    std::string CompileToGLSL();
+    std::string CompileToHLSL();
+};
+
+class MaterialEditorPanel : public EditorPanel {
+public:
+    MaterialEditorPanel();
+    void OnImGuiRender() override;
+
+private:
+    void RenderGraphCanvas();
+    void RenderInspector(); // Propriedades expostas (sliders, etc)
+    void RenderPreviewWindow();
+    void RecompileShader();
+
+    Ref&lt;Material&gt; m_currentMaterial;
+    ShaderGraph m_activeGraph;
+    char m_codeBuffer[1024 * 16]; // Para modo texto
+};
+
+} // namespace Caffeine::Editor
+</code></pre>
+<h3>Exemplo de Geração de Código a partir de Nodos</h3>
+<pre><code class="language-cpp">std::string ShaderNode_Multiply::GenerateCode() {
+    std::string inA = inputs[0].connectionID != -1 ? GetConnectedVar(0) : &quot;1.0&quot;;
+    std::string inB = inputs[1].connectionID != -1 ? GetConnectedVar(1) : &quot;1.0&quot;;
+    return fmt::format(&quot;vec4 var_{} = {} * {};&quot;, ID, inA, inB);
+}
+</code></pre>
+<h3>Diagrama da Interface Visual (ASCII)</h3>
+<pre><code>┌─────────────────────────────────────────────────────────────┐
+│ Material: &quot;M_Player_Armor&quot;        [Compile] [Save] [Mode:💠] │
+├───────────────────────────────┬─────────────────────────────┤
+│ Shader Graph (Canvas)         │ Preview (3D Viewport)      │
+│                               │                             │
+│  ┌────────────┐               │      .--------.             │
+│  │ Texture    │               │    .&#39;          &#39;.           │
+│  ├────────────┤               │   /   PREVIEW    \          │
+│  │ [RGB] ───○─┼─────┐         │  |    SPHERE      |         │
+│  └────────────┘     │         │   \              /          │
+│               ┌─────▼──────┐  │    &#39;.          .&#39;           │
+│  ┌────────────┤ Multiply   │  │      &#39;--------&#39;             │
+│  │ Color      ├────────────┤  ├─────────────────────────────┤
+│  ├────────────┤ [Out] ───○─┼──┤ Inspector                   │
+│  │ [RGB] ───○─┼────────────┘  │  - Albedo: [🎨]             │
+│  └────────────┘               │  - Metallic: [---o---] 0.8  │
+│                               │  - Roughness: [---o--] 0.2  │
+└───────────────────────────────┴─────────────────────────────┘
+</code></pre>
+<hr>
+<h2>Decisões de Design</h2>
+<table>
+<thead>
+<tr>
+<th>Decisão</th>
+<th>Justificativa</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Abstração por Grafo</td>
+<td>Permite que artistas criem shaders complexos sem conhecimentos de programação de baixo nível.</td>
+</tr>
+<tr>
+<td>Geração de Código Multi-API</td>
+<td>O grafo é compilado para uma representação intermédia que gera GLSL ou HLSL conforme o backend (Vulkan/DX12).</td>
+</tr>
+<tr>
+<td>Compilação em Background</td>
+<td>Evita &quot;freezes&quot; no UI enquanto o compilador do driver de vídeo está a processar.</td>
+</tr>
+<tr>
+<td>Materiais Instanciados</td>
+<td>O editor permite criar &quot;Material Instances&quot; que partilham o mesmo shader mas têm parâmetros diferentes, poupando memória.</td>
+</tr>
+</tbody></table>
+<hr>
+<h2>Critério de Aceitação</h2>
+<ul>
+<li><input disabled="" type="checkbox"> Criação de shaders via interface de nodos com suporte a ligações de tipos compatíveis.</li>
+<li><input disabled="" type="checkbox"> Editor de texto com syntax highlighting para edição direta de código.</li>
+<li><input disabled="" type="checkbox"> Janela de pré-visualização 3D/2D que atualiza instantaneamente.</li>
+<li><input disabled="" type="checkbox"> Lista de propriedades expostas editáveis via sliders e color pickers.</li>
+<li><input disabled="" type="checkbox"> Deteção e exibição de erros de compilação com indicação da linha ou nodo problemático.</li>
+</ul>
+<hr>
+<h2>Dependências</h2>
+<ul>
+<li><strong>Upstream:</strong> <code>docs/rendering/rhi.md</code> (necessário para a gestão de pipelines e shaders)</li>
+<li><strong>Downstream:</strong> <code>docs/editor/scene-editor.md</code> (materiais são aplicados a entidades na cena)</li>
+</ul>
+<hr>
+<h2>🔗 Tópicos Relacionados</h2>
+<table>
+<thead>
+<tr>
+<th>Tópico</th>
+<th>Descrição</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>RHI (Rendering Hardware Interface)</td>
+<td>Como o motor lida com os shaders compilados no hardware.</td>
+</tr>
+<tr>
+<td>Asset Pipeline</td>
+<td>Conversão de texturas e shaders em formatos binários <code>.caf</code>.</td>
+</tr>
+<tr>
+<td>Post-Processing</td>
+<td>Shaders especiais que correm em ecran total.</td>
+</tr>
+</tbody></table>
+<hr>
+<h2>Referências</h2>
+<ul>
+<li>Documentação da biblioteca ImNodes para ImGui.</li>
+<li>Padrões de shading PBR (Physically Based Rendering).</li>
+<li>Especificações do compilador de shaders glslang.</li>
+</ul>
+
+</article>

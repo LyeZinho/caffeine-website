@@ -1,0 +1,130 @@
+<article class="doc-article" data-slug="planning/terrain/7.5-gpu-compute">
+<h1>7.5 — GPU Compute (Noise + Erosão)</h1>
+<blockquote>
+<p><strong>Fase:</strong> 11 · <strong>Prioridade:</strong> Baixa · <strong>Esforço:</strong> Alto
+<strong>Depende de:</strong> Fase 5 (RHI GPU), 7.1 (algoritmos CPU de referência)
+<strong>Quando fazer:</strong> Resolução ≥ 513² ou erosão &gt; 100 iterações com FPS aceitável em CPU</p>
+</blockquote>
+<hr>
+<h2>Objetivo</h2>
+<p>Mover geração procedural pesada (noise fBm, erosão hídrica) para <strong>compute shaders</strong>, reduzindo tempo de Generate Terrain de segundos para milissegundos em heightmaps grandes.</p>
+<hr>
+<h2>Escopo Inicial</h2>
+<table>
+<thead>
+<tr>
+<th>Algoritmo</th>
+<th align="center">GPU</th>
+<th align="center">CPU fallback</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>fBm noise (todas as variantes)</td>
+<td align="center">✅</td>
+<td align="center">✅</td>
+</tr>
+<tr>
+<td>Domain warp</td>
+<td align="center">✅</td>
+<td align="center">✅</td>
+</tr>
+<tr>
+<td>Thermal erosion</td>
+<td align="center">✅</td>
+<td align="center">✅</td>
+</tr>
+<tr>
+<td>Hydraulic erosion</td>
+<td align="center">⚠️ Parcial</td>
+<td align="center">✅</td>
+</tr>
+<tr>
+<td>Auto splat</td>
+<td align="center">❌ v1</td>
+<td align="center">✅</td>
+</tr>
+<tr>
+<td>Fault lines / cliffs</td>
+<td align="center">❌ v1</td>
+<td align="center">✅</td>
+</tr>
+</tbody></table>
+<hr>
+<h2>Arquitetura</h2>
+<pre><code>TerrainGenerator::generate()
+    if (device &amp;&amp; settings.useGpuGeneration &amp;&amp; res &gt;= threshold)
+        TerrainGpuGenerator::dispatch(heightmapBuffer, settings)
+    else
+        pipeline CPU existente
+</code></pre>
+<h3>Recursos GPU</h3>
+<pre><code class="language-cpp">struct TerrainGpuGenerator {
+    RHI::Buffer* heightmapBuffer;   // SSBO, R32_FLOAT
+    RHI::Buffer* splatBuffer;       // opcional, RGBA32F
+    RHI::Pipeline* noisePipeline;
+    RHI::Pipeline* erosionPipeline;
+};
+</code></pre>
+<h3>Shaders (novos)</h3>
+<pre><code>src/render/shaders/terrain_gen_noise.comp
+src/render/shaders/terrain_gen_erosion.comp
+</code></pre>
+<hr>
+<h2>Pipeline Compute</h2>
+<pre><code>1. Upload heightmap inicial (flat ou seed buffer)
+2. Dispatch noise.comp  (workgroup 8×8)
+3. Dispatch warp.comp   (opcional)
+4. Loop N: erosion.comp
+5. Readback ou usar buffer direto para mesh generation
+</code></pre>
+<h3>Evitar readback</h3>
+<p>Ideal: <strong>mesh generation também no GPU</strong> (geometry shader / tessellation) — fase futura.</p>
+<p>Mínimo viável: readback só após geração completa → <code>TerrainHeightmap::heights()</code> para <code>TerrainMeshBuilder</code>.</p>
+<hr>
+<h2>Parâmetros UBO</h2>
+<pre><code class="language-glsl">layout(binding = 0) uniform TerrainGenParams {
+    uvec2 resolution;
+    uint  seed;
+    uint  octaves;
+    float persistence;
+    float lacunarity;
+    float amplitude;
+    float baseHeight;
+    float noiseScale;
+    uint  noiseType;      // 0=Perlin, 1=Simplex, ...
+    uint  erosionIters;
+    float thermalTalus;
+};
+</code></pre>
+<hr>
+<h2>Integração RHI</h2>
+<p>Verificar suporte em <code>RenderDevice</code>:</p>
+<ul>
+<li><input disabled="" type="checkbox"> <code>createBuffer</code> com <code>Storage | TransferDst | TransferSrc</code></li>
+<li><input disabled="" type="checkbox"> <code>dispatchCompute(pipeline, groupsX, groupsY, groupsZ)</code></li>
+<li><input disabled="" type="checkbox"> Barriers entre compute e transfer</li>
+</ul>
+<p>Se SDL_GPU não expuser compute na versão atual → adiar fase ou usar fragment shader fullscreen pass como fallback.</p>
+<hr>
+<h2>Editor</h2>
+<ul>
+<li>Checkbox <strong>Use GPU Generation</strong> (só visível se <code>device-&gt;supportsCompute()</code>)</li>
+<li>Benchmark label: <code>Generated in 12.4 ms (GPU)</code> vs <code>1.2 s (CPU)</code></li>
+</ul>
+<hr>
+<h2>Critérios de Aceitação</h2>
+<ul>
+<li><input disabled="" type="checkbox"> Noise fBm GPU produz resultado visualmente similar ao CPU (tolerância ±2%)</li>
+<li><input disabled="" type="checkbox"> 257² generate &lt; 100 ms em GPU dedicada</li>
+<li><input disabled="" type="checkbox"> Fallback CPU automático se compute indisponível</li>
+<li><input disabled="" type="checkbox"> Sem leak de buffers GPU no shutdown (corrigir UAF em <code>TerrainGpuTextures</code> primeiro)</li>
+</ul>
+<hr>
+<h2>Riscos</h2>
+<ul>
+<li>Divergência CPU/GPU entre plataformas (SPIR-V vs DXBC)</li>
+<li>Debug mais difícil — manter path CPU sempre funcional</li>
+<li>Readback stall — perfil com timestamp queries</li>
+</ul>
+
+</article>

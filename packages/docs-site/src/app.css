@@ -1,0 +1,64 @@
+:root {
+  color-scheme: dark light;
+  --bg: #0f1117;
+  --fg: #e8eaef;
+  --muted: #9aa3b2;
+  --accent: #c77dff;
+  --border: #2a3142;
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--fg);
+  line-height: 1.55;
+}
+
+a {
+  color: var(--accent);
+}
+
+.layout {
+  display: grid;
+  grid-template-columns: 280px 1fr;
+  min-height: 100vh;
+}
+
+nav {
+  border-right: 1px solid var(--border);
+  padding: 1rem;
+  overflow: auto;
+}
+
+main {
+  padding: 2rem 2.5rem;
+  max-width: 52rem;
+}
+
+.doc-article :is(h1, h2, h3) {
+  line-height: 1.2;
+}
+
+.doc-article pre {
+  overflow: auto;
+  padding: 0.75rem 1rem;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+}
+
+.doc-article table {
+  border-collapse: collapse;
+  width: 100%;
+}
+
+.doc-article th,
+.doc-article td {
+  border: 1px solid var(--border);
+  padding: 0.35rem 0.5rem;
+}
+
+.muted {
+  color: var(--muted);
+  font-size: 0.9rem;
+}

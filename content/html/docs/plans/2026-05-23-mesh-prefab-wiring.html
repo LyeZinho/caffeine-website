@@ -1,0 +1,158 @@
+<article class="doc-article" data-slug="docs/plans/2026-05-23-mesh-prefab-wiring">
+<h1>MESH &amp; PREFAB ASSET PIPELINE - ANÁLISE COMPLETA &amp; WIRING PLAN</h1>
+<h2>📊 STATUS ATUAL</h2>
+<h3>✅ Implementado (Base Foundation)</h3>
+<ol>
+<li><strong>MeshLoader::parseGLTF()</strong> - Interpreta .glb/.gltf via tinygltf</li>
+<li><strong>MeshEncoder</strong> - Serializa Mesh → .caf binary</li>
+<li><strong>AssetManager::resolveMesh()</strong> - Zero-copy mesh loading</li>
+<li><strong>PrefabSerializer</strong> - Save/load entities em CAF format</li>
+<li><strong>AssetManager::resolvePrefab()</strong> - Prefab resolution</li>
+<li><strong>Mesh drag-drop</strong> - SceneViewport auto-cria MeshFilterComponent + MeshRendererComponent</li>
+<li><strong>Save as Prefab button</strong> - InspectorPanel com FilePicker</li>
+</ol>
+<h3>❌ Falta para Integração Completa (Wiring)</h3>
+<h2>🔴 GAPS CRÍTICOS</h2>
+<h3>Gap 1: Scene Serialization Incompleta</h3>
+<p><strong>Problema</strong>: SceneSerializer não conhece MeshFilterComponent/MeshRendererComponent
+<strong>Consequência</strong>: Cenas com meshes não salvam/carregam
+<strong>Solução</strong>: Extend SceneSerializer com type IDs 18-19</p>
+<h3>Gap 2: Prefab Instances Não Rastreadas</h3>
+<p><strong>Problema</strong>: Sem componente PrefabInstance, não há como saber se entity veio de prefab
+<strong>Consequência</strong>: Sem suporte a prefab linking/updates
+<strong>Solução</strong>: Criar PrefabComponents.hpp com PrefabInstance struct</p>
+<h3>Gap 3: Asset Cooking Incompleto</h3>
+<p><strong>Problema</strong>: AssetCooker não tem CookMeshes()
+<strong>Consequência</strong>: Build não converte .obj/.gltf/.glb → .caf automaticamente
+<strong>Solução</strong>: Add AssetCooker::CookMeshes() com MeshLoader + MeshEncoder</p>
+<h3>Gap 4: Sem UI para Instanciar Prefabs</h3>
+<p><strong>Problema</strong>: Sem menu &quot;Place Prefab...&quot; no editor
+<strong>Consequência</strong>: Usuários não conseguem colocar prefabs após salvar
+<strong>Solução</strong>: Add menu item em HierarchyPanel + FilePicker</p>
+<h3>Gap 5: Prefab Instances Não Persistem</h3>
+<p><strong>Problema</strong>: Scenes não salvam/carregam PrefabInstance data
+<strong>Consequência</strong>: Prefab instances perdidas ao fechar/reabrir
+<strong>Solução</strong>: Extend SceneSerializer com type ID 20 para PrefabInstance</p>
+<h3>Gap 6: UX Fraca na Save Prefab</h3>
+<p><strong>Problema</strong>: Sem validação/feedback ao salvar prefab
+<strong>Consequência</strong>: Usuários não sabem se funcionou
+<strong>Solução</strong>: Add notifications + error handling</p>
+<h2>📋 PLANO DE WIRING (6 FASES SEQUENCIAIS)</h2>
+<h3>FASE 1: SceneSerializer - Mesh Support</h3>
+<ul>
+<li><input disabled="" type="checkbox"> Add type IDs: kTypeMeshFilter=18, kTypeMeshRenderer=19</li>
+<li><input disabled="" type="checkbox"> collectMeshFilterComponents()</li>
+<li><input disabled="" type="checkbox"> collectMeshRendererComponents()</li>
+<li><input disabled="" type="checkbox"> applyMeshFilterComponent()</li>
+<li><input disabled="" type="checkbox"> applyMeshRendererComponent()</li>
+<li><strong>Files</strong>: src/editor/SceneSerializer.hpp/cpp</li>
+<li><strong>Est. Tempo</strong>: 30 min</li>
+<li><strong>Critério</strong>: Scene save/load round-trip preserves mesh paths</li>
+</ul>
+<h3>FASE 2: PrefabInstance Component</h3>
+<ul>
+<li><input disabled="" type="checkbox"> Create src/ecs/PrefabComponents.hpp</li>
+<li><input disabled="" type="checkbox"> struct PrefabInstance { prefabPath, rootEntityId }</li>
+<li><input disabled="" type="checkbox"> Register no ComponentRegistry</li>
+<li><strong>Files</strong>: src/ecs/PrefabComponents.hpp</li>
+<li><strong>Est. Tempo</strong>: 15 min</li>
+<li><strong>Critério</strong>: Component appears in registry, no compile errors</li>
+</ul>
+<h3>FASE 3: AssetCooker - Mesh Cooking</h3>
+<ul>
+<li><input disabled="" type="checkbox"> Add AssetCooker::CookMeshes()</li>
+<li><input disabled="" type="checkbox"> Integrate MeshLoader + MeshEncoder</li>
+<li><input disabled="" type="checkbox"> Hook na build system</li>
+<li><input disabled="" type="checkbox"> Create output .caf files</li>
+<li><strong>Files</strong>: src/editor/AssetCooker.hpp/cpp</li>
+<li><strong>Est. Tempo</strong>: 45 min</li>
+<li><strong>Critério</strong>: Build generates .caf from source meshes</li>
+</ul>
+<h3>FASE 4: HierarchyPanel - Place Prefab Menu</h3>
+<ul>
+<li><input disabled="" type="checkbox"> Add &quot;Place Prefab...&quot; menu item</li>
+<li><input disabled="" type="checkbox"> FilePicker → select .caf prefab</li>
+<li><input disabled="" type="checkbox"> PrefabSerializer::load()</li>
+<li><input disabled="" type="checkbox"> Create PrefabInstance wrapper</li>
+<li><input disabled="" type="checkbox"> Entity appears in viewport</li>
+<li><strong>Files</strong>: src/editor/HierarchyPanel.cpp</li>
+<li><strong>Est. Tempo</strong>: 40 min</li>
+<li><strong>Critério</strong>: Can place prefab via menu, entity visible</li>
+</ul>
+<h3>FASE 5: SceneSerializer - Prefab Instance Support</h3>
+<ul>
+<li><input disabled="" type="checkbox"> Add type ID: kTypePrefabInstance=20</li>
+<li><input disabled="" type="checkbox"> collectPrefabInstanceComponents()</li>
+<li><input disabled="" type="checkbox"> applyPrefabInstanceComponent()</li>
+<li><input disabled="" type="checkbox"> Serialize prefabPath</li>
+<li><strong>Files</strong>: src/editor/SceneSerializer.hpp/cpp</li>
+<li><strong>Est. Tempo</strong>: 30 min</li>
+<li><strong>Critério</strong>: Scene with prefab instances save/load correctly</li>
+</ul>
+<h3>FASE 6: UX Polish - Notifications &amp; Validation</h3>
+<ul>
+<li><input disabled="" type="checkbox"> Validate entity in savePrefab()</li>
+<li><input disabled="" type="checkbox"> Add error notifications</li>
+<li><input disabled="" type="checkbox"> Add success notifications with file path</li>
+<li><input disabled="" type="checkbox"> Ask for destination directory</li>
+<li><input disabled="" type="checkbox"> Handle edge cases</li>
+<li><strong>Files</strong>: src/editor/InspectorPanel.cpp</li>
+<li><strong>Est. Tempo</strong>: 25 min</li>
+<li><strong>Critério</strong>: UX feedback working, errors caught</li>
+</ul>
+<h2>🎯 TOTAL EFFORT</h2>
+<p><strong>Estimated</strong>: 3-4 horas de implementação
+<strong>Complexity</strong>: Média (integração, não novo algoritmo)
+<strong>Risk</strong>: Baixo (mudanças localizadas)</p>
+<h2>📐 DEPENDENCIES</h2>
+<pre><code>Fase 1 ← Fase 2 ← Fase 3 (independent)
+                ↓
+        Fase 4 ← Fase 5 ← Fase 6 (independent)
+</code></pre>
+<p><strong>Path crítico</strong>: 1 → 2 → 4 → 5
+<strong>Path paralelo</strong>: 3 pode ser feito em paralelo com 1-2</p>
+<h2>✅ ACCEPTANCE CRITERIA (POR FASE)</h2>
+<h3>Fase 1</h3>
+<ul>
+<li>Mesh scene save/load preserves MeshFilterComponent.customMeshPath</li>
+<li>Mesh scene save/load preserves MeshRendererComponent.meshPath</li>
+</ul>
+<h3>Fase 2</h3>
+<ul>
+<li>PrefabInstance component compiles</li>
+<li>Appears in Component Add menu</li>
+</ul>
+<h3>Fase 3</h3>
+<ul>
+<li>CookMeshes() callable from AssetCooker</li>
+<li>Generates .caf files from .obj/.gltf/.glb</li>
+<li>Files in correct output directory</li>
+</ul>
+<h3>Fase 4</h3>
+<ul>
+<li>&quot;Place Prefab...&quot; menu exists</li>
+<li>FilePicker works</li>
+<li>Entity instantiates from prefab</li>
+</ul>
+<h3>Fase 5</h3>
+<ul>
+<li>PrefabInstance data serializes</li>
+<li>Scene save includes prefab path</li>
+<li>Scene load recreates instance</li>
+</ul>
+<h3>Fase 6</h3>
+<ul>
+<li>Notifications appear on save</li>
+<li>Errors caught and displayed</li>
+<li>User can select directory</li>
+</ul>
+<h2>🚀 PRÓXIMOS PASSOS</h2>
+<ol>
+<li>User approval deste plano</li>
+<li>Start FASE 1: SceneSerializer mesh support</li>
+<li>Sequential implementation das 6 fases</li>
+<li>Testing após cada fase</li>
+<li>Final integration test: full workflow</li>
+</ol>
+
+</article>

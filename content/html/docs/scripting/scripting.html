@@ -1,0 +1,394 @@
+<article class="doc-article" data-slug="docs/scripting/scripting">
+<h1>📜 Scripting</h1>
+<blockquote>
+<p><strong>Fase:</strong> 6 — O Olimpo<br><strong>Namespace:</strong> <code>Caffeine::Script</code><br><strong>Status:</strong> 📅 Planejado (TBD)<br><strong>RFs:</strong> RF6.6 (scripting hot-reload), RF4.7 (bindings iniciais)</p>
+</blockquote>
+<hr>
+<h2>Visão Geral</h2>
+<p>O módulo de <strong>Scripting</strong> expõe a Caffeine Engine a uma linguagem de script para que designers e scribes possam programar comportamentos de jogo sem escrever C++. O sistema é <strong>opt-in</strong> — jogos puramente em C++ não têm overhead de scripting.</p>
+<p><strong>Estado:</strong> A linguagem de script é <strong>TBD (To Be Decided)</strong>. As duas candidatas são:</p>
+<table>
+<thead>
+<tr>
+<th>Critério</th>
+<th>Lua 5.4</th>
+<th>AngelScript 2.x</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Familiaridade na indústria</td>
+<td>✅ Alta (LÖVE, Roblox, WoW)</td>
+<td>🟡 Média</td>
+</tr>
+<tr>
+<td>Performance</td>
+<td>✅ Muito boa (LuaJIT disponível)</td>
+<td>✅ Boa (compilado)</td>
+</tr>
+<tr>
+<td>Tipagem</td>
+<td>❌ Dinâmica (erros em runtime)</td>
+<td>✅ Estática (erros na compilação)</td>
+</tr>
+<tr>
+<td>Integração C++</td>
+<td>🟡 Via sol2/toLua</td>
+<td>✅ Nativa, API C++ direta</td>
+</tr>
+<tr>
+<td>Tamanho do runtime</td>
+<td>✅ ~300KB</td>
+<td>🟡 ~600KB</td>
+</tr>
+<tr>
+<td>Hot-reload</td>
+<td>✅ reload do chunk</td>
+<td>🟡 recompilação necessária</td>
+</tr>
+<tr>
+<td><strong>Recomendação</strong></td>
+<td><strong>✅ Preferida</strong></td>
+<td>Alternativa</td>
+</tr>
+</tbody></table>
+<blockquote>
+<p><strong>Decisão preliminar:</strong> Lua + <a href="https://github.com/ThePhD/sol2">sol2</a> para binding automático C++→Lua. A decisão final será tomada na Fase 4 (RF4.7).</p>
+</blockquote>
+<hr>
+<h2>API Planejada</h2>
+<pre><code class="language-cpp">namespace Caffeine::Script {
+
+// ============================================================================
+// @brief  Componente ECS que associa um script Lua a uma entidade.
+// ============================================================================
+struct ScriptComponent {
+    Assets::AssetHandle&lt;ScriptAsset&gt; script;  // handle para o ficheiro .lua
+
+    // Funções padrão do ciclo de vida (chamadas pelo ScriptSystem):
+    // - onCreate(entity)    chamado uma vez após criação
+    // - onUpdate(entity, dt) chamado todo o frame
+    // - onDestroy(entity)  chamado antes de destruição
+    // - onCollision(entity, other) chamado ao colidir (requer Physics2D)
+};
+
+// ============================================================================
+// @brief  Asset que representa um script Lua compilado.
+// ============================================================================
+struct ScriptAsset {
+    std::string   sourcePath;   // caminho do .lua no disco
+    std::string   source;       // código-fonte carregado
+    // Bytecode Lua compilado (se LuaJIT for usado):
+    std::vector&lt;u8&gt; bytecode;
+};
+
+// ============================================================================
+// @brief  VM Lua principal. Um único estado Lua por aplicação.
+//
+//  Expõe ao Lua:
+//  - Entity: criação, destruição, get/set de componentes
+//  - Transform: posição, rotação, escala
+//  - Input: isKeyDown, getAxis
+//  - Events: on(), emit()
+//  - Debug: log(), draw()
+//
+//  Threading: a VM Lua é single-threaded. Scripts rodam no thread principal.
+// ============================================================================
+class LuaVM {
+public:
+    bool init();
+    void shutdown();
+
+    // Executa um ficheiro .lua e regista as suas funções globais
+    bool loadScript(std::string_view path);
+
+    // Hot-reload: recarrega um ficheiro .lua em disco sem reiniciar a VM
+    bool reloadScript(std::string_view path);
+
+    // Chama uma função Lua por nome com argumentos arbitrários
+    template&lt;typename... Args&gt;
+    bool call(std::string_view function, Args&amp;&amp;... args);
+
+    // Acesso ao estado sol2 (para registar bindings customizados)
+    sol::state&amp; state() { return m_lua; }
+
+private:
+    sol::state m_lua;
+
+    void registerCaffeineBindings();   // regista toda a API da engine
+    void registerEntityBindings();
+    void registerTransformBindings();
+    void registerInputBindings();
+    void registerEventBindings();
+    void registerDebugBindings();
+    void registerMathBindings();
+};
+
+// ============================================================================
+// @brief  Sistema ECS que executa scripts em entidades com ScriptComponent.
+//
+//  Por frame:
+//  1. Itera todas as entidades com ScriptComponent
+//  2. Para cada entidade, chama script.onUpdate(entity, dt)
+//  3. Detecta erros Lua e regista via LogSystem (sem crash)
+// ============================================================================
+class ScriptSystem : public ECS::ISystem {
+public:
+    explicit ScriptSystem(LuaVM* vm);
+
+    void onInit(ECS::World&amp; world) override;
+    void onUpdate(ECS::World&amp; world, f32 dt) override;
+    void onShutdown(ECS::World&amp; world) override;
+
+    // Chama onCreate() em todas as entidades com ScriptComponent recém-criadas
+    void initNewScripts(ECS::World&amp; world);
+
+private:
+    LuaVM* m_vm;
+
+    void callLifecycle(std::string_view fn, ECS::Entity entity, f32 dt = 0.0f);
+    void handleLuaError(std::string_view fn, ECS::Entity entity,
+                        const sol::error&amp; err);
+};
+
+// ============================================================================
+// @brief  Watcher de ficheiros de script para hot-reload.
+//
+//  Em modo editor (CF_EDITOR_MODE), monitoriza a pasta /scripts/.
+//  Quando um .lua é modificado, recarrega via LuaVM::reloadScript().
+// ============================================================================
+class ScriptWatcher {
+public:
+    void init(LuaVM* vm, std::string_view scriptsDir);
+    void shutdown();
+
+    // Chame no loop principal para verificar mudanças
+    void poll();
+
+private:
+    LuaVM*                                    m_vm = nullptr;
+    std::string                               m_dir;
+    HashMap&lt;std::string, std::filesystem::file_time_type&gt; m_mtimes;
+};
+
+}  // namespace Caffeine::Script
+</code></pre>
+<hr>
+<h2>Bindings Lua — API Exposta</h2>
+<h3>Entity &amp; Components</h3>
+<pre><code class="language-lua">-- Criar e destruir entidades:
+local entity = caffeine.world.create()
+caffeine.world.destroy(entity)
+
+-- Adicionar/remover componentes:
+caffeine.world.addTransform(entity, { x=100, y=200, rotation=0, scaleX=1, scaleY=1 })
+caffeine.world.addSprite(entity, { texture=&quot;hero.caf&quot;, r=1, g=1, b=1, a=1 })
+
+-- Obter/modificar componentes:
+local t = caffeine.world.getTransform(entity)
+t.x = t.x + 10
+caffeine.world.setTransform(entity, t)
+</code></pre>
+<h3>Input</h3>
+<pre><code class="language-lua">-- Teclado:
+if caffeine.input.isKeyDown(&quot;Space&quot;) then
+    jump()
+end
+
+-- Eixos analógicos (gamepad ou teclado mapeado):
+local horizontal = caffeine.input.getAxis(&quot;Horizontal&quot;)   -- -1 a 1
+local vertical   = caffeine.input.getAxis(&quot;Vertical&quot;)
+
+-- Mouse:
+local mx, my = caffeine.input.mousePosition()
+if caffeine.input.isMouseButtonDown(1) then  -- botão esquerdo
+    shoot(mx, my)
+end
+</code></pre>
+<h3>Eventos</h3>
+<pre><code class="language-lua">-- Subscrever evento:
+local handle = caffeine.events.on(&quot;OnCollision2D&quot;, function(entityA, entityB)
+    if entityA == hero then
+        takeDamage(10)
+    end
+end)
+
+-- Emitir evento customizado:
+caffeine.events.emit(&quot;OnPlayerDied&quot;, { score = 1500 })
+
+-- Cancelar subscrição:
+caffeine.events.off(handle)
+</code></pre>
+<h3>Debug</h3>
+<pre><code class="language-lua">-- Log:
+caffeine.debug.log(&quot;Hero position: &quot; .. t.x .. &quot;, &quot; .. t.y)
+caffeine.debug.warn(&quot;Low HP!&quot;)
+caffeine.debug.error(&quot;Critical failure!&quot;)
+
+-- Debug draw:
+caffeine.debug.drawCircle(t.x, t.y, 32, 1, 0, 0, 1)  -- x, y, radius, r, g, b, a
+caffeine.debug.drawRect(0, 0, 100, 100, 0, 1, 0, 1)
+</code></pre>
+<h3>Math</h3>
+<pre><code class="language-lua">local v1 = caffeine.math.vec2(10, 20)
+local v2 = caffeine.math.vec2(5, 15)
+local sum = caffeine.math.add(v1, v2)      -- { x=15, y=35 }
+local len = caffeine.math.length(v1)       -- 22.36...
+local dir = caffeine.math.normalize(v1)
+local dot = caffeine.math.dot(v1, v2)
+</code></pre>
+<hr>
+<h2>Exemplo Completo: Hero Script</h2>
+<pre><code class="language-lua">-- scripts/hero.lua
+-- Script de comportamento do herói
+
+local SPEED  = 200.0
+local JUMP_V = -400.0
+
+local isGrounded = false
+
+function onCreate(entity)
+    caffeine.debug.log(&quot;Hero created: &quot; .. entity)
+end
+
+function onUpdate(entity, dt)
+    local t = caffeine.world.getTransform(entity)
+    local rb = caffeine.world.getRigidBody2D(entity)
+
+    -- Movimento horizontal
+    local h = caffeine.input.getAxis(&quot;Horizontal&quot;)
+    rb.velocityX = h * SPEED
+
+    -- Pulo
+    if caffeine.input.isKeyDown(&quot;Space&quot;) and isGrounded then
+        rb.velocityY = JUMP_V
+        isGrounded = false
+    end
+
+    -- Flip do sprite
+    local sprite = caffeine.world.getSprite(entity)
+    if h &lt; 0 then sprite.flipX = true
+    elseif h &gt; 0 then sprite.flipX = false
+    end
+    caffeine.world.setSprite(entity, sprite)
+    caffeine.world.setRigidBody2D(entity, rb)
+end
+
+function onCollision(entity, other)
+    -- Assume que o chão tem o componente &quot;Ground&quot;
+    if caffeine.world.hasComponent(other, &quot;Ground&quot;) then
+        isGrounded = true
+    end
+end
+
+function onDestroy(entity)
+    caffeine.debug.log(&quot;Hero destroyed&quot;)
+end
+</code></pre>
+<hr>
+<h2>Hot-Reload de Scripts</h2>
+<pre><code>[Editor Mode ativo: CF_EDITOR_MODE=1]
+         │
+         ▼
+ScriptWatcher::poll()  (chamado todo frame)
+         │
+   Detecta mudança em scripts/hero.lua
+         │
+         ▼
+LuaVM::reloadScript(&quot;scripts/hero.lua&quot;)
+         │
+   Recarrega o chunk Lua
+   (globals são substituídos na VM)
+         │
+         ▼
+Da próxima invocação de onUpdate():
+   usa o código novo — sem restart
+</code></pre>
+<hr>
+<h2>Segurança e Sandboxing</h2>
+<p>Por defeito, scripts Lua têm acesso <strong>restrito</strong>:</p>
+<table>
+<thead>
+<tr>
+<th>Permitido</th>
+<th>Bloqueado</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Todas as APIs <code>caffeine.*</code></td>
+<td><code>os.*</code> (sistema de ficheiros/processos)</td>
+</tr>
+<tr>
+<td><code>math.*</code>, <code>string.*</code>, <code>table.*</code></td>
+<td><code>io.*</code> (I/O directo)</td>
+</tr>
+<tr>
+<td><code>require</code> (apenas módulos do jogo)</td>
+<td><code>load</code>, <code>loadstring</code> (execução dinâmica)</td>
+</tr>
+<tr>
+<td><code>pcall</code>, <code>xpcall</code> (error handling)</td>
+<td><code>debug.*</code> (acesso a internals da VM)</td>
+</tr>
+</tbody></table>
+<p>Em modo editor (<code>CF_EDITOR_MODE</code>), as restrições de <code>io.*</code> podem ser relaxadas para permitir salvar dados de save state.</p>
+<hr>
+<h2>Critério de Aceitação</h2>
+<ul>
+<li><input disabled="" type="checkbox"> LuaVM inicializa e executa um script <code>.lua</code> simples</li>
+<li><input disabled="" type="checkbox"> ScriptComponent pode ser adicionado a uma entidade via código C++ ou editor</li>
+<li><input disabled="" type="checkbox"> <code>onUpdate(entity, dt)</code> é chamado todo frame para todas as entidades com ScriptComponent</li>
+<li><input disabled="" type="checkbox"> Bindings de Transform (get/set posição, rotação, escala) funcionam correctamente</li>
+<li><input disabled="" type="checkbox"> Bindings de Input (isKeyDown, getAxis) funcionam correctamente</li>
+<li><input disabled="" type="checkbox"> Erros Lua são capturados e logados sem crash do jogo</li>
+<li><input disabled="" type="checkbox"> Hot-reload: modificar um <code>.lua</code> em disco recarrega o script sem reiniciar a aplicação</li>
+<li><input disabled="" type="checkbox"> Sandbox: <code>os.execute()</code> retorna erro em scripts de jogo</li>
+</ul>
+<hr>
+<h2>Dependências</h2>
+<ul>
+<li><strong>Upstream:</strong><ul>
+<li><a href="../ecs/core.md">ECS</a> — <code>World</code>, <code>Entity</code>, <code>ISystem</code>, <code>ComponentID</code></li>
+<li><a href="../input/input-system.md">Input</a> — <code>InputManager</code></li>
+<li><a href="../core/events.md">Events</a> — <code>EventBus</code></li>
+<li><a href="../debug/debug-tools.md">Debug Tools</a> — <code>LogSystem</code>, <code>DebugDraw</code></li>
+<li><a href="../assets/asset-manager.md">Asset Manager</a> — carregamento de ficheiros <code>.lua</code></li>
+<li><a href="scene-editor.md">Scene Editor</a> — atribuição de scripts via InspectorPanel</li>
+</ul>
+</li>
+<li><strong>Downstream:</strong><ul>
+<li>— (módulo de utilizador final)</li>
+</ul>
+</li>
+</ul>
+<hr>
+<h2>🔗 Tópicos Relacionados</h2>
+<table>
+<thead>
+<tr>
+<th>Tópico</th>
+<th>Descrição</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><a href="">Concorrência &amp; Runtime</a></td>
+<td>Scripting executado no Game Loop</td>
+</tr>
+<tr>
+<td><a href="">Editor &amp; Debug</a></td>
+<td>Scripts atribuídos via Scene Editor</td>
+</tr>
+</tbody></table>
+<h2>Referências</h2>
+<ul>
+<li><a href="../ecs/core.md"><code>docs/fase4/ecs.md</code></a> — ECS World e sistemas</li>
+<li><a href="../core/events.md"><code>docs/fase4/events.md</code></a> — EventBus</li>
+<li><a href="../input/input-system.md"><code>docs/fase2/input.md</code></a> — InputManager</li>
+<li><a href="">Índice de Tópicos Transversais</a></li>
+<li><a href="../MASTER.md"><code>docs/MASTER.md</code></a> — Documentação unificada</li>
+<li><a href="https://www.lua.org/manual/5.4/">Lua 5.4 Reference Manual</a></li>
+<li><a href="https://github.com/ThePhD/sol2">sol2 — C++ / Lua binding library</a></li>
+<li><a href="https://luajit.org/">LuaJIT</a> — JIT compiler para Lua (performance)</li>
+<li><a href="https://www.angelcode.com/angelscript/">AngelScript</a> — alternativa estaticamente tipada</li>
+</ul>
+
+</article>

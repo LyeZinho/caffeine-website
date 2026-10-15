@@ -1,0 +1,130 @@
+<article class="doc-article" data-slug="planning/m3-scripting-runtime/3.3-ecs-lua-bindings">
+<h1>🔧 ECS Lua Bindings</h1>
+<blockquote>
+<p><strong>Milestone:</strong> M3 — Scripting &amp; Runtime
+<strong>Namespace:</strong> <code>Caffeine::Scripting</code>
+<strong>Arquivos:</strong> <code>src/scripting/LuaBindings.hpp</code>, <code>src/scripting/LuaBindings.cpp</code>
+<strong>Status:</strong> 📅 Planeado
+<strong>RF:</strong> RF6.3</p>
+</blockquote>
+<hr>
+<h2>Visão Geral</h2>
+<p>Este módulo define a ponte de comunicação entre o ecossistema C++ do Caffeine Studio e o ambiente Lua. Através destes bindings, os scripts conseguem manipular entidades, consultar componentes de transformação, ler inputs do utilizador e responder a eventos do sistema.</p>
+<p>A API foi desenhada para ser intuitiva e idiomática para programadores Lua, escondendo a complexidade do sistema de memória e das classes internas do motor. O foco inicial está nos componentes mais críticos: Transform (posicionamento), Input (teclado/rato) e World (gestão de entidades).</p>
+<hr>
+<h2>Implementação</h2>
+<h3>API de Manipulação de Mundo</h3>
+<p>Os scripts podem criar e destruir entidades dinamicamente.</p>
+<pre><code class="language-lua">-- Exemplo de uso em Lua
+local e = caffeine.world.create()
+caffeine.world.addTransform(e, { x = 100, y = 200, scale = 1.0 })
+caffeine.world.addSprite(e, { texture = &quot;assets/hero.caf&quot; })
+
+-- Aceder a componentes existentes
+local t = caffeine.world.getTransform(e)
+t.x = t.x + 10
+caffeine.world.setTransform(e, t)
+</code></pre>
+<h3>Implementação de Bindings (C++)</h3>
+<p>Utilizamos as funcionalidades de <code>sol::table</code> e <code>sol::usertype</code> para expor as estruturas.</p>
+<pre><code class="language-cpp">void LuaVM::registerTransformBindings() {
+    // Definir tipo Transform para Lua
+    m_lua.new_usertype&lt;TransformComponent&gt;(&quot;Transform&quot;,
+        &quot;x&quot;, &amp;TransformComponent::position.x,
+        &quot;y&quot;, &amp;TransformComponent::position.y,
+        &quot;rotation&quot;, &amp;TransformComponent::rotation,
+        &quot;scale&quot;, &amp;TransformComponent::scale
+    );
+
+    auto world = m_lua[&quot;caffeine&quot;][&quot;world&quot;].get_or_create&lt;sol::table&gt;();
+
+    world.set_function(&quot;getTransform&quot;, [this](ECS::Entity e) {
+        return m_currentWorld-&gt;getComponent&lt;TransformComponent&gt;(e);
+    });
+
+    world.set_function(&quot;setTransform&quot;, [this](ECS::Entity e, const TransformComponent&amp; t) {
+        m_currentWorld-&gt;replaceComponent&lt;TransformComponent&gt;(e, t);
+    });
+}
+</code></pre>
+<h3>API de Input</h3>
+<p>Expõe o estado periférico para permitir interatividade.</p>
+<pre><code class="language-lua">-- Verificação de teclas
+if caffeine.input.isKeyDown(&quot;Space&quot;) then
+    jump()
+end
+
+-- Posição do rato
+local mx, my = caffeine.input.mousePosition()
+caffeine.debug.log(&quot;Mouse at: &quot; .. mx .. &quot;, &quot; .. my)
+</code></pre>
+<h3>Mapeamento de Tipos e Fluxo</h3>
+<pre><code>+-------------+         +-------------------+         +-------------+
+|   Lua Code  | &lt;-----&gt; |   Sol2 Bindings   | &lt;-----&gt; |   C++ ECS   |
++-------------+         +-------------------+         +-------------+
+| e:create()  |         | set_function(...) |         | world.spawn |
+| t.x = 10    |         | usertype&lt;Trans&gt;   |         | comp.pos.x  |
++-------------+         +-------------------+         +-------------+
+</code></pre>
+<hr>
+<h2>Decisões de Design</h2>
+<table>
+<thead>
+<tr>
+<th>Decisão</th>
+<th>Justificativa</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Passagem por valor para structs pequenos</td>
+<td><code>TransformComponent</code> é pequeno o suficiente para evitar a complexidade de gestão de referências (pointers) em scripts simples.</td>
+</tr>
+<tr>
+<td>Strings para identificação de Input</td>
+<td>Usar &quot;Space&quot; em vez de enums numéricos torna o código Lua muito mais legível.</td>
+</tr>
+<tr>
+<td>Prefix <code>caffeine.*</code></td>
+<td>Garante que a API do motor está isolada e é facilmente descoberta via auto-complete em editores externos.</td>
+</tr>
+</tbody></table>
+<hr>
+<h2>Critério de Aceitação</h2>
+<ul>
+<li><input disabled="" type="checkbox"> Entidades podem ser criadas via script Lua.</li>
+<li><input disabled="" type="checkbox"> O componente de Transformação pode ser lido e modificado via script.</li>
+<li><input disabled="" type="checkbox"> Inputs de teclado (isKeyDown) são reportados corretamente ao script.</li>
+<li><input disabled="" type="checkbox"> Coordenadas do rato estão acessíveis e corretas.</li>
+</ul>
+<hr>
+<h2>Dependências</h2>
+<ul>
+<li><strong>Upstream:</strong> <code>LuaVM</code>, <code>ECS::Core</code>, <code>Input::System</code></li>
+<li><strong>Downstream:</strong> <code>ScriptSystem</code>, <code>SampleScripts</code></li>
+</ul>
+<hr>
+<h2>🔗 Tópicos Relacionados</h2>
+<table>
+<thead>
+<tr>
+<th>Tópico</th>
+<th>Descrição</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>docs/ecs/core.md</code></td>
+<td>Detalhes sobre a arquitetura ECS nativa.</td>
+</tr>
+<tr>
+<td><code>docs/scripting/scripting.md</code></td>
+<td>Documentação da API de scripting para utilizadores.</td>
+</tr>
+</tbody></table>
+<hr>
+<h2>Referências</h2>
+<ul>
+<li><a href="https://sol2.readthedocs.io/en/latest/tutorial/all-the-types.html">sol2 Tutorial: User Types</a></li>
+<li><a href="https://love2d.org/wiki/love.keypressed">Lua Input Handling Patterns</a></li>
+</ul>
+
+</article>

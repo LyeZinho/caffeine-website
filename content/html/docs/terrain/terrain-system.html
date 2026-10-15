@@ -1,0 +1,119 @@
+<article class="doc-article" data-slug="docs/terrain/terrain-system">
+<h1>🏔️ Terrain System</h1>
+<blockquote>
+<p><strong>Namespace:</strong> <code>Caffeine::Terrain</code>, <code>Caffeine::ECS::TerrainComponent</code><br><strong>Arquivos:</strong> <code>src/terrain/*</code>, <code>src/ecs/TerrainComponents.hpp</code><br><strong>Status:</strong> ✅ Implementado (runtime + editor sculpt/paint)<br><strong>Geração procedural:</strong> plugin — ver <a href="terrain-plugin.md"><code>terrain-plugin.md</code></a></p>
+</blockquote>
+<hr>
+<h2>Visão Geral</h2>
+<p>O terreno na Caffeine é um <strong>heightfield editável</strong>: dados em <code>TerrainHeightmap</code>, renderização via <code>TerrainMeshBuilder</code> + LOD por chunks, pintura de splat em <code>TerrainSplatmap</code>. A engine <strong>não</strong> embute mais geração procedural no core — isso ficou no plugin <strong>Terrain Generator</strong>, que usa o algoritmo em <code>assets/general-ultra-realistic-terrain-algorithm</code>.</p>
+<p><strong>Separação de responsabilidades:</strong></p>
+<table>
+<thead>
+<tr>
+<th>Camada</th>
+<th>Responsabilidade</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><strong>Core</strong></td>
+<td>Heightmap, mesh, LOD, colisão coarse, sculpt/paint, <code>.cterrain</code></td>
+</tr>
+<tr>
+<td><strong>Terrain Editor</strong></td>
+<td>Ferramentas de escultura, splat e export de dados</td>
+</tr>
+<tr>
+<td><strong>Terrain Generator (plugin)</strong></td>
+<td>Presets, Node.js, import de heightmap</td>
+</tr>
+</tbody></table>
+<hr>
+<h2>TerrainComponent</h2>
+<pre><code class="language-cpp">struct TerrainComponent {
+    u32 resolutionX = 257;
+    u32 resolutionZ = 257;
+    f32 worldSizeX, worldSizeZ;   // metros (1 u = 1 m)
+    f32 maxHeight;                // altura 0–1 do heightmap → metros
+
+    bool useChunks = true;
+    u32 chunkVertexCount = 33;
+    u32 maxLodLevels = 2;
+    f32 lodDistanceScale = 520.0f;
+
+    u32 collisionSampleStep = 4;  // passo do mesh de colisão
+    bool buildCollisionMesh = true;
+
+    bool castShadows = true;
+    bool receiveShadows = true;
+    char texturePath[256];        // albedo legacy / fallback
+    char normalMapPath[256];      // normal map triplanar (GPU)
+    f32  shininess = 16.0f;       // Phong specular
+
+    char terrainDataPath[256];    // caminho .cterrain no projeto
+};
+</code></pre>
+<p>O heightmap interno guarda valores <strong>normalizados</strong> <code>[0, 1]</code>. Na mesh, <code>y = sample * maxHeight</code>.</p>
+<hr>
+<h2>Pipeline de Dados</h2>
+<pre><code>TerrainComponent (ECS)
+       │
+       ▼
+TerrainCache::initializeEntity / syncEntity
+       │
+       ├── TerrainHeightmap  (CPU, editável)
+       ├── TerrainSplatmap   (4 camadas)
+       ├── Mesh3D render     (TerrainMeshBuilder + tangentes)
+       ├── Mesh3D collision  (TerrainCollisionMeshBuilder, decimado)
+       └── TerrainChunk[]    (LOD + frustum cull)
+</code></pre>
+<h3>TerrainMeshBuilder</h3>
+<ul>
+<li>Gera vértices com normais do heightmap (<code>sampleNormalBilinear</code>).</li>
+<li>UVs em tiling conforme <code>textureTileSize</code> / <code>splatTileSize</code>.</li>
+<li><strong>Tangentes</strong> calculadas por triângulo (base para normal mapping).</li>
+</ul>
+<h3>Colisão</h3>
+<p><code>TerrainCollisionMeshBuilder</code> reutiliza <code>buildRegion</code> com <code>collisionSampleStep</code> (ex.: 4 → ~16× menos triângulos). Acesso via <code>TerrainCache::collisionMeshFor(entity)</code>.</p>
+<hr>
+<h2>Editor</h2>
+<table>
+<thead>
+<tr>
+<th>Painel</th>
+<th>Função</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><strong>Inspector → Terrain</strong></td>
+<td>Resolução, tamanho, LOD, splat, colisão, Normal Map, Shininess</td>
+</tr>
+<tr>
+<td><strong>Terrain Editor</strong></td>
+<td>Sculpt (raise/lower/smooth/flatten/noise), splat paint, export <code>.cterrain</code></td>
+</tr>
+</tbody></table>
+<p>Geração procedural: painel <strong>Terrain Generator</strong> (plugin).</p>
+<hr>
+<h2>Renderização GPU (Phong)</h2>
+<p>Com <code>CF_HAS_SDL3</code>, o terreno usa <code>terrain_lit.frag</code>:</p>
+<ul>
+<li>Iluminação Phong (ambient + diffuse + specular) com <code>shininess</code>.</li>
+<li>Normal map <strong>triplanar</strong> via <code>TerrainGpuTextureCache::normalMap</code> (sampler slot 5).</li>
+<li>Sombras direcionais (slots 6–7) e pontuais cubemap (slots 8–9).</li>
+<li><code>castShadows</code> / <code>receiveShadows</code> respeitados em <code>GpuSceneRenderer::gatherMeshDraws</code>.</li>
+</ul>
+<p>Ver <a href="../rendering/materials-phong.md"><code>rendering/materials-phong.md</code></a> e <a href="../rendering/shadow-mapping.md"><code>rendering/shadow-mapping.md</code></a>.</p>
+<hr>
+<h2>Serialização</h2>
+<p><code>SceneSerializer</code> grava <code>TerrainComponent</code> no blob de cena (versão <strong>10</strong>). Versão 9 adicionou <code>collisionSampleStep</code> e <code>buildCollisionMesh</code>; versão 10 acrescenta <code>normalMapPath</code> e <code>shininess</code>. Campos de geração legados (v2–v8) são lidos e descartados para compatibilidade. Dados de height/splat pesados vivem em <code>.cterrain</code> referenciado por <code>terrainDataPath</code>.</p>
+<hr>
+<h2>API Útil</h2>
+<pre><code class="language-cpp">TerrainCache&amp; cache = TerrainCache::instance();
+cache.initializeEntity(world, entity);
+cache.heightmapFor(entity)-&gt;setNormalized(x, z, h);
+cache.syncEntity(world, entity);
+
+Terrain::importHeightmapFile(world, entity, path, worldSizeX, worldSizeZ);
+</code></pre>
+
+</article>

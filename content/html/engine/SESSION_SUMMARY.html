@@ -1,0 +1,257 @@
+<article class="doc-article" data-slug="engine/SESSION_SUMMARY">
+<h1>ProjectStartupDialog + File Picker Implementation - Session Summary</h1>
+<p><strong>Date</strong>: May 16, 2026<br><strong>Status</strong>: ✅ Complete &amp; Deployed<br><strong>Branch</strong>: <code>121-44-audio-preview-spatial-placement</code><br><strong>Commits</strong>: 27 commits (10 new in final phase)</p>
+<hr>
+<h2>🎯 Objective</h2>
+<p>Implement a complete project startup dialog system with:</p>
+<ul>
+<li>3-tab interface (Create New, Open Recent, Browse Projects)</li>
+<li>Cross-platform file picker with fallback support</li>
+<li>Toast notification system</li>
+<li>Proper ImGui state management</li>
+<li>Zero assertion errors on startup</li>
+</ul>
+<hr>
+<h2>📋 What We Built</h2>
+<h3>1. <strong>Toast Notification System</strong></h3>
+<ul>
+<li>Custom Toast struct with types: Success, Error, Info</li>
+<li>Auto-dismiss after 3 seconds</li>
+<li>Max 3 visible toasts</li>
+<li>Color-coded rendering</li>
+<li>Full integration in main render loop</li>
+</ul>
+<p><strong>Files</strong>: <code>ProjectStartupDialog.hpp/cpp</code></p>
+<h3>2. <strong>ProjectStartupDialog Refactor</strong></h3>
+<p><strong>3-Tab Interface</strong>:</p>
+<ul>
+<li><p><strong>Create New Tab</strong>: </p>
+<ul>
+<li>Project name input with validation</li>
+<li>Template selection</li>
+<li>File picker for project location selection</li>
+<li>Create button with error handling</li>
+</ul>
+</li>
+<li><p><strong>Open Recent Tab</strong>:</p>
+<ul>
+<li>Lists recent projects from ProjectManager</li>
+<li>Search/filter by project name</li>
+<li>&quot;Show All&quot; toggle for collapsed view</li>
+<li>Open button for selected project</li>
+</ul>
+</li>
+<li><p><strong>Browse Projects Tab</strong>:</p>
+<ul>
+<li>Directory path input field</li>
+<li>Browse button (triggers file picker)</li>
+<li>Results list of projects found</li>
+<li>Open button for selected project</li>
+</ul>
+</li>
+</ul>
+<p><strong>Files</strong>: <code>ProjectStartupDialog.hpp/cpp</code></p>
+<h3>3. <strong>FilePicker Class</strong> (NEW)</h3>
+<p>Cross-platform file/folder picker with:</p>
+<ul>
+<li><p><strong>Three Modes</strong>: PickFolder, PickFile, SaveFile</p>
+</li>
+<li><p><strong>Features</strong>:</p>
+<ul>
+<li>ImGui-based dialog</li>
+<li>Directory navigation with &quot;Go Up&quot; button</li>
+<li>File/folder search and filtering</li>
+<li>Double-click to enter directories</li>
+<li>Proper sorting (dirs first, alphabetical)</li>
+<li>Per-dialog state tracking (no cross-contamination)</li>
+</ul>
+</li>
+<li><p><strong>State Management</strong>:</p>
+<ul>
+<li>Static <code>unordered_map&lt;title, State&gt;</code> for multiple picker instances</li>
+<li><code>wasJustClosed</code> flag to prevent re-initialization on cancellation</li>
+<li>Always calls <code>ImGui::End()</code> regardless of <code>Begin()</code> return</li>
+</ul>
+</li>
+</ul>
+<p><strong>Files</strong>: <code>FilePicker.hpp</code>, <code>FilePicker.cpp</code></p>
+<hr>
+<h2>🐛 Critical Bugs Fixed</h2>
+<h3>1. <strong>ImGui Drag-Drop Assertion Crash</strong></h3>
+<p><strong>Problem</strong>: ProjectStartupDialog didn&#39;t close when project selected, causing multiple render loop iterations with inconsistent ImGui state.<br><strong>Fix</strong>: Set <code>m_open = false</code> when project is selected.<br><strong>Commit</strong>: <code>107ed2c</code></p>
+<h3>2. <strong>ImGui Window State Machine Error</strong></h3>
+<p><strong>Problem</strong>: <code>ImGui::Begin()</code> requires matching <code>ImGui::End()</code> even if Begin() returns false.<br><strong>Fix</strong>: Restructured file picker window to always call <code>ImGui::End()</code>.<br><strong>Commit</strong>: <code>ec1a61b</code></p>
+<h3>3. <strong>ImGui ID Conflicts</strong></h3>
+<p><strong>Problem</strong>: Multiple items in project lists had ID collisions causing rendering issues.<br><strong>Fix</strong>: Wrapped items with <code>PushID()/PopID()</code> for unique scoping.<br><strong>Commit</strong>: <code>feea0ee</code></p>
+<h3>4. <strong>File Picker State Contamination</strong></h3>
+<p><strong>Problem</strong>: Static variables caused state bleeding between multiple picker instances.<br><strong>Fix</strong>: Switched to per-dialog state tracking with <code>unordered_map&lt;title, State&gt;</code>.<br><strong>Commit</strong>: <code>ba207d4</code></p>
+<h3>5. <strong>File Picker Re-opening After Cancel</strong></h3>
+<p><strong>Problem</strong>: Picker re-initialized immediately after user cancellation.<br><strong>Fix</strong>: Added <code>wasJustClosed</code> flag to defer state cleanup by one frame.<br><strong>Commit</strong>: <code>67e85c5</code></p>
+<hr>
+<h2>📂 Files Modified/Created</h2>
+<pre><code>src/editor/
+├── ProjectStartupDialog.hpp      (+ state vars, methods)
+├── ProjectStartupDialog.cpp      (+ tabs, logic, toasts)
+├── FilePicker.hpp               (NEW: interface)
+├── FilePicker.cpp               (NEW: ImGui implementation)
+├── ProjectManager.hpp/cpp       (GetRecentProjects integration)
+└── AudioPreviewPanel.cpp        (drag-drop context verification)
+
+apps/
+└── doppio/main.cpp              (ProjectStartupDialog loop)
+
+build/
+└── CMakeLists.txt               (+ FilePicker.cpp, CF_HAS_IMGUI flag)
+</code></pre>
+<hr>
+<h2>✅ Verification &amp; Testing</h2>
+<table>
+<thead>
+<tr>
+<th>Component</th>
+<th>Build</th>
+<th>Runtime</th>
+<th>Assertions</th>
+<th>Features</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Toast System</td>
+<td>✅</td>
+<td>✅</td>
+<td>✅</td>
+<td>✅</td>
+</tr>
+<tr>
+<td>Tab Architecture</td>
+<td>✅</td>
+<td>✅</td>
+<td>✅</td>
+<td>✅</td>
+</tr>
+<tr>
+<td>Create Tab</td>
+<td>✅</td>
+<td>✅</td>
+<td>✅</td>
+<td>✅</td>
+</tr>
+<tr>
+<td>Recent Tab</td>
+<td>✅</td>
+<td>✅</td>
+<td>✅</td>
+<td>✅</td>
+</tr>
+<tr>
+<td>Browse Tab</td>
+<td>✅</td>
+<td>✅</td>
+<td>✅</td>
+<td>✅</td>
+</tr>
+<tr>
+<td>FilePicker</td>
+<td>✅</td>
+<td>✅</td>
+<td>✅</td>
+<td>✅</td>
+</tr>
+<tr>
+<td>SceneEditor Launch</td>
+<td>✅</td>
+<td>✅</td>
+<td>✅</td>
+<td>✅</td>
+</tr>
+</tbody></table>
+<p><strong>Build Status</strong>: Clean <code>make -j8 doppio</code><br><strong>Runtime</strong>: Zero assertion errors on startup<br><strong>Full Workflow</strong>: Create → File picker → Project creation → SceneEditor open ✅</p>
+<hr>
+<h2>🔑 Key Code Patterns</h2>
+<h3>File Picker Usage (Create Tab)</h3>
+<pre><code class="language-cpp">if (m_showLocationPicker) {
+    auto path = FilePicker::pickPath(FilePicker::Mode::PickFolder, 
+                                     &quot;Select Project Location&quot;, 
+                                     m_selectedLocation);
+    if (path.has_value()) {
+        m_selectedLocation = path.value().string();
+        m_showLocationPicker = false;
+        showToast(&quot;Location selected!&quot;, ToastType::Success);
+    }
+}
+</code></pre>
+<h3>Dialog Closure (Critical Fix)</h3>
+<pre><code class="language-cpp">if (result.has_value()) {
+    m_open = false;  // PREVENTS ASSERTION CRASH
+}
+return result;
+</code></pre>
+<h3>ImGui ID Scoping (Project Lists)</h3>
+<pre><code class="language-cpp">ImGui::PushID((int)i);
+if (ImGui::Selectable(projName.c_str(), selected)) { ... }
+ImGui::SameLine();
+if (ImGui::Button(&quot;Open&quot;, ImVec2(70, 0))) { ... }
+ImGui::PopID();
+</code></pre>
+<hr>
+<h2>📊 Commit History (This Session)</h2>
+<pre><code>107ed2c fix: close ProjectStartupDialog when project is selected
+feea0ee fix: ImGui ID conflicts in Open Recent and Browse tabs
+ec1a61b fix: call ImGui::End() regardless of Begin() return value
+67e85c5 fix: prevent file picker from re-opening after cancellation
+6096d96 fix: file picker state management and integration
+ba207d4 fix: prevent state pollution between multiple file pickers
+27177fc feat: implement file picker for project creation and browsing
+4f1031f feat: implement Browse Projects tab with results list
+690affe feat: implement Open Recent tab with search filtering
+6e7b7f9 feat: add recent projects state variables to ProjectStartupDialog
+</code></pre>
+<p><strong>Branch History</strong>: 27 commits ahead of main<br><strong>Latest Push</strong>: ✅ Successful to <code>121-44-audio-preview-spatial-placement</code></p>
+<hr>
+<h2>🚀 Ready for Production</h2>
+<ul>
+<li>✅ All features implemented and tested</li>
+<li>✅ No compilation errors or warnings</li>
+<li>✅ No runtime assertion errors</li>
+<li>✅ Code follows existing codebase patterns</li>
+<li>✅ ImGui state management correct</li>
+<li>✅ Cross-platform file picker with fallback</li>
+<li>✅ All changes committed and pushed</li>
+</ul>
+<p><strong>Next Steps</strong>: Ready for code review and merge to main branch.</p>
+<hr>
+<h2>💡 Technical Decisions</h2>
+<ol>
+<li><p><strong>ImGui-Based File Picker</strong> (vs native dialogs)</p>
+<ul>
+<li>Rationale: Works on any platform without rewriting code</li>
+<li>Fallback for environments without native support</li>
+<li>Full control over UX</li>
+</ul>
+</li>
+<li><p><strong>Per-Dialog State Tracking</strong> (vs global static)</p>
+<ul>
+<li>Rationale: Prevents state contamination between multiple picker instances</li>
+<li>Enables simultaneous multiple pickers</li>
+<li>Cleaner memory management</li>
+</ul>
+</li>
+<li><p><strong>Toast Notification System</strong> (vs status bar)</p>
+<ul>
+<li>Rationale: Non-blocking user feedback</li>
+<li>Multiple notifications visible simultaneously</li>
+<li>Auto-dismiss reduces UI clutter</li>
+</ul>
+</li>
+<li><p><strong>Tab-Based UI</strong> (vs separate dialogs)</p>
+<ul>
+<li>Rationale: Single cohesive interface for project management</li>
+<li>Better UX than multiple windows</li>
+<li>Aligns with modern editor conventions</li>
+</ul>
+</li>
+</ol>
+<hr>
+<p><strong>Session Completed Successfully</strong> ✅</p>
+
+</article>

@@ -1,0 +1,159 @@
+<article class="doc-article" data-slug="planning/m1-scene-editor-foundation/1.2-hierarchy-panel">
+<h1>🔧 Hierarchy Panel</h1>
+<blockquote>
+<p><strong>Milestone:</strong> M1 — Scene Editor Foundation
+<strong>Namespace:</strong> <code>Caffeine::Editor</code>
+<strong>Arquivos:</strong> <code>src/editor/HierarchyPanel.hpp</code>, <code>src/editor/HierarchyPanel.cpp</code>
+<strong>Status:</strong> 📅 Planeado
+<strong>RF:</strong> RF6.2</p>
+</blockquote>
+<hr>
+<h2>Visão Geral</h2>
+<p>O <code>HierarchyPanel</code> é a janela que apresenta a estrutura organizacional de todas as entidades presentes na cena atual. Ele exibe as entidades em formato de árvore, permitindo visualizar relações de parentesco (transform parenting). Este painel é essencial para a navegação rápida, seleção e organização lógica dos objetos de jogo.</p>
+<p>Além da visualização, o painel oferece ferramentas para criação, destruição e reordenação de entidades através de interação direta (drag-and-drop) ou menus de contexto.</p>
+<hr>
+<h2>Implementação</h2>
+<h3>Estrutura da Classe</h3>
+<p>O painel utiliza o <code>EditorContext</code> para sincronizar a seleção global.</p>
+<pre><code class="language-cpp">class HierarchyPanel {
+    EditorContext* m_context;
+    char m_searchFilter[256] = &quot;&quot;;
+
+public:
+    HierarchyPanel(EditorContext* context) : m_context(context) {}
+
+    void onImGuiRender() {
+        ImGui::Begin(&quot;Hierarchy&quot;);
+        
+        renderSearchBar();
+        renderToolbar();
+
+        if (ImGui::BeginChild(&quot;EntityTree&quot;)) {
+            auto view = m_world-&gt;view&lt;ECS::NameComponent&gt;();
+            for (auto entity : view) {
+                // Apenas renderiza raízes; filhos são processados recursivamente
+                if (!m_world-&gt;has&lt;ECS::ParentComponent&gt;(entity)) {
+                    renderEntityNode(entity);
+                }
+            }
+        }
+        ImGui::EndChild();
+
+        renderContextMenu();
+        
+        ImGui::End();
+    }
+
+private:
+    void renderEntityNode(ECS::EntityID entity) {
+        auto&amp; name = m_world-&gt;get&lt;ECS::NameComponent&gt;(entity).name;
+        
+        ImGuiTreeNodeFlags flags = ((m_context-&gt;selectedEntity == entity) ? ImGuiTreeNodeFlags_Selected : 0);
+        flags |= ImGuiTreeNodeFlags_OpenOnArrow | ImGuiTreeNodeFlags_SpanAvailWidth;
+        
+        bool hasChildren = checkHasChildren(entity);
+        if (!hasChildren) flags |= ImGuiTreeNodeFlags_Leaf;
+
+        bool opened = ImGui::TreeNodeEx((void*)(uintptr_t)entity, flags, &quot;%s&quot;, name.c_str());
+        
+        if (ImGui::IsItemClicked()) {
+            m_context-&gt;selectEntity(entity);
+        }
+
+        // Context Menu para a entidade específica
+        if (ImGui::BeginPopupContextItem()) {
+            if (ImGui::MenuItem(&quot;Delete&quot;)) { m_world-&gt;destroy(entity); }
+            ImGui::EndPopup();
+        }
+
+        // Drag and Drop Logic
+        handleDragAndDrop(entity);
+
+        if (opened) {
+            if (hasChildren) {
+                renderChildren(entity);
+            }
+            ImGui::TreePop();
+        }
+    }
+
+    void handleDragAndDrop(ECS::EntityID entity);
+    void renderContextMenu(); // Create empty, etc.
+};
+</code></pre>
+<h3>Lógica de Hierarquia (Parenting)</h3>
+<p>A hierarquia é mantida através do <code>ParentComponent</code> e <code>ChildrenComponent</code> (ou uma lista de IDs). No M1, focaremos no <code>ParentComponent</code>.</p>
+<pre><code class="language-cpp">struct ParentComponent {
+    ECS::EntityID parentId;
+};
+</code></pre>
+<h3>Diagrama de Fluxo de Seleção</h3>
+<pre><code>[HierarchyPanel] Click Node 
+    -&gt; EditorContext::selectEntity(ID)
+    -&gt; [InspectorPanel] Observa mudança 
+    -&gt; [InspectorPanel] Renderiza componentes de ID
+</code></pre>
+<hr>
+<h2>Decisões de Design</h2>
+<table>
+<thead>
+<tr>
+<th>Decisão</th>
+<th>Justificativa</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>ImGuiTreeNodeFlags_Leaf</code> para vazios</td>
+<td>Fornece feedback visual imediato sobre quais entidades possuem filhos.</td>
+</tr>
+<tr>
+<td>Filtro de Pesquisa</td>
+<td>Essencial para cenas com centenas de entidades onde a navegação manual é lenta.</td>
+</tr>
+<tr>
+<td>Drag-and-Drop Reparenting</td>
+<td>Forma mais intuitiva de organizar objetos em 2D/3D.</td>
+</tr>
+</tbody></table>
+<hr>
+<h2>Critério de Aceitação</h2>
+<ul>
+<li><input disabled="" type="checkbox"> Apresenta todas as entidades da cena em formato de lista/árvore.</li>
+<li><input disabled="" type="checkbox"> Clicar numa entidade seleciona-a no <code>EditorContext</code>.</li>
+<li><input disabled="" type="checkbox"> Botão direito no vazio abre menu para &quot;Create Empty Entity&quot;.</li>
+<li><input disabled="" type="checkbox"> Tecla <code>Delete</code> com entidade selecionada remove-a da cena.</li>
+<li><input disabled="" type="checkbox"> O filtro de pesquisa oculta entidades cujos nomes não coincidem com o texto.</li>
+<li><input disabled="" type="checkbox"> Entidades com <code>ParentComponent</code> aparecem indentadas sob o pai.</li>
+</ul>
+<hr>
+<h2>Dependências</h2>
+<ul>
+<li><strong>Upstream:</strong> <code>1.1-editor-context-undo-redo.md</code>, <code>docs/ecs/core.md</code></li>
+<li><strong>Downstream:</strong> <code>1.3-inspector-panel.md</code>, <code>1.6-scene-editor-orchestrator.md</code></li>
+</ul>
+<hr>
+<h2>🔗 Tópicos Relacionados</h2>
+<table>
+<thead>
+<tr>
+<th>Tópico</th>
+<th>Descrição</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>NameComponent</td>
+<td>Armazena a string visível no painel.</td>
+</tr>
+<tr>
+<td>ECS Parenting</td>
+<td>Sistema que sincroniza transformações entre pais e filhos.</td>
+</tr>
+</tbody></table>
+<hr>
+<h2>Referências</h2>
+<ul>
+<li><a href="../docs/ui/editor-ui.md"><code>docs/ui/editor-ui.md</code></a> — Convenções de interface.</li>
+<li><a href="https://github.com/ocornut/imgui/blob/master/imgui_demo.cpp">ImGui Demo: Tree Nodes</a> — Referência de implementação.</li>
+</ul>
+
+</article>

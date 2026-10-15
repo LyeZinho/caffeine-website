@@ -1,0 +1,182 @@
+<article class="doc-article" data-slug="docs/debug/testing">
+<h1>🧪 Test System</h1>
+<blockquote>
+<p><strong>Fase:</strong> 2 — O Pulso e a Concorrência<br><strong>Namespace:</strong> <code>Caffeine::Testing</code><br><strong>Framework:</strong> Catch2 v3.x (header-only)<br><strong>Status:</strong> 📅 Planejado  </p>
+</blockquote>
+<hr>
+<h2>Overview</h2>
+<p>This document describes the test system implementation for Caffeine Engine, including framework selection, test organization, CI integration, and success criteria.</p>
+<hr>
+<h2>Framework Selection</h2>
+<ul>
+<li><strong>Catch2 v3.x</strong> - Header-only C++ testing framework</li>
+<li><strong>Rationale:</strong> Simple integration, no external dependencies, follows Caffeine&#39;s &quot;zero dependency&quot; philosophy as much as a test framework allows</li>
+</ul>
+<hr>
+<h2>File Structure</h2>
+<pre><code>tests/
+├── Catch2/                   # Header-only framework
+│   └── catch.hpp           # Main header
+├── test_allocators.cpp     # Memory allocator tests
+├── test_containers.cpp     # Container tests
+├── test_math.cpp           # Math library tests
+├── test_core.cpp           # Core module tests
+├── test_threading.cpp      # Job System tests
+├── benchmarks.cpp          # Performance benchmarks
+├── CMakeLists.txt          # Test build configuration
+└── README.md               # Test documentation
+</code></pre>
+<hr>
+<h2>Test Categories</h2>
+<h3>1. Functional Tests</h3>
+<p>Verify correct behavior of all components under normal and edge conditions.</p>
+<p><strong>Coverage:</strong></p>
+<ul>
+<li>Core module tests (Types, Platform, Compiler, Assertions)</li>
+<li>Memory allocator tests (Linear, Pool, Stack allocators)</li>
+<li>Container tests (Vector, HashMap, String)</li>
+<li>Math tests (Vec2, Vec3, Vec4, Mat4)</li>
+<li>Threading tests (Job System, JobHandle, Workers)</li>
+</ul>
+<h3>2. Stress Tests</h3>
+<ul>
+<li><strong>Memory:</strong> 1M allocations, verify zero leaks, fragmentation &lt; 0.1%</li>
+<li><strong>Containers:</strong> Large dataset handling</li>
+<li><strong>Math:</strong> Precision under extreme values</li>
+<li><strong>Threading:</strong> 1k, 10k, 50k jobs with work-stealing</li>
+</ul>
+<h3>3. Benchmark Tests</h3>
+<p>Establish performance baselines for CI regression detection.</p>
+<p><strong>Key benchmarks:</strong></p>
+<ul>
+<li>Allocator performance (allocation/deallocation throughput)</li>
+<li>Container insertion/lookup (Vector, HashMap)</li>
+<li>Job scheduling overhead (1k/10k/50k jobs)</li>
+<li>Job System work-stealing efficiency</li>
+</ul>
+<hr>
+<h2>GitHub Actions CI</h2>
+<pre><code class="language-yaml">name: Tests
+on: [push, pull_request]
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        compiler: [gcc-13, clang-17]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install compiler
+        run: sudo apt-get install ${{ matrix.compiler }}
+      - name: Configure
+        run: cmake -B build -DCMAKE_CXX_COMPILER=${{ matrix.compiler }}
+      - name: Build
+        run: cmake --build build
+      - name: Run Tests
+        run: ./build/CaffeineTest
+      - name: Run Benchmarks
+        run: ./build/CaffeineBenchmarks
+</code></pre>
+<hr>
+<h2>Success Criteria</h2>
+<ul>
+<li><input checked="" disabled="" type="checkbox"> Design approved</li>
+<li><input disabled="" type="checkbox"> Catch2 integrated</li>
+<li><input disabled="" type="checkbox"> All module tests functional</li>
+<li><input disabled="" type="checkbox"> Stress tests pass (1M allocs, 1k/10k/50k jobs)</li>
+<li><input disabled="" type="checkbox"> Benchmarks established</li>
+<li><input disabled="" type="checkbox"> CI pipeline green</li>
+<li><input disabled="" type="checkbox"> ThreadSanitizer (TSAN) clean on threading tests</li>
+</ul>
+<hr>
+<h2>Testing Strategy</h2>
+<h3>TDD Workflow</h3>
+<p>All implementations follow Test-Driven Development:</p>
+<ol>
+<li><strong>Write failing test</strong> — Define expected behavior</li>
+<li><strong>Run test</strong> — Verify it fails with meaningful error</li>
+<li><strong>Implement</strong> — Write minimal code to pass test</li>
+<li><strong>Run test</strong> — Verify it passes</li>
+<li><strong>Commit</strong> — Atomic commit with test + implementation</li>
+</ol>
+<h3>Stress Test Progression</h3>
+<p><strong>Threading Module (Job System):</strong></p>
+<table>
+<thead>
+<tr>
+<th>Phase</th>
+<th>Test</th>
+<th>Benchmark</th>
+<th>Target</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Alpha</td>
+<td>1k jobs (mutex-based)</td>
+<td>&lt; 100ms</td>
+<td>Correctness</td>
+</tr>
+<tr>
+<td>Beta</td>
+<td>10k jobs (work-stealing)</td>
+<td>&lt; 500ms</td>
+<td>Load balancing</td>
+</tr>
+<tr>
+<td>Gold</td>
+<td>50k jobs (lock-free)</td>
+<td>&lt; 2s, TSAN clean</td>
+<td>Performance</td>
+</tr>
+</tbody></table>
+<hr>
+<h2>Integration with Build System</h2>
+<h3>CMakeLists.txt</h3>
+<pre><code class="language-cmake"># src/CMakeLists.txt
+enable_testing()
+add_subdirectory(tests)
+</code></pre>
+<h3>Running Tests</h3>
+<pre><code class="language-bash"># Run all tests
+ctest --output-on-failure
+
+# Run specific test
+ctest -R &quot;test_threading&quot; -V
+
+# Run benchmarks
+./build/CaffeineBenchmarks
+</code></pre>
+<hr>
+<h2>Continuous Integration</h2>
+<ul>
+<li>Tests run on <strong>every commit</strong> (gcc-13, clang-17)</li>
+<li><strong>Benchmarks</strong> establish baselines for regression detection</li>
+<li><strong>ThreadSanitizer</strong> (TSAN) verifies zero data races</li>
+<li><strong>AddressSanitizer</strong> (ASAN) verifies memory safety</li>
+</ul>
+<hr>
+<h2>Test Documentation</h2>
+<p>Each test file includes:</p>
+<ul>
+<li>Module description at top</li>
+<li>Test case names describing behavior</li>
+<li>Comments on non-obvious test logic</li>
+<li>Link to implementation in source code</li>
+</ul>
+<hr>
+<h2>Ver Também</h2>
+<ul>
+<li><a href="debug-tools.md"><code>debug.md</code></a> — Ferramentas de depuração complementares aos testes</li>
+<li><a href="../core/timer.md"><code>timer.md</code></a> — ScopeTimer usado para medir performance em testes</li>
+<li><a href="job-system.md"><code>job-system.md</code></a> — Testes de concorrência com TSAN</li>
+<li><a href="game-loop.md"><code>game-loop.md</code></a> — Testes de integração do loop principal</li>
+</ul>
+<h2>References</h2>
+<ul>
+<li><a href="https://github.com/catchorg/Catch2">Catch2 Documentation</a></li>
+<li><a href="https://en.cppreference.com/">C++20 Testing Best Practices</a></li>
+<li><a href="https://en.wikipedia.org/wiki/Test-driven_development">Test-Driven Development</a></li>
+<li><a href="../">Índice de Tópicos Transversais</a></li>
+</ul>
+
+</article>

@@ -1,0 +1,141 @@
+<article class="doc-article" data-slug="planning/m2-visual-editing-assets/2.1-transform-gizmos">
+<h1>🔧 Transform Gizmos</h1>
+<blockquote>
+<p><strong>Milestone:</strong> M2 — Visual Editing &amp; Assets
+<strong>Namespace:</strong> <code>Caffeine::Editor</code>
+<strong>Arquivos:</strong> <code>src/editor/TransformGizmo.hpp</code>, <code>src/editor/TransformGizmo.cpp</code>
+<strong>Status:</strong> 📅 Planeado
+<strong>RF:</strong> RF6.1</p>
+</blockquote>
+<hr>
+<h2>Visão Geral</h2>
+<p>Os Transform Gizmos são ferramentas visuais fundamentais para a manipulação direta de entidades no Viewport. Eles permitem que o utilizador altere a posição, rotação e escala de objetos sem a necessidade de introduzir valores numéricos manualmente no Inspector. Esta implementação foca-se numa experiência intuitiva, com suporte para snapping e modos de operação distintos.</p>
+<p>O sistema suporta três modos principais: Translação (W), Rotação (E) e Escala (R). Cada modo fornece indicadores visuais claros sobre os eixos de manipulação, permitindo transformações precisas tanto em 2D como em 3D. A interação baseia-se em estados de hover e drag, garantindo que o utilizador saiba exatamente que eixo está a modificar antes de iniciar a ação.</p>
+<hr>
+<h2>Implementação</h2>
+<p>O <code>TransformGizmo</code> atua como um sistema de overlay que interpreta as coordenadas do rato e as projeta no espaço do mundo ou da câmara para determinar colisões com os eixos do gizmo.</p>
+<h3>Diagramas de Interface</h3>
+<pre><code>Translate (W):       Rotate (E):          Scale (R):
+     ▲ Y                  ◯                    ■ Y
+     │                 ╱     ╲                 │
+     └────► X          │       │               └────■ X
+   ╱                 ╲       ╱               ╱
+ ╱ Z (3D)              ╲   ╱               ╱ Z (3D)
+</code></pre>
+<h3>Estrutura de Classes</h3>
+<pre><code class="language-cpp">namespace Caffeine::Editor {
+
+    enum class GizmoMode {
+        None,
+        Translate,
+        Rotate,
+        Scale
+    };
+
+    enum class GizmoAxis {
+        None,
+        X,
+        Y,
+        Z,
+        Center
+    };
+
+    class TransformGizmo {
+    public:
+        TransformGizmo();
+        ~TransformGizmo();
+
+        void OnImGuiRender(Scene&amp; scene, Entity selectedEntity);
+        void SetMode(GizmoMode mode) { m_CurrentMode = mode; }
+        
+        // Atalhos de teclado
+        void HandleInput();
+
+    private:
+        void RenderTranslate(const glm::vec3&amp; position, const glm::quat&amp; rotation);
+        void RenderRotate(const glm::vec3&amp; position, const glm::quat&amp; rotation);
+        void RenderScale(const glm::vec3&amp; position, const glm::quat&amp; rotation);
+
+        bool IntersectAxis(GizmoAxis axis, const Ray&amp; mouseRay);
+        void ApplyTransform(Entity entity, const glm::vec3&amp; delta);
+
+        GizmoMode m_CurrentMode = GizmoMode::Translate;
+        GizmoAxis m_ActiveAxis = GizmoAxis::None;
+        
+        float m_SnapValueTranslate = 16.0f; // px para 2D
+        float m_SnapValueRotate = 45.0f;    // graus
+        bool m_IsDragging = false;
+    };
+}
+</code></pre>
+<h3>Lógica de Snapping</h3>
+<p>Ao premir <code>Shift</code> durante a manipulação, os valores são arredondados para múltiplos configuráveis.</p>
+<pre><code class="language-cpp">float ApplySnap(float value, float snapInterval) {
+    if (snapInterval &lt;= 0.0f) return value;
+    return std::round(value / snapInterval) * snapInterval;
+}
+</code></pre>
+<hr>
+<h2>Decisões de Design</h2>
+<table>
+<thead>
+<tr>
+<th>Decisão</th>
+<th>Justificativa</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Cores de Eixo (RGB)</td>
+<td>Padrão da indústria (X: Vermelho, Y: Verde, Z: Azul) para facilitar a aprendizagem.</td>
+</tr>
+<tr>
+<td>Hover Highlight</td>
+<td>Mudar a cor do eixo para amarelo ao passar o rato evita manipulações acidentais do eixo errado.</td>
+</tr>
+<tr>
+<td>Coordenadas de Ecrã Constantes</td>
+<td>O gizmo mantém o mesmo tamanho visual independentemente do zoom da câmara para garantir usabilidade.</td>
+</tr>
+</tbody></table>
+<hr>
+<h2>Critério de Aceitação</h2>
+<ul>
+<li><input disabled="" type="checkbox"> Pressionar W, E, R alterna entre os modos de translação, rotação e escala.</li>
+<li><input disabled="" type="checkbox"> O eixo selecionado fica realçado em amarelo quando o cursor está por cima.</li>
+<li><input disabled="" type="checkbox"> O arrasto de um eixo específico limita o movimento apenas a esse eixo.</li>
+<li><input disabled="" type="checkbox"> O arrasto do centro permite movimento livre ou uniforme.</li>
+<li><input disabled="" type="checkbox"> Manter Shift pressionado ativa o snapping (16px para posição, 45° para rotação).</li>
+<li><input disabled="" type="checkbox"> O estado da entidade é atualizado em tempo real durante o arrasto.</li>
+</ul>
+<hr>
+<h2>Dependências</h2>
+<ul>
+<li><strong>Upstream:</strong> <code>Caffeine::Core::Transform</code>, <code>Caffeine::Editor::Viewport</code></li>
+<li><strong>Downstream:</strong> <code>Caffeine::Editor::SceneHierarchy</code></li>
+</ul>
+<hr>
+<h2>🔗 Tópicos Relacionados</h2>
+<table>
+<thead>
+<tr>
+<th>Tópico</th>
+<th>Descrição</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Scene Editor</td>
+<td>Integração visual do gizmo com a renderização da cena.</td>
+</tr>
+<tr>
+<td>Input System</td>
+<td>Captura de atalhos de teclado e eventos de rato.</td>
+</tr>
+</tbody></table>
+<hr>
+<h2>Referências</h2>
+<ul>
+<li>ImGuizmo Library (Architecture reference)</li>
+<li>Unity/Unreal Engine Transform Tools</li>
+</ul>
+
+</article>

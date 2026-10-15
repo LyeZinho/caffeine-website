@@ -1,0 +1,137 @@
+<article class="doc-article" data-slug="planning/m3-scripting-runtime/3.5-script-watcher">
+<h1>🔧 Script Watcher</h1>
+<blockquote>
+<p><strong>Milestone:</strong> M3 — Scripting &amp; Runtime
+<strong>Namespace:</strong> <code>Caffeine::Scripting</code>
+<strong>Arquivos:</strong> <code>src/scripting/ScriptWatcher.hpp</code>, <code>src/scripting/ScriptWatcher.cpp</code>
+<strong>Status:</strong> 📅 Planeado
+<strong>RF:</strong> RF6.5</p>
+</blockquote>
+<hr>
+<h2>Visão Geral</h2>
+<p>O <code>ScriptWatcher</code> é um utilitário de produtividade que monitoriza alterações em tempo real nos ficheiros de script do projeto. Quando um programador guarda um ficheiro <code>.lua</code> num editor externo (como VS Code ou Notepad++), o <code>ScriptWatcher</code> deteta a alteração através das &quot;timestamps&quot; do sistema de ficheiros e solicita à <code>LuaVM</code> que recarregue o script imediatamente.</p>
+<p>Esta funcionalidade de &quot;Hot-Reload&quot; permite ver alterações de comportamento no jogo sem necessidade de reiniciar a aplicação ou recarregar a cena. É uma peça fundamental para o fluxo de trabalho iterativo do Caffeine Studio.</p>
+<hr>
+<h2>Implementação</h2>
+<h3>Monitorização de Ficheiros</h3>
+<p>O sistema mantém um mapa de caminhos de ficheiros e as suas últimas datas de modificação.</p>
+<pre><code class="language-cpp">namespace Caffeine::Scripting {
+
+struct ScriptFileEntry {
+    std::filesystem::path path;
+    std::filesystem::file_time_type lastModified;
+};
+
+class ScriptWatcher {
+    std::vector&lt;ScriptFileEntry&gt; m_watchedFiles;
+    f32 m_checkInterval = 1.0f; // Verificar a cada segundo
+    f32 m_timer = 0.0f;
+
+public:
+    void update(f32 dt, LuaVM&amp; vm) {
+        m_timer += dt;
+        if (m_timer &gt;= m_checkInterval) {
+            checkFiles(vm);
+            m_timer = 0.0f;
+        }
+    }
+
+private:
+    void checkFiles(LuaVM&amp; vm) {
+        for (auto&amp; entry : m_watchedFiles) {
+            auto currentTime = std::filesystem::last_write_time(entry.path);
+            if (currentTime &gt; entry.lastModified) {
+                vm.reloadScript(entry.path.string());
+                entry.lastModified = currentTime;
+                
+                // Notificar o sistema de UI
+                Events::Publish(&quot;ScriptReloaded&quot;, entry.path.string());
+            }
+        }
+    }
+};
+
+} // namespace Caffeine::Scripting
+</code></pre>
+<h3>Integração com a UI do Editor</h3>
+<p>Quando um script é recarregado, o editor deve fornecer feedback visual:</p>
+<ul>
+<li><strong>Consola:</strong> Log de sucesso ou erro de compilação.</li>
+<li><strong>Notificação Toast:</strong> &quot;Script modificado — recarregado com sucesso&quot;.</li>
+<li><strong>Scene View:</strong> Atualização imediata do comportamento das entidades.</li>
+</ul>
+<h3>Diagrama de Hot-Reload</h3>
+<pre><code>[ EDITOR EXTERNO ] --- (Save File) ---&gt; [ FILE SYSTEM ]
+                                               |
+                                               v
+[ ENGINE ] &lt;-------------------------- [ SCRIPT WATCHER ]
+    |                                          |
+    | (1) Detect Change                        |
+    | (2) Call LuaVM::reloadScript() &lt;---------+
+    | (3) Re-bind local tables
+    | (4) Clear caches
+    v
+[ RUNNING GAME ] (Updated Logic!)
+</code></pre>
+<hr>
+<h2>Decisões de Design</h2>
+<table>
+<thead>
+<tr>
+<th>Decisão</th>
+<th>Justificativa</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Polling Controlado (1s)</td>
+<td>Evita sobrecarga do sistema de ficheiros e lida com editores que guardam ficheiros de forma atómica/temporária.</td>
+</tr>
+<tr>
+<td>Reload via <code>LuaVM</code></td>
+<td>Garante que o estado global do motor não é corrompido durante a substituição da lógica.</td>
+</tr>
+<tr>
+<td>Evento <code>ScriptReloaded</code></td>
+<td>Permite que outros sistemas (como o Inspector) se atualizem se houver novos campos expostos.</td>
+</tr>
+</tbody></table>
+<hr>
+<h2>Critério de Aceitação</h2>
+<ul>
+<li><input disabled="" type="checkbox"> Modificar um ficheiro <code>.lua</code> externo resulta num log na consola do motor.</li>
+<li><input disabled="" type="checkbox"> Alterações na lógica de movimento são visíveis imediatamente após o &quot;Save&quot;.</li>
+<li><input disabled="" type="checkbox"> Erros de sintaxe introduzidos durante a edição são capturados e exibidos.</li>
+<li><input disabled="" type="checkbox"> O motor não crasha se o ficheiro for guardado vazio ou com erros.</li>
+</ul>
+<hr>
+<h2>Dependências</h2>
+<ul>
+<li><strong>Upstream:</strong> <code>LuaVM</code>, <code>AssetManager</code></li>
+<li><strong>Downstream:</strong> <code>ConsoleWindow</code>, <code>EditorUI</code></li>
+</ul>
+<hr>
+<h2>🔗 Tópicos Relacionados</h2>
+<table>
+<thead>
+<tr>
+<th>Tópico</th>
+<th>Descrição</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>docs/debug/debug-tools.md</code></td>
+<td>Como os erros são reportados na consola.</td>
+</tr>
+<tr>
+<td><code>docs/assets/asset-manager.md</code></td>
+<td>Monitorização base de ficheiros.</td>
+</tr>
+</tbody></table>
+<hr>
+<h2>Referências</h2>
+<ul>
+<li><a href="https://en.wikipedia.org/wiki/Dynamic_software_updating">Live Coding and Hot Reloading in Games</a></li>
+<li><a href="https://en.cppreference.com/w/cpp/filesystem/last_write_time">C++17 std::filesystem::last_write_time</a></li>
+</ul>
+
+</article>

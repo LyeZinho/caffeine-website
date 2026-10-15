@@ -1,0 +1,35 @@
+<article class="doc-article" data-slug="docs/physics/physics-3d">
+<h1>Physics 3D (Bullet3)</h1>
+<blockquote>
+<p><strong>Namespace:</strong> <code>Caffeine::Physics3D</code><br><strong>Ficheiros:</strong> <code>src/physics/PhysicsComponents3D.hpp</code>, <code>PhysicsWorld3D.cpp</code>, <code>PhysicsSystem3D.hpp</code><br><strong>Estado:</strong> 🟡 Primeira fatia — box, sphere, capsule, sync ECS no play mode<br><strong>Pilar:</strong> <a href="../plans/2026-09-22-engine-pillars-roadmap.md"><code>plans/2026-09-22-engine-pillars-roadmap.md</code></a> §3</p>
+</blockquote>
+<p>O ECS não inclui headers do Bullet. <code>RigidBody3D</code> e <code>Collider3D</code> são POD serializáveis. Os <code>btRigidBody</code> vivem em <code>PhysicsWorld3D</code>, indexados pelo id da entidade.</p>
+<h2>Componentes</h2>
+<table>
+<thead>
+<tr>
+<th>Componente</th>
+<th>Campos</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>RigidBody3D</code></td>
+<td><code>mass</code>, damping, <code>friction</code>, <code>restitution</code>, <code>bodyType</code> (Dynamic / Kinematic / Static), <code>lockRotation</code></td>
+</tr>
+<tr>
+<td><code>Collider3D</code></td>
+<td><code>Box</code> (half extents), <code>Sphere</code> (<code>halfExtents.x</code> = raio), <code>Capsule</code> (<code>x</code> raio, <code>y</code> altura total), <code>offset</code>, <code>isTrigger</code></td>
+</tr>
+</tbody></table>
+<p>Ambos são necessários. No Doppio: <strong>Add Component → Physics 3D</strong>. O step corre só em play mode (<code>SceneEditor::tickSystems</code>), a 1/60 s com no máximo 4 substeps. Ao sair do play mode o mundo Bullet é destruído; a cena editada volta pelo snapshot já existente.</p>
+<h2>Política</h2>
+<ul>
+<li>Gravidade por defeito: <code>(0, -9.81, 0)</code>.</li>
+<li>Corpos dinâmicos: a física escreve <code>Position3D</code>, <code>Transform</code> e <code>Rotation3D</code>.</li>
+<li>Corpos estáticos e cinemáticos: a pose do ECS é empurrada para o Bullet em cada frame.</li>
+<li>Escala de <code>Scale3D</code> / <code>Transform.scale</code> entra no tamanho do collider.</li>
+<li>Terreno heightfield, mesh convexa, debug draw e joints ainda não estão ligados.</li>
+</ul>
+<p>Build: <code>CAFFEINE_ENABLE_BULLET3=ON</code> (defeito). Sem a flag, <code>PhysicsWorld3D::isAvailable()</code> devolve false e o sistema é no-op.</p>
+
+</article>

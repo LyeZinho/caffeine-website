@@ -1,0 +1,27 @@
+<article class="doc-article" data-slug="docs/rendering/mesh-lod">
+<h1>Mesh LOD</h1>
+<p>Meshes with at least 600 indices get two clustered LODs (Rossignac vertex clustering) in <code>GpuSceneRenderer</code>. The source mesh is never rewritten.</p>
+<table>
+<thead>
+<tr>
+<th>Distância (mundo / escala)</th>
+<th>LOD</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>&lt; 40 m</td>
+<td>original</td>
+</tr>
+<tr>
+<td>40–110 m</td>
+<td>célula = 4.5% da diagonal</td>
+</tr>
+<tr>
+<td>&gt; 110 m</td>
+<td>célula = 12% da diagonal</td>
+</tr>
+</tbody></table>
+<p>A troca usa hysteresis de 12% para não oscilar na fronteira. Terreno continua no <code>TerrainLodSystem</code>. Objetos perto da câmara, incluindo a esfera do viewport, ficam no LOD 0.</p>
+<p>Instancing GPU ainda não existe: <code>CommandBuffer</code> só tem <code>drawIndexed</code>. Occlusion culling também não — só frustum.</p>
+
+</article>

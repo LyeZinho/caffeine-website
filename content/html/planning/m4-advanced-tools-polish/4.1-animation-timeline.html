@@ -1,0 +1,171 @@
+<article class="doc-article" data-slug="planning/m4-advanced-tools-polish/4.1-animation-timeline">
+<h1>🔧 Animation Timeline Editor</h1>
+<blockquote>
+<p><strong>Milestone:</strong> M4 — Advanced Tools &amp; Polish
+<strong>Namespace:</strong> <code>Caffeine::Editor</code>
+<strong>Arquivos:</strong> <code>src/editor/AnimationTimeline.hpp</code>, <code>src/editor/AnimationTimeline.cpp</code>
+<strong>Status:</strong> 📅 Planeado
+<strong>RF:</strong> RF6.1</p>
+</blockquote>
+<hr>
+<h2>Visão Geral</h2>
+<p>O Animation Timeline Editor é a ferramenta central para a criação de sequências animadas dentro do Caffeine Studio. Ele permite que os utilizadores manipulem propriedades de entidades ao longo do tempo através de um sistema de keyframes (fotogramas-chave). A interface fornece uma representação visual clara das faixas de animação, permitindo ajustes precisos em transformações, trocas de sprites e disparo de eventos.</p>
+<p>Esta ferramenta foi desenhada para ser intuitiva tanto para animadores tradicionais, através do sistema de frames de sprite, como para utilizadores que preferem animação baseada em interpolação de curvas para posições e rotações. A inclusão de Onion Skinning facilita a visualização do movimento, permitindo ver os frames anteriores e posteriores com transparência.</p>
+<hr>
+<h2>Implementação</h2>
+<p>A implementação baseia-se num sistema de faixas (Tracks) e canais de dados. Cada <code>AnimationClip</code> contém múltiplas <code>AnimationTrack</code>.</p>
+<h3>Estrutura de Classes</h3>
+<pre><code class="language-cpp">namespace Caffeine::Editor {
+
+enum class TrackType {
+    Sprite,
+    Transform,
+    Event,
+    Audio
+};
+
+struct Keyframe {
+    float time;
+    std::variant&lt;int, glm::vec3, std::string&gt; value;
+    EasingType easing = EasingType::Linear;
+};
+
+class AnimationTrack {
+public:
+    virtual ~AnimationTrack() = default;
+    virtual void AddKeyframe(float time, const std::variant&lt;int, glm::vec3, std::string&gt;&amp; value) = 0;
+    virtual void RemoveKeyframe(int index) = 0;
+    virtual TrackType GetType() const = 0;
+    
+    std::vector&lt;Keyframe&gt; m_keyframes;
+    std::string m_targetPropertyName;
+};
+
+class AnimationTimelinePanel : public EditorPanel {
+public:
+    AnimationTimelinePanel();
+    void OnImGuiRender() override;
+    void SetActiveClip(Ref&lt;AnimationClip&gt; clip);
+
+private:
+    void RenderHeader();
+    void RenderTimeline();
+    void RenderTracks();
+    void HandleInput();
+
+    Ref&lt;AnimationClip&gt; m_activeClip;
+    float m_currentTime = 0.0f;
+    bool m_isPlaying = false;
+    bool m_onionSkinningEnabled = true;
+};
+
+} // namespace Caffeine::Editor
+</code></pre>
+<h3>Diagrama de Interface (ASCII)</h3>
+<pre><code>┌─────────────────────────────────────────────────────────────┐
+│  Animation: &quot;hero_idle&quot;    [▶ Play]  [■ Stop]  [⟳ Loop]   │
+│  Duration: 1.2s    FPS: 12                                 │
+├─────────────────────────────────────────────────────────────┤
+│  Timeline:  |──●──●──●──●──●──●──●──●──●──●──●──●──|      │
+│             0s   0.1  0.2  0.3  0.4  0.5  0.6  ...  1.2s   │
+├─────────────────────────────────────────────────────────────┤
+│  Tracks:                                                     │
+│  ▸ Sprite     [hero_1] [hero_2] [hero_3] ...               │
+│  ▸ Position   ●─────────────●──────────────●               │
+│  ▸ Rotation   ───●─────────────────────●────               │
+│  ▸ Events     [play_sfx]        [spawn_particle]            │
+└─────────────────────────────────────────────────────────────┘
+</code></pre>
+<h3>Exemplo de Lógica de Interpolação</h3>
+<pre><code class="language-cpp">glm::vec3 InterpolateTransform(const AnimationTrack&amp; track, float time) {
+    if (track.m_keyframes.empty()) return glm::vec3(0.0f);
+    
+    // Encontrar os dois keyframes entre os quais o &#39;time&#39; se encontra
+    auto it = std::upper_bound(track.m_keyframes.begin(), track.m_keyframes.end(), time, 
+        [](float t, const Keyframe&amp; k) { return t &lt; k.time; });
+
+    if (it == track.m_keyframes.begin()) return std::get&lt;glm::vec3&gt;(track.m_keyframes.front().value);
+    if (it == track.m_keyframes.end()) return std::get&lt;glm::vec3&gt;(track.m_keyframes.back().value);
+
+    const auto&amp; k1 = *(it - 1);
+    const auto&amp; k2 = *it;
+
+    float alpha = (time - k1.time) / (k2.time - k1.time);
+    // Aplicar função de easing aqui
+    alpha = ApplyEasing(alpha, k1.easing);
+
+    return glm::mix(std::get&lt;glm::vec3&gt;(k1.value), std::get&lt;glm::vec3&gt;(k2.value), alpha);
+}
+</code></pre>
+<hr>
+<h2>Decisões de Design</h2>
+<table>
+<thead>
+<tr>
+<th>Decisão</th>
+<th>Justificativa</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Sistema de Faixas Polimórfico</td>
+<td>Permite estender facilmente a animação para novas propriedades de componentes sem alterar o núcleo.</td>
+</tr>
+<tr>
+<td>Uso de <code>std::variant</code> para Keyframes</td>
+<td>Oferece flexibilidade para armazenar diferentes tipos de dados (int para frames, vec3 para posição) numa estrutura comum.</td>
+</tr>
+<tr>
+<td>Onion Skinning no Viewport</td>
+<td>Essencial para dar feedback visual imediato ao animador sobre a fluidez do movimento.</td>
+</tr>
+<tr>
+<td>Exportação para .caf binário</td>
+<td>Garante carregamento rápido pelo motor de jogo durante o runtime.</td>
+</tr>
+</tbody></table>
+<hr>
+<h2>Critério de Aceitação</h2>
+<ul>
+<li><input disabled="" type="checkbox"> Interface permite criar, mover e remover keyframes em múltiplas faixas.</li>
+<li><input disabled="" type="checkbox"> Reprodução em tempo real no editor com suporte para loop.</li>
+<li><input disabled="" type="checkbox"> Onion skinning funcional, mostrando frames adjacentes com transparência ajustável.</li>
+<li><input disabled="" type="checkbox"> Faixa de eventos permite chamar funções Lua registadas no sistema de scripting.</li>
+<li><input disabled="" type="checkbox"> Exportação e importação correta de ficheiros <code>.caf</code>.</li>
+</ul>
+<hr>
+<h2>Dependências</h2>
+<ul>
+<li><strong>Upstream:</strong> <code>docs/editor/scene-editor.md</code>, <code>docs/animation/animation-2d.md</code></li>
+<li><strong>Downstream:</strong> <code>docs/scripting/scripting.md</code> (para faixas de eventos)</li>
+</ul>
+<hr>
+<h2>🔗 Tópicos Relacionados</h2>
+<table>
+<thead>
+<tr>
+<th>Tópico</th>
+<th>Descrição</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Animation 2D</td>
+<td>Sistema de runtime que consome as animações criadas.</td>
+</tr>
+<tr>
+<td>Scene Viewport</td>
+<td>Onde o Onion Skinning e a pré-visualização ocorrem.</td>
+</tr>
+<tr>
+<td>Asset Browser</td>
+<td>Gestão de ficheiros de animação <code>.caf</code>.</td>
+</tr>
+</tbody></table>
+<hr>
+<h2>Referências</h2>
+<ul>
+<li>Documentação ImGui para implementação de Timelines.</li>
+<li>Padrões de interpolação Linear e Bezier em motores de jogo.</li>
+<li>RFC para o formato de asset <code>.caf</code>.</li>
+</ul>
+
+</article>

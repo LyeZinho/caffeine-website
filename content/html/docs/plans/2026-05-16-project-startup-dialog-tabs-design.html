@@ -1,0 +1,257 @@
+<article class="doc-article" data-slug="docs/plans/2026-05-16-project-startup-dialog-tabs-design">
+<h1>ProjectStartupDialog - Tab-Based Project Management Design</h1>
+<p><strong>Date</strong>: 2026-05-16<br><strong>Status</strong>: Approved<br><strong>Author</strong>: Sisyphus</p>
+<h2>Overview</h2>
+<p>Implement a tab-based ProjectStartupDialog with 3 independent tabs for project creation, recent projects, and project browsing. Replaces simplified single-screen approach with a complete project management workflow.</p>
+<h2>Architecture &amp; State Management</h2>
+<p>The dialog uses an <strong>ImGui tab bar</strong> with 3 independent tabs. Tab state is managed via <code>m_activeTab</code> (0=Create, 1=Recent, 2=Browse).</p>
+<h3>Shared State</h3>
+<ul>
+<li><code>m_projectManager</code>: ProjectManager instance for file operations</li>
+<li><code>m_errorMessage[512]</code>: Current error message buffer</li>
+<li><code>m_toastQueue</code>: Queue of toast notifications (new)</li>
+<li>Template metadata with preview images</li>
+</ul>
+<h3>Tab-Specific State</h3>
+<p><strong>Tab 0 (Create New Project):</strong></p>
+<ul>
+<li><code>m_projectName[256]</code>: User input for project name</li>
+<li><code>m_templateIndex</code>: Selected template (0=Empty, 1=2D, 2=3D)</li>
+<li><code>m_selectedLocation</code>: Chosen project location path</li>
+<li><code>m_locationPicked</code>: Whether location picker was used</li>
+<li><code>m_showTemplateOnStartup</code>: Per-template checkbox state</li>
+</ul>
+<p><strong>Tab 1 (Open Recent):</strong></p>
+<ul>
+<li><code>m_recentProjects</code>: Cached list of recent projects</li>
+<li><code>m_showAllRecents</code>: Toggle between &quot;recent only&quot; vs &quot;all projects&quot;</li>
+<li><code>m_searchFilter[256]</code>: Search/filter text</li>
+<li><code>m_selectedRecentIndex</code>: Currently highlighted project</li>
+</ul>
+<p><strong>Tab 2 (Browse Projects):</strong></p>
+<ul>
+<li><code>m_browsePath[512]</code>: Current search directory</li>
+<li><code>m_browseResults</code>: Vector of found project paths</li>
+<li><code>m_selectedBrowseIndex</code>: Currently highlighted result</li>
+</ul>
+<h2>UI Layout</h2>
+<h3>Main Window Structure</h3>
+<pre><code>┌─ Project Manager ────────────────────────────────┐
+│  [Create New] [Open Recent] [Browse Projects]    │
+│                                                   │
+│  ┌─ Tab Content (dynamic) ─────────────────────┐ │
+│  │                                              │ │
+│  │  (Tab 0, 1, or 2 rendered here)             │ │
+│  │                                              │ │
+│  └──────────────────────────────────────────────┘ │
+│                                                   │
+│  [Toast notifications - bottom right]            │
+└───────────────────────────────────────────────────┘
+</code></pre>
+<h3>Tab 0: Create New Project</h3>
+<p><strong>Components (top to bottom):</strong></p>
+<ol>
+<li><p><strong>Project Name Input</strong></p>
+<ul>
+<li>Label: &quot;Project Name&quot;</li>
+<li>Input field with validation (empty check)</li>
+<li>Placeholder: &quot;MyAwesomeGame&quot;</li>
+</ul>
+</li>
+<li><p><strong>Template Selection (Visual Cards)</strong></p>
+<ul>
+<li>3 cards displayed horizontally</li>
+<li>Card layout: <code>[Icon] Name\n Description</code></li>
+<li>Template options:<ul>
+<li><strong>Empty</strong>: Blank project, no starter assets</li>
+<li><strong>2D</strong>: Pre-configured for 2D games (sprites, tilemaps)</li>
+<li><strong>3D</strong>: Pre-configured for 3D games (models, lighting)</li>
+</ul>
+</li>
+<li>Selected card: highlighted border/background</li>
+<li>Checkbox below each: &quot;Show on startup&quot;</li>
+</ul>
+</li>
+<li><p><strong>Location Selector</strong></p>
+<ul>
+<li>Label: &quot;Project Location&quot;</li>
+<li>Display field (read-only path)</li>
+<li>Button: &quot;Browse...&quot; → opens file picker dialog</li>
+<li>Default: <code>~/Documents/CaffeineProjects</code></li>
+</ul>
+</li>
+<li><p><strong>Action Button</strong></p>
+<ul>
+<li>&quot;Create &amp; Open&quot; button (disabled if name empty)</li>
+<li>On click → show progress dialog</li>
+<li>Progress dialog shows spinner + &quot;Creating project...&quot;</li>
+<li>After creation → return ProjectConfig and switch to SceneEditor</li>
+</ul>
+</li>
+</ol>
+<h3>Tab 1: Open Recent Projects</h3>
+<p><strong>Components (top to bottom):</strong></p>
+<ol>
+<li><p><strong>Search &amp; Filter Controls</strong></p>
+<ul>
+<li>Input: &quot;Search projects&quot; (filters by name)</li>
+<li>Toggle button: &quot;Show All&quot; (shows all projects vs recent only)</li>
+<li>Status label: &quot;X projects | Last 5 recent&quot;</li>
+</ul>
+</li>
+<li><p><strong>Projects List (scrollable)</strong></p>
+<ul>
+<li>Each row: <code>[Name] | [Path] | [Last Modified] | [Template Type] | [Open Button]</code></li>
+<li>Hover effect: shows project thumbnail (if available)</li>
+<li>Single-click to select (highlight row)</li>
+<li>&quot;Open&quot; button → ProjectManager::OpenProject()</li>
+<li>Sorting: by most recently opened first</li>
+</ul>
+</li>
+<li><p><strong>Empty State</strong></p>
+<ul>
+<li>If no projects: &quot;No projects yet. Create one in &#39;Create New&#39; tab!&quot;</li>
+</ul>
+</li>
+</ol>
+<h3>Tab 2: Browse Projects</h3>
+<p><strong>Components (top to bottom):</strong></p>
+<ol>
+<li><p><strong>Path Input &amp; Browse</strong></p>
+<ul>
+<li>Label: &quot;Search Path&quot;</li>
+<li>Input field: current search directory</li>
+<li>Button: &quot;Browse Folder...&quot; → native file picker (future implementation)</li>
+</ul>
+</li>
+<li><p><strong>Results List (scrollable)</strong></p>
+<ul>
+<li>Each row: <code>[Name] | [Path] | [Template Type] | [Open Button]</code></li>
+<li>Hover: shows thumbnail preview</li>
+<li>Single-click to select</li>
+<li>&quot;Open&quot; button → ProjectManager::OpenProject()</li>
+</ul>
+</li>
+<li><p><strong>Status Bar</strong></p>
+<ul>
+<li>&quot;X projects found&quot; or &quot;No projects found in this directory&quot;</li>
+<li>Loading state while scanning directory</li>
+</ul>
+</li>
+</ol>
+<h2>Error Handling &amp; User Feedback</h2>
+<h3>Toast Notification System (New)</h3>
+<p><strong>Purpose</strong>: Non-intrusive error/success feedback</p>
+<p><strong>Characteristics:</strong></p>
+<ul>
+<li>Appears in bottom-right corner of dialog</li>
+<li>Auto-dismisses after 3 seconds</li>
+<li>User can click to close immediately</li>
+<li>Color-coded:<ul>
+<li>Red (#FF4444): Error messages</li>
+<li>Green (#44FF44): Success messages</li>
+<li>Yellow (#FFFF44): Info/warning messages</li>
+</ul>
+</li>
+<li>Max 3 toasts visible at once (queue overflow scrolls)</li>
+</ul>
+<p><strong>Toast Messages:</strong></p>
+<ul>
+<li>✓ &quot;Project created successfully!&quot;</li>
+<li>✗ &quot;Project name already exists&quot;</li>
+<li>✗ &quot;Invalid project path&quot;</li>
+<li>✗ &quot;Failed to open project: {reason}&quot;</li>
+<li>✓ &quot;Project opened successfully&quot;</li>
+<li>ℹ &quot;No projects found in directory&quot;</li>
+</ul>
+<h3>Validation</h3>
+<p><strong>Create Tab:</strong></p>
+<ul>
+<li>Empty project name → disable &quot;Create &amp; Open&quot; button + toast on click</li>
+<li>Invalid path → toast error</li>
+<li>Path exists → toast error &quot;Project already exists at this location&quot;</li>
+</ul>
+<p><strong>Recent/Browse Tabs:</strong></p>
+<ul>
+<li>Project file missing → toast &quot;Project no longer exists&quot;</li>
+<li>Permission denied → toast &quot;Cannot open project (permission denied)&quot;</li>
+</ul>
+<h2>Data Flow</h2>
+<pre><code>┌─────────────────────────────────────────────────────────┐
+│ User Interaction                                        │
+└─────────────────────────┬───────────────────────────────┘
+                          │
+         ┌────────────────┼────────────────┐
+         │                │                │
+    [Tab 0]          [Tab 1]           [Tab 2]
+    Create            Recent            Browse
+         │                │                │
+         ├─→ Input name ──┤─→ Select proj ├─→ Type path
+         │    + template  │    + click    │    + click
+         │    + location  │    &quot;Open&quot;     │    &quot;Open&quot;
+         │                │                │
+         └────────────────┼────────────────┘
+                          │
+                 ProjectManager
+                          │
+         ┌────────────────┴────────────────┐
+         │                                 │
+   CreateNewProject()              OpenProject()
+         │                                 │
+    Validate path       Check project.caffeine exists
+    Create folders      Parse config file
+    Write config        Load project metadata
+         │                                 │
+         └────────────────┬────────────────┘
+                          │
+                  Success? / Error?
+                          │
+         ┌────────────────┴────────────────┐
+         │                                 │
+       Toast              Toast
+    &quot;Success!&quot;         &quot;Error: {msg}&quot;
+       Return                 │
+    ProjectConfig        Show toast
+         │                    │
+         └────────────────┬───┘
+                          │
+                    Stay in dialog
+</code></pre>
+<h2>Implementation Notes</h2>
+<ol>
+<li><strong>Progress Dialog</strong>: Use ImGui::OpenPopup() for blocking modal during project creation</li>
+<li><strong>File Browser Stub</strong>: &quot;Browse...&quot; buttons are placeholders for future native file picker integration</li>
+<li><strong>Thumbnail Preview</strong>: Currently stub; future implementation will load .png from project folder</li>
+<li><strong>Recent Projects Cache</strong>: Loaded from ProjectManager on init()</li>
+<li><strong>Template Cards</strong>: Use inline button logic to handle selection (no separate component needed)</li>
+<li><strong>Toast Queue</strong>: Implement simple FIFO queue with timestamp-based auto-dismiss</li>
+</ol>
+<h2>Success Criteria</h2>
+<ul>
+<li><input checked="" disabled="" type="checkbox"> All 3 tabs render correctly with ImGui::BeginTabBar()</li>
+<li><input disabled="" type="checkbox"> Create New: name input + template cards + location picker work</li>
+<li><input disabled="" type="checkbox"> Create New: &quot;Create &amp; Open&quot; shows progress dialog and returns ProjectConfig</li>
+<li><input disabled="" type="checkbox"> Open Recent: lists all recent projects, search filters by name</li>
+<li><input disabled="" type="checkbox"> Open Recent: &quot;Show All&quot; toggle shows all projects vs recent only</li>
+<li><input disabled="" type="checkbox"> Browse: accepts directory path, finds project.caffeine files</li>
+<li><input disabled="" type="checkbox"> Browse: &quot;Open&quot; button opens selected project</li>
+<li><input disabled="" type="checkbox"> Error handling: toast notifications appear and auto-dismiss</li>
+<li><input disabled="" type="checkbox"> No IMGui errors (Missing End(), etc.)</li>
+<li><input disabled="" type="checkbox"> Code matches existing editor patterns (ProjectManager usage, error handling)</li>
+</ul>
+<h2>Files to Modify</h2>
+<ul>
+<li><code>src/editor/ProjectStartupDialog.hpp</code>: Add state variables, toast system</li>
+<li><code>src/editor/ProjectStartupDialog.cpp</code>: Implement 3 tab renderers + toast logic</li>
+<li><code>src/editor/ProjectManager.hpp</code>: Ensure GetRecentProjects(), OpenProject() exist</li>
+<li><code>src/editor/ProjectManager.cpp</code>: May need adjustments for error reporting</li>
+</ul>
+<h2>Open Questions / Future Work</h2>
+<ol>
+<li>Should project creation be async or blocking?</li>
+<li>How to handle large directory scans in Browse tab (10k+ projects)?</li>
+<li>Thumbnail generation and caching strategy?</li>
+<li>Should template metadata be data-driven (JSON) or hardcoded?</li>
+</ol>
+
+</article>

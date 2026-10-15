@@ -1,0 +1,134 @@
+<article class="doc-article" data-slug="planning/m2-visual-editing-assets/2.5-project-manager">
+<h1>🔧 Project Manager</h1>
+<blockquote>
+<p><strong>Milestone:</strong> M2 — Visual Editing &amp; Assets
+<strong>Namespace:</strong> <code>Caffeine::Editor</code>
+<strong>Arquivos:</strong> <code>src/editor/ProjectManager.hpp</code>, <code>src/editor/ProjectManager.cpp</code>
+<strong>Status:</strong> 📅 Planeado
+<strong>RF:</strong> RF6.5</p>
+</blockquote>
+<hr>
+<h2>Visão Geral</h2>
+<p>O Project Manager é o ponto de entrada do Caffeine Studio. Ele permite que os utilizadores criem novos projetos a partir de templates, abram projetos existentes e façam a gestão da lista de projetos recentes. Um &quot;Project&quot; no Caffeine é definido por um ficheiro <code>.caffeine</code> (JSON) que contém metadados sobre o motor, caminhos de assets e configurações de build.</p>
+<p>Esta ferramenta garante que o ambiente de desenvolvimento seja configurado corretamente, criando a estrutura de pastas necessária (<code>assets/</code>, <code>scripts/</code>, <code>build/</code>) e inicializando as bases de dados de assets para o novo projeto.</p>
+<hr>
+<h2>Implementação</h2>
+<p>O Project Manager funciona como uma janela modal ou um executável de &quot;launcher&quot; separado antes de carregar o editor principal.</p>
+<h3>Interface Visual (ASCII)</h3>
+<pre><code>┌─────────────────────────────────────────────┐
+│       ☕ Caffeine Studio — Project Manager   │
+├─────────────────────────────────────────────┤
+│  Recent Projects:                           │
+│  ┌─────────────────────────────────────┐    │
+│  │ 📁 MyGame       C:/projects/mygame  │    │
+│  │ 📁 Platformer    .../platformer     │    │
+│  └─────────────────────────────────────┘    │
+│  [  New Project  ]  [  Open Project  ]      │
+└─────────────────────────────────────────────┘
+</code></pre>
+<h3>Estrutura de Dados e Classes</h3>
+<pre><code class="language-cpp">namespace Caffeine::Editor {
+
+    struct ProjectConfig {
+        std::string Name;
+        std::string Version;
+        std::filesystem::path RootPath;
+        std::filesystem::path AssetPath;
+        std::string TemplateType; // &quot;2D&quot;, &quot;3D&quot;, &quot;Empty&quot;
+    };
+
+    class ProjectManager {
+    public:
+        bool CreateNewProject(const ProjectConfig&amp; config);
+        bool OpenProject(const std::filesystem::path&amp; path);
+        
+        const std::vector&lt;std::filesystem::path&gt;&amp; GetRecentProjects() const;
+        const ProjectConfig&amp; GetCurrentProject() const { return m_CurrentConfig; }
+
+    private:
+        void CreateDirectoryStructure(const std::filesystem::path&amp; root);
+        void SaveProjectFile(const ProjectConfig&amp; config);
+        void UpdateRecentProjects(const std::filesystem::path&amp; path);
+
+        ProjectConfig m_CurrentConfig;
+        std::vector&lt;std::filesystem::path&gt; m_RecentProjects;
+    };
+}
+</code></pre>
+<h3>Ficheiro de Configuração (<code>project.caffeine</code>)</h3>
+<pre><code class="language-json">{
+  &quot;project_name&quot;: &quot;MyGame&quot;,
+  &quot;engine_version&quot;: &quot;0.2.0&quot;,
+  &quot;paths&quot;: {
+    &quot;assets_raw&quot;: &quot;assets/raw&quot;,
+    &quot;assets_processed&quot;: &quot;assets/processed&quot;,
+    &quot;scripts&quot;: &quot;scripts&quot;
+  },
+  &quot;last_scene&quot;: &quot;scenes/main.scene&quot;
+}
+</code></pre>
+<hr>
+<h2>Decisões de Design</h2>
+<table>
+<thead>
+<tr>
+<th>Decisão</th>
+<th>Justificativa</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>JSON para Configuração</td>
+<td>Facilidade de leitura por humanos e integração com scripts externos ou controlo de versões (Git).</td>
+</tr>
+<tr>
+<td>Estrutura de Pastas Fixa</td>
+<td>Garantir que o <code>AssetManager</code> e o <code>Compiler</code> saibam sempre onde procurar os ficheiros, simplificando a lógica do motor.</td>
+</tr>
+<tr>
+<td>Auto-Open Last Project</td>
+<td>Melhora a UX ao permitir que o utilizador continue o trabalho exatamente onde parou ao abrir o editor.</td>
+</tr>
+</tbody></table>
+<hr>
+<h2>Critério de Aceitação</h2>
+<ul>
+<li><input disabled="" type="checkbox"> Janela de Project Manager aparece ao iniciar o Caffeine Studio (se nenhum projeto for passado via CLI).</li>
+<li><input disabled="" type="checkbox"> Criar um projeto novo gera as pastas <code>assets/raw/</code>, <code>assets/processed/</code>, <code>scripts/</code> e <code>build/</code>.</li>
+<li><input disabled="" type="checkbox"> O ficheiro <code>project.caffeine</code> é criado com o nome e caminhos corretos.</li>
+<li><input disabled="" type="checkbox"> Selecionar um projeto na lista de &quot;Recent Projects&quot; carrega o editor com esse projeto.</li>
+<li><input disabled="" type="checkbox"> O botão &quot;Open Project&quot; abre um diálogo de seleção de ficheiro do sistema operativo.</li>
+<li><input disabled="" type="checkbox"> Erros de permissão de escrita ao criar projetos são reportados ao utilizador.</li>
+</ul>
+<hr>
+<h2>Dependências</h2>
+<ul>
+<li><strong>Upstream:</strong> <code>Caffeine::Core::FileSystem</code></li>
+<li><strong>Downstream:</strong> <code>Caffeine::Editor::Main</code> (Bootstrap do editor)</li>
+</ul>
+<hr>
+<h2>🔗 Tópicos Relacionados</h2>
+<table>
+<thead>
+<tr>
+<th>Tópico</th>
+<th>Descrição</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Asset Pipeline</td>
+<td>Configura os caminhos baseados nas definições do projeto.</td>
+</tr>
+<tr>
+<td>Scene Management</td>
+<td>Abre a última cena guardada no ficheiro de projeto.</td>
+</tr>
+</tbody></table>
+<hr>
+<h2>Referências</h2>
+<ul>
+<li>Unity Hub Architecture</li>
+<li>Unreal Project Browser</li>
+<li>Visual Studio Project System (.sln/.vcxproj)</li>
+</ul>
+
+</article>

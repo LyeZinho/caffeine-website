@@ -1,0 +1,308 @@
+<article class="doc-article" data-slug="docs/plans/2026-05-17-ecosystem-three-phase-design">
+<h1>Caffeine Unified Ecosystem — Three-Phase Design</h1>
+<p><strong>Date:</strong> 2026-05-17<br><strong>Status:</strong> Approved<br><strong>Scope:</strong> doppio Editor Integration + Advanced caf-pack + Tool Integration</p>
+<hr>
+<h2>Overview</h2>
+<p>Extend the unified Caffeine ecosystem with three sequential phases:</p>
+<ol>
+<li><strong>Step 4: doppio Editor Integration</strong> — CAP file browsing, asset previews, drag-and-drop import</li>
+<li><strong>Phase 2: Advanced caf-pack Features</strong> — Mesh processor, compression, asset ID header generation</li>
+<li><strong>Phase 3: Tool Integration</strong> — Network asset streaming, WaveShaper/Convoy exports, async loading</li>
+</ol>
+<hr>
+<h2>Phase 1: doppio Editor Integration</h2>
+<h3>Goals</h3>
+<ul>
+<li>Asset Browser can browse <code>.cap</code> files (in addition to filesystem)</li>
+<li>Auto-load <code>game.cap</code> on project open</li>
+<li>Texture preview thumbnails + audio waveform visualization</li>
+<li>Drag-and-drop PNG/WAV files → auto-pack into project&#39;s <code>game.cap</code></li>
+</ul>
+<h3>Architecture</h3>
+<h4>1.1 CAP File Deserialization (<code>CapLoader.hpp/cpp</code>)</h4>
+<p><strong>Purpose:</strong> Parse CAP container format and extract assets.</p>
+<p><strong>Responsibilities:</strong></p>
+<ul>
+<li>Read CAP header (magic, version, entry count)</li>
+<li>Parse CapEntry table (asset filename, type, offset, size)</li>
+<li>Extract individual CAF blobs from container</li>
+<li>Deserialize CAF metadata (texture dims, audio sample rate, etc.)</li>
+</ul>
+<p><strong>Interface:</strong></p>
+<pre><code class="language-cpp">class CapLoader {
+  struct LoadedAsset {
+    std::string filename;
+    AssetType type;
+    std::vector&lt;u8&gt; cafBlob;
+    CafHeader metadata;
+  };
+  
+  std::vector&lt;LoadedAsset&gt; loadCap(const std::filesystem::path&amp; path);
+};
+</code></pre>
+<p><strong>Location:</strong> <code>src/editor/CapLoader.hpp/cpp</code></p>
+<hr>
+<h4>1.2 Asset Browser Extensions</h4>
+<p><strong>Purpose:</strong> Support both filesystem browsing and CAP file browsing.</p>
+<p><strong>Changes to AssetBrowser:</strong></p>
+<ul>
+<li>Add mode: <code>enum class BrowseMode { Filesystem, CapFile }</code></li>
+<li>New method: <code>loadCapFile(const std::filesystem::path&amp; capPath)</code></li>
+<li>Toggle in breadcrumb/toolbar to switch modes</li>
+<li>CAP entries show original filename + uncompressed size</li>
+</ul>
+<p><strong>UI Indicators:</strong></p>
+<ul>
+<li>Breadcrumb shows: &quot;FileSystem &gt; path&quot; or &quot;CAP &gt; game.cap &gt; contents&quot;</li>
+<li>CAP mode shows &quot;CAP file&quot; badge in toolbar</li>
+</ul>
+<p><strong>Location:</strong> Extend <code>src/editor/AssetBrowser.hpp/cpp</code></p>
+<hr>
+<h4>1.3 Texture Thumbnail Renderer</h4>
+<p><strong>Purpose:</strong> Display texture previews in Asset Browser grid.</p>
+<p><strong>Implementation:</strong></p>
+<ul>
+<li>Extend existing <code>PreviewRenderer</code> to handle CAF textures</li>
+<li>CAF texture → upload to GPU (using engine&#39;s renderer)</li>
+<li>Render quad with thumbnail in grid cell</li>
+<li>Fallback icon if texture is invalid (corrupted, wrong format)</li>
+</ul>
+<p><strong>Cache:</strong> Store GPU texture handles per asset (cleared on mode switch)</p>
+<p><strong>Location:</strong> Extend <code>src/editor/PreviewRenderer.hpp/cpp</code></p>
+<hr>
+<h4>1.4 Audio Waveform Visualizer (<code>AudioWaveformRenderer.hpp/cpp</code>)</h4>
+<p><strong>Purpose:</strong> Display stereo waveform for audio assets.</p>
+<p><strong>Implementation:</strong></p>
+<ul>
+<li>CAF audio → decode PCM samples in memory</li>
+<li>Compute waveform texture: stereo channels (left/right) stacked, sample min/max bars</li>
+<li>Render as quad in grid cell (or detail panel)</li>
+<li>Cache waveform texture to avoid re-computation</li>
+</ul>
+<p><strong>Performance:</strong> Compute waveform once on load, store as GPU texture</p>
+<p><strong>Location:</strong> <code>src/editor/AudioWaveformRenderer.hpp/cpp</code></p>
+<hr>
+<h4>1.5 Drag-and-Drop Importer (extends DragDropSystem)</h4>
+<p><strong>Purpose:</strong> Accept PNG/WAV files from OS and auto-pack into game.cap.</p>
+<p><strong>Workflow:</strong></p>
+<ol>
+<li>User drags PNG/WAV files onto Asset Browser</li>
+<li>Detect drop in <code>DragDropSystem::handleDragDrop()</code></li>
+<li>Copy files to temp directory: <code>/tmp/caf_import_XXXXX/</code></li>
+<li>Invoke <code>caf-pack</code> CLI: <pre><code class="language-bash">./caf-pack --input /tmp/caf_import_XXXXX/ --output &lt;project&gt;/game.cap
+</code></pre>
+</li>
+<li>On success, reload game.cap in Asset Browser</li>
+<li>Show toast: &quot;Imported X assets&quot;</li>
+</ol>
+<p><strong>Error Handling:</strong> Show dialog on CLI failure (missing caf-pack, pack error, etc.)</p>
+<p><strong>Cleanup:</strong> Delete temp directory after import</p>
+<p><strong>Location:</strong> Extend <code>src/editor/DragDropSystem.hpp/cpp</code></p>
+<hr>
+<h4>1.6 Project Auto-Load</h4>
+<p><strong>Purpose:</strong> Automatically load game.cap when project opens.</p>
+<p><strong>Implementation:</strong></p>
+<ul>
+<li>In <code>ProjectManager::openProject()</code>, after project path is set</li>
+<li>Check: <code>&lt;project_root&gt;/game.cap</code> exists</li>
+<li>If yes, call <code>AssetBrowser::loadCapFile(game_cap_path)</code></li>
+<li>If no, stay in filesystem mode</li>
+</ul>
+<p><strong>Location:</strong> Modify <code>src/editor/ProjectManager.cpp</code></p>
+<hr>
+<h3>Testing</h3>
+<ul>
+<li>Create test project with pre-built game.cap (texture + audio)</li>
+<li>Verify: browse CAP, see thumbnails, waveform renders correctly</li>
+<li>Drag PNG file to Asset Browser, verify auto-pack succeeds</li>
+<li>Close/reopen project, verify game.cap auto-loads</li>
+</ul>
+<hr>
+<h2>Phase 2: Advanced caf-pack Features</h2>
+<h3>Goals</h3>
+<ul>
+<li>Parse and pack 3D mesh files (OBJ → CAF format)</li>
+<li>Compress assets with zstd (reduce file size)</li>
+<li>Generate C++ header with asset IDs (--gen-ids flag)</li>
+</ul>
+<h3>Architecture</h3>
+<h4>2.1 Mesh Processor (OBJ → CAF)</h4>
+<p><strong>Purpose:</strong> Convert OBJ mesh files to CAF format.</p>
+<p><strong>File:</strong> <code>caf-pack/src/MeshProcessor.hpp/cpp</code></p>
+<p><strong>Implementation:</strong></p>
+<ul>
+<li>Parse OBJ file (vertices, normals, UVs, faces)</li>
+<li>Validate geometry (closed mesh, proper normals)</li>
+<li>Pack into CAF format with CafMeshMetadata:<pre><code class="language-cpp">struct CafMeshMetadata {
+  u32 vertexCount;
+  u32 faceCount;
+  Vec3 boundMin, boundMax;  // AABB
+  u32 vertexFlags;  // has normals? has UVs?
+};
+</code></pre>
+</li>
+<li>Store: vertex buffer, index buffer, normals, UVs</li>
+</ul>
+<p><strong>Route in Packer:</strong> Add case in <code>AssetProcessor::process()</code> for <code>.obj</code> files</p>
+<p><strong>Location:</strong> <code>caf-pack/src/MeshProcessor.hpp/cpp</code></p>
+<hr>
+<h4>2.2 Compression Support (zstd)</h4>
+<p><strong>Purpose:</strong> Compress CAF payloads to reduce game.cap size.</p>
+<p><strong>Implementation:</strong></p>
+<ul>
+<li>Link zstd library in CMakeLists.txt</li>
+<li>Add <code>--compress [level]</code> flag to caf-pack CLI (default: no compression)</li>
+<li>In <code>Packer::packAssets()</code>, compress each CAF payload before writing to container</li>
+<li>Store compressed size in CapEntry header (original size still in CafHeader)</li>
+<li>CapLoader decompresses on load (transparent to caller)</li>
+</ul>
+<p><strong>CLI Example:</strong> <code>caf-pack --input assets/ --output game.cap --compress 10</code></p>
+<p><strong>Location:</strong> Modify <code>caf-pack/src/Packer.cpp</code> + <code>src/editor/CapLoader.cpp</code></p>
+<hr>
+<h4>2.3 Asset ID Header Generator (--gen-ids)</h4>
+<p><strong>Purpose:</strong> Generate C++ header with compile-time asset IDs.</p>
+<p><strong>Implementation:</strong></p>
+<ul>
+<li>New mode: <code>caf-pack --input assets/ --output game.cap --gen-ids include/game_assets.hpp</code></li>
+<li>Scan assets in CAP (or input directory)</li>
+<li>For each asset, compute FNV-1a hash of filename</li>
+<li>Write C++ header:<pre><code class="language-cpp">// Auto-generated by caf-pack
+#pragma once
+#include &quot;core/Types.hpp&quot;
+
+namespace Assets {
+  constexpr u64 player_model = 0x1a2b3c4d5e6f7g8h;
+  constexpr u64 gold_texture = 0x9i8j7k6l5m4n3o2p;
+  constexpr u64 background_music = 0xdeadbeefcafebabe;
+}
+</code></pre>
+</li>
+<li>Filename → asset ID mapping logged for reference</li>
+</ul>
+<p><strong>Location:</strong> <code>caf-pack/src/main.cpp</code> (new --gen-ids handler)</p>
+<hr>
+<h3>Testing</h3>
+<ul>
+<li>Create test OBJ mesh, verify pack succeeds (mesh appears in CAP)</li>
+<li>Pack with <code>--compress 10</code>, verify file size reduction</li>
+<li>Generate header with <code>--gen-ids</code>, verify C++ syntax valid, IDs consistent across runs</li>
+</ul>
+<hr>
+<h2>Phase 3: Tool Integration</h2>
+<h3>Goals</h3>
+<ul>
+<li>Implement network asset streaming (async loading infrastructure)</li>
+<li>WaveShaper export to <code>.cap</code></li>
+<li>Convoy export to <code>.cap</code> (textures/meshes)</li>
+<li>Async asset loading in engine</li>
+</ul>
+<h3>Architecture</h3>
+<h4>3.1 Network Asset Streaming Infrastructure</h4>
+<p><strong>Purpose:</strong> Foundation for async asset loading (used by WaveShaper/Convoy).</p>
+<p><strong>File:</strong> <code>src/engine/AssetLoader.hpp/cpp</code></p>
+<p><strong>Implementation:</strong></p>
+<ul>
+<li>Define async asset loading interface:<pre><code class="language-cpp">using AssetHandle = u64;
+using AssetCallback = std::function&lt;void(const AssetData&amp;)&gt;;
+
+AssetHandle loadAssetAsync(u64 assetId, AssetCallback onReady);
+void cancelLoad(AssetHandle handle);
+</code></pre>
+</li>
+<li>Thread pool for background loading</li>
+<li>Asset cache (LRU eviction)</li>
+<li>Network support (http GET for remote CAP files — future)</li>
+</ul>
+<p><strong>Shader Hot-Reload:</strong> Detect file change on disk, reload shader without restart</p>
+<p><strong>Location:</strong> <code>src/engine/AssetLoader.hpp/cpp</code></p>
+<hr>
+<h4>3.2 WaveShaper Integration</h4>
+<p><strong>Purpose:</strong> Enable WaveShaper to export audio directly to game.cap.</p>
+<p><strong>Workflow:</strong></p>
+<ol>
+<li>User selects &quot;Export to CAP&quot; in WaveShaper</li>
+<li>WaveShaper saves audio to temp WAV file</li>
+<li>WaveShaper invokes: <code>caf-pack --input &lt;temp_dir&gt; --output &lt;project&gt;/game.cap</code></li>
+<li>doppio detects new game.cap, reloads Asset Browser</li>
+<li>Audio immediately available in Asset Browser + engine</li>
+</ol>
+<p><strong>Location:</strong> WaveShaper export menu (outside Caffeine repo, but documented in ECOSYSTEM_INTEGRATION.md)</p>
+<hr>
+<h4>3.3 Convoy Integration</h4>
+<p><strong>Purpose:</strong> Enable Convoy to export textures/meshes to game.cap.</p>
+<p><strong>Workflow:</strong></p>
+<ol>
+<li>User selects &quot;Export Texture to CAP&quot; or &quot;Export Mesh to CAP&quot; in Convoy</li>
+<li>Convoy saves PNG/OBJ to temp directory</li>
+<li>Convoy invokes: <code>caf-pack --input &lt;temp_dir&gt; --output &lt;project&gt;/game.cap</code></li>
+<li>doppio detects new game.cap, reloads</li>
+<li>Assets immediately available</li>
+</ol>
+<p><strong>Location:</strong> Convoy export menu (outside Caffeine repo, but documented)</p>
+<hr>
+<h4>3.4 Async Asset Loading in Engine</h4>
+<p><strong>Purpose:</strong> Non-blocking asset load for game code.</p>
+<p><strong>Interface:</strong></p>
+<pre><code class="language-cpp">// Game code
+auto handle = assetMgr-&gt;loadAsync(Assets::player_model);
+assetMgr-&gt;onReady(handle, [](const MeshData&amp; mesh) {
+  player.setMesh(mesh);
+  player.activate();
+});
+</code></pre>
+<p><strong>Implementation:</strong></p>
+<ul>
+<li>Store pending loads in queue</li>
+<li>Worker thread reads from CAP asynchronously</li>
+<li>Call callback on completion</li>
+<li>No frame stutter from asset I/O</li>
+</ul>
+<p><strong>Location:</strong> Modify <code>src/engine/AssetLoader.hpp/cpp</code> + engine integration</p>
+<hr>
+<h3>Testing</h3>
+<ul>
+<li>Create asset in WaveShaper, export to CAP, verify loads in doppio</li>
+<li>Create asset in Convoy, export to CAP, verify loads in doppio</li>
+<li>Load large asset asynchronously in game, verify no frame stutter</li>
+</ul>
+<hr>
+<h2>Dependencies</h2>
+<h3>Phase 1 Dependencies</h3>
+<ul>
+<li>libpng (already present)</li>
+<li>zlib (already present)</li>
+<li>ImGui (already present in doppio)</li>
+</ul>
+<h3>Phase 2 Dependencies</h3>
+<ul>
+<li>zstd library (new — install via pkg-config or static link)</li>
+</ul>
+<h3>Phase 3 Dependencies</h3>
+<ul>
+<li>pthreads (async threading)</li>
+<li>Optionally: libcurl (network asset loading — Phase 3+)</li>
+</ul>
+<hr>
+<h2>Verification Checklist</h2>
+<ul>
+<li><input disabled="" type="checkbox"> Phase 1: CAP browsing + waveform rendering + drag-drop auto-pack works</li>
+<li><input disabled="" type="checkbox"> Phase 2: Mesh + compression + --gen-ids all verified</li>
+<li><input disabled="" type="checkbox"> Phase 3: Async loader + tool exports verified</li>
+<li><input disabled="" type="checkbox"> All 4 projects compile together: <code>cmake .. &amp;&amp; make</code></li>
+<li><input disabled="" type="checkbox"> caf-pack CLI runs: <code>./caf-pack --help</code></li>
+<li><input disabled="" type="checkbox"> doppio loads test project with game.cap</li>
+<li><input disabled="" type="checkbox"> WaveShaper/Convoy export to CAP (manual verification)</li>
+</ul>
+<hr>
+<h2>Implementation Order</h2>
+<ol>
+<li><strong>Phase 1 (Step 4)</strong> — Implement in doppio editor (4-5 tasks)</li>
+<li><strong>Phase 2 (Parallel)</strong> — Mesh processor + compression parallel (2 tasks), then --gen-ids (1 task)</li>
+<li><strong>Phase 3 (Sequenced)</strong> — Infrastructure first (async loader), then WaveShaper, then Convoy, then engine integration</li>
+</ol>
+<hr>
+<h2>Success Criteria</h2>
+<p>✅ <strong>Phase 1 Complete:</strong> Asset Browser browses game.cap, textures preview, waveforms render, drag-drop import works<br>✅ <strong>Phase 2 Complete:</strong> caf-pack packs meshes, compresses, generates asset ID header<br>✅ <strong>Phase 3 Complete:</strong> Engine loads assets asynchronously, WaveShaper/Convoy export to CAP  </p>
+<p><strong>Final Acceptance:</strong> All three projects (doppio, caf-pack, engine) integrated, single <code>cmake .. &amp;&amp; make</code> build, full asset pipeline end-to-end</p>
+
+</article>

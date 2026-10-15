@@ -1,0 +1,172 @@
+<article class="doc-article" data-slug="docs/HISTORY">
+<h1>📜 Histórico de Desenvolvimento</h1>
+<blockquote>
+<p>Artefatos de desenvolvimento comprimidos — fases, roadmaps, planos e revisões.
+Para documentação técnica real da engine, consulte o <a href="README.md"><code>README.md</code></a>.
+Para o registo cronológico completo de commits, consulte o <a href="../CHANGELOG.md"><code>CHANGELOG.md</code></a> na raiz do repositório.</p>
+</blockquote>
+<hr>
+<h2>Forward PBR, reflexos e pós-processamento GPU (2026-10-02)</h2>
+<p>Bloco que consolida renderização no <strong>core</strong>: pipeline HDR + <code>PostProcessStack</code> (TAA, SSAO, bloom, DoF, …), materiais PBR no <code>scene_lit</code>, reflection probes por objeto, Material Editor com preview GPU, API Lua completa de pós-processamento e execução de <code>customEffectScript</code> em play mode. Doppio deixa de simular efeitos com overlays ImGui.</p>
+<p><strong>Documentação:</strong> <a href="plans/2026-10-02-forward-pbr-post-session.md"><code>plans/2026-10-02-forward-pbr-post-session.md</code></a></p>
+<hr>
+<h2>Performance — Editor Viewport (2026-09-23)</h2>
+<p>Investigação de FPS no Doppio: <strong>~10 FPS → ~100 FPS</strong> após corrigir redundância em <code>GpuSceneRenderer::draw</code> (shadow UBO + binds por chunk de terreno), LOD/cap de resolução, skybox throttle, separação GPU/CPU por frame.</p>
+<p><strong>Documentação:</strong> <a href="performance/editor-viewport-performance.md"><code>performance/editor-viewport-performance.md</code></a></p>
+<hr>
+<h2>Pilares Fundamentais (2026-09-22)</h2>
+<p>Os subsistemas que a engine deve ter de forma <strong>sólida</strong> — Phong 3D, eventos com timers, Bullet3, OpenAL, ECS integrado, handles com refcount, networking, deferred PBR, animação, scene management, scripting futuro (C#/Python) e Android (maybe) — estão documentados em:</p>
+<p><strong><a href="plans/2026-09-22-engine-pillars-roadmap.md"><code>plans/2026-09-22-engine-pillars-roadmap.md</code></a></strong></p>
+<p>Este roadmap complementa as fases abaixo com critérios de aceitação por pilar e ordem de implementação sugerida.</p>
+<hr>
+<h2>Fases de Desenvolvimento</h2>
+<p>O projeto foi estruturado em 6 fases progressivas. Abaixo, o resumo de cada fase e seu status atual.</p>
+<table>
+<thead>
+<tr>
+<th align="center">Fase</th>
+<th>Nome</th>
+<th>Descrição</th>
+<th align="center">Status</th>
+</tr>
+</thead>
+<tbody><tr>
+<td align="center">0</td>
+<td>Setup &amp; Docs</td>
+<td>Infraestrutura, repositório, CI, documentação base</td>
+<td align="center">✅ Completo</td>
+</tr>
+<tr>
+<td align="center">1</td>
+<td>Fundação Atômica</td>
+<td>Core types, custom allocators, containers, math library</td>
+<td align="center">✅ Completo</td>
+</tr>
+<tr>
+<td align="center">2</td>
+<td>Concorrência</td>
+<td>Timer, Job System, Game Loop, Input, Debug Tools</td>
+<td align="center">📅 Pendente</td>
+</tr>
+<tr>
+<td align="center">3</td>
+<td>RHI &amp; 2D</td>
+<td>RHI (SDL_GPU), Batch Renderer, Camera 2D, Asset Manager</td>
+<td align="center">📅 Pendente</td>
+</tr>
+<tr>
+<td align="center">4</td>
+<td>ECS &amp; Sistemas</td>
+<td>ECS Archetype, Scene, Events, Physics, Animation, Audio, UI</td>
+<td align="center">📅 Pendente</td>
+</tr>
+<tr>
+<td align="center">5</td>
+<td>Transição 3D</td>
+<td>Quaternions, Mesh Loading, Camera 3D, Spatial Partitioning</td>
+<td align="center">📅 Futuro</td>
+</tr>
+<tr>
+<td align="center">6</td>
+<td>Caffeine Studio</td>
+<td>Embedded UI (ImGui), Scene Editor, Asset Pipeline, Scripting</td>
+<td align="center">📅 Pendente</td>
+</tr>
+</tbody></table>
+<h3>Fase 0 — Setup &amp; Documentação</h3>
+<ul>
+<li>Repositório GitHub, estrutura de branches, CI (GitHub Actions)</li>
+<li>Build system CMake com testes</li>
+<li>Documentação: MASTER.md, ROADMAP.md, SPECS.md, architecture_specs.md</li>
+<li>Style guide e convenções de código</li>
+</ul>
+<h3>Fase 1 — Fundação Atômica</h3>
+<ul>
+<li>Tipos de largura fixa (<code>u8..u64</code>, <code>f32</code>, <code>f64</code>, <code>usize</code>)</li>
+<li>Custom allocators (Linear, Pool, Stack) com interface <code>IAllocator</code></li>
+<li>Containers (Vector, HashMap, StringView, FixedString)</li>
+<li>Math library (Vec2, Vec3, Vec4, Mat4)</li>
+<li>Testes: <code>test_core.cpp</code> (8), <code>test_allocators.cpp</code> (16+3), <code>test_containers.cpp</code> (14+1), <code>test_math.cpp</code> (18)</li>
+</ul>
+<h3>Fase 2 — Concorrência <em>(planejado)</em></h3>
+<ul>
+<li>High-Resolution Timer com precisão de microssegundos</li>
+<li>Job System com work-stealing, lock-free queue, 3 níveis de prioridade</li>
+<li>Fiber-based jobs (jobs podem suspender sem bloquear OS thread)</li>
+<li>Game Loop com fixed timestep (60 updates/s) + interpolação</li>
+<li>Input System com action mapping remapável</li>
+<li>Debug Tools: LogSystem, Profiler, DebugDraw</li>
+</ul>
+<h3>Fase 3 — RHI &amp; 2D <em>(planejado)</em></h3>
+<ul>
+<li>RHI: abstração sobre SDL_GPU com triple buffering</li>
+<li>Batch Renderer: 50K sprites em 1 draw call</li>
+<li>Texture Atlas com bin-packing</li>
+<li>Camera 2D com follow e shake</li>
+<li>Asset Manager com async loading e hot-reload</li>
+<li>Formato <code>.caf</code> (Caffeine Asset Format) — zero-parsing, zero-copy</li>
+</ul>
+<h3>Fase 4 — ECS &amp; Sistemas <em>(planejado)</em></h3>
+<ul>
+<li>ECS Archetype-based com cache locality</li>
+<li>Command Buffer diferido (create/destroy seguro durante iteração)</li>
+<li>Scene Manager com hierarquia parent/child e serialização <code>.caf</code></li>
+<li>Event Bus pub/sub com <code>Event&lt;T&gt;</code> tipado</li>
+<li>Physics 2D (AABB/circle collision, rigid body)</li>
+<li>Animation 2D (sprite clips, state machine)</li>
+<li>Audio System (SDL_AudioStream, spatial 2D)</li>
+<li>UI System retained mode (widgets ECS, bindValue)</li>
+<li>Scripting bindings iniciais (Lua/AngelScript)</li>
+</ul>
+<h3>Fase 5 — Transição 3D <em>(futuro distante)</em></h3>
+<ul>
+<li>Quaternion + SLERP para rotações 3D</li>
+<li>Mesh loading (.obj, .gltf) via Asset Manager</li>
+<li>Shader system (HLSL/GLSL)</li>
+<li>Octree para spatial partitioning + frustum culling</li>
+<li>Camera 3D (perspectiva, lookAt, FPS e orbital)</li>
+<li>Skeletal Animation (bones, skinning, blend trees)</li>
+</ul>
+<h3>Fase 6 — Caffeine Studio IDE <em>(planejado)</em></h3>
+<ul>
+<li>Dear ImGui integrado ao SDL3</li>
+<li>Scene Editor com drag-and-drop, inspector, hierarchy</li>
+<li>Transform gizmos (Translate/Rotate/Scale)</li>
+<li>Asset Pipeline CLI (PNG/WAV/OBJ → <code>.caf</code>)</li>
+<li>Scripting (Lua/AngelScript, hot-reload)</li>
+</ul>
+<hr>
+<h2>Convenções e Padrões de Desenvolvimento</h2>
+<p>Extraído de <code>SPECS.md</code> — regras que guiaram o desenvolvimento:</p>
+<h3>Princípios</h3>
+<ul>
+<li><strong>DOD</strong> — Data-Oriented Design: dados organizados para cache locality</li>
+<li><strong>YAGNI</strong> — You Ain&#39;t Gonna Need It: não implementar o que não é necessário</li>
+<li><strong>KISS</strong> — Keep It Simple, Stupid: simplicidade acima de tudo</li>
+<li><strong>Lock-free</strong> onde possível, mutex onde necessário</li>
+<li><strong>Zero-dependency</strong>: reduzir ao máximo dependência da std, criar stdlib própria</li>
+</ul>
+<h3>Convenções de Código</h3>
+<ul>
+<li>C++20, namespaces aninhados (<code>Caffeine::Module</code>)</li>
+<li>Nomenclatura: PascalCase para tipos, camelCase para métodos/membros</li>
+<li>Headers com documentação Doxygen</li>
+<li>Sem <code>new</code>/<code>delete</code> soltos — usar custom allocators</li>
+<li>Sem RTTI, sem exceções, sem virtual em hot paths</li>
+</ul>
+<h3>Fluxo de Trabalho (R.I.C.O.)</h3>
+<ol>
+<li><strong>Research</strong> — Pesquisar padrões e referências</li>
+<li><strong>Idea</strong> — Propor solução</li>
+<li><strong>Conflict</strong> — Debater trade-offs</li>
+<li><strong>Order</strong> — Implementar e documentar</li>
+</ol>
+<hr>
+<h2>Planos e Revisões Anteriores</h2>
+<p>Documentos de planejamento detalhado e revisões foram mantidos durante o desenvolvimento. Estão disponíveis no histórico do git.</p>
+<hr>
+<blockquote>
+<p>ℹ️ Este documento substitui os antigos <code>ROADMAP.md</code>, <code>SPECS.md</code>, templates e READMEs de fase.<br>Para documentação técnica atualizada, consulte os diretórios funcionais em <a href="README.md"><code>docs/</code></a>.</p>
+</blockquote>
+
+</article>

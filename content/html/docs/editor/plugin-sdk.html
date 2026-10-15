@@ -1,0 +1,111 @@
+<article class="doc-article" data-slug="docs/editor/plugin-sdk">
+<h1>Plugin SDK</h1>
+<p>Doppio is a <strong>lean IDE</strong>. Feature plugins ship separately and load at runtime from <code>plugins/</code>.</p>
+<h2>Architecture</h2>
+<pre><code>┌─────────────────────────────────────────────────────────┐
+│ Doppio (core IDE)                                       │
+│  Scene editor, viewport, hierarchy, inspector, assets     │
+│  PluginManager + PluginServiceRegistry (empty at start) │
+│  NO terrain/procedural/post-process/git UI in core      │
+└───────────────────────────┬─────────────────────────────┘
+                            │ PluginHostApi (dlopen)
+        ┌───────────────────┼───────────────────┐
+        ▼                   ▼                   ▼
+  terrain_plugin    procedural_tools_plugin   git_plugin
+  (owns TerrainBridge) (owns ProceduralBridge) (owns GitRunner)
+</code></pre>
+<h3>Rules</h3>
+<ol>
+<li><strong>Plugins own their logic</strong> — bridges, panels, services live in <code>.so</code> files, not in <code>doppio</code> sources.</li>
+<li><strong>Core owns ECS + runtime</strong> — <code>PostProcessComponent</code>, <code>TerrainComponent</code>, procedural systems are engine data/runtime; editor UI for them is plugin territory.</li>
+<li><strong>Service registry is generic</strong> — plugins call <code>registerService</code> in <code>OnLoad</code>; Doppio never hardcodes feature services.</li>
+<li><strong>Optional bundling</strong> — CMake <code>CAFFEINE_BUNDLE_DEFAULT_PLUGINS=OFF</code> (default): Doppio ships without copying plugins. Turn <code>ON</code> for dev convenience.</li>
+</ol>
+<h2>Install plugins</h2>
+<pre><code class="language-bash"># Build plugins (from build dir)
+cmake --build . --target terrain_plugin post_processing_plugin procedural_tools_plugin git_plugin
+
+# Copy into Doppio plugins folder
+cp build/plugins/*.so build/doppio/plugins/
+</code></pre>
+<p>Or enable bundling at configure time:</p>
+<pre><code class="language-bash">cmake -DCAFFEINE_BUNDLE_DEFAULT_PLUGINS=ON ..
+</code></pre>
+<h2>Plugin catalog (reference)</h2>
+<table>
+<thead>
+<tr>
+<th>Plugin</th>
+<th>Purpose</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>hello_plugin</code></td>
+<td>Minimal SDK example</td>
+</tr>
+<tr>
+<td><code>terrain_plugin</code></td>
+<td>Ultra-realistic terrain generator (Node.js)</td>
+</tr>
+<tr>
+<td><code>procedural_tools_plugin</code></td>
+<td>Modular procedural streaming tools</td>
+</tr>
+<tr>
+<td><code>post_processing_plugin</code></td>
+<td>Post-process effect stack UI</td>
+</tr>
+<tr>
+<td><code>git_plugin</code></td>
+<td>Optional Git project management</td>
+</tr>
+</tbody></table>
+<h2>Host API</h2>
+<p>See <code>include/caffeine/plugin/PluginAPI.hpp</code>:</p>
+<ul>
+<li><code>registerPanel</code>, <code>registerMenuAction</code>, <code>registerComponentDrawer</code></li>
+<li><code>registerService</code> / <code>invokeService</code></li>
+<li><code>getProjectRootPath</code>, <code>getActiveWorld</code>, <code>markSceneDirty</code></li>
+</ul>
+<h2>Services (cross-plugin)</h2>
+<p>Plugins may expose services for aggregators / stores:</p>
+<table>
+<thead>
+<tr>
+<th>Service</th>
+<th>Owner plugin</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>terrain.generateUltra</code></td>
+<td>terrain_plugin</td>
+</tr>
+<tr>
+<td><code>terrain.importHeightmap</code></td>
+<td>terrain_plugin</td>
+</tr>
+<tr>
+<td><code>procedural.*</code></td>
+<td>procedural_tools_plugin</td>
+</tr>
+</tbody></table>
+<h2>Inspector drawers</h2>
+<p>Plugins register component drawers via <code>registerComponentDrawer</code>. Doppio Inspector delegates to registered drawers (e.g. Post Process shows plugin UI when plugin is loaded).</p>
+<h2>Writing a plugin</h2>
+<pre><code class="language-cpp">#include &quot;caffeine/plugin/PluginAPI.hpp&quot;
+
+class MyPlugin : public Caffeine::Editor::IPlugin {
+    void OnLoad() override {
+        m_host-&gt;registerPanel(m_host-&gt;editorContext, GetName(), &quot;My Panel&quot;, &amp;render, this);
+    }
+    // ...
+};
+
+extern &quot;C&quot; CAFFEINE_PLUGIN_API Caffeine::Editor::IPlugin* CreatePlugin(
+    const Caffeine::Editor::PluginHostApi* host) {
+    return new MyPlugin(host);
+}
+</code></pre>
+<p>Build as <code>SHARED</code> library with <code>CAFFEINE_PLUGIN_EXPORTS=1</code>, output to <code>plugins/</code>.</p>
+
+</article>

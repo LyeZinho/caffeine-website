@@ -1,0 +1,328 @@
+<article class="doc-article" data-slug="docs/plans/2025-05-15-script-editor">
+<h1>Script Editor Implementation Plan</h1>
+<blockquote>
+<p><strong>For Claude:</strong> REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.</p>
+</blockquote>
+<p><strong>Goal:</strong> Add a native Text Script Editor tab to the Caffeine Studio editor for editing .lua scripts directly within the IDE, integrated with the existing ScriptEngine.</p>
+<p><strong>Architecture:</strong> Create a new ScriptEditorWindow panel similar to ConsoleWindow that can open, edit, and save .lua files. Uses ImGui::InputTextMultiline for text editing with basic toolbar for Save/Run actions. Integrates with AssetBrowser to open files and ScriptEngine to execute scripts.</p>
+<p><strong>Tech Stack:</strong> C++, ImGui (InputTextMultiline), Caffeine::Script::ScriptEngine</p>
+<hr>
+<h3>Task 1: Create ScriptEditorWindow Header</h3>
+<p><strong>Files:</strong></p>
+<ul>
+<li>Create: <code>src/editor/ScriptEditorWindow.hpp</code></li>
+</ul>
+<p><strong>Step 1: Create the header file with class declaration</strong></p>
+<p>Create <code>src/editor/ScriptEditorWindow.hpp</code>:</p>
+<pre><code class="language-cpp">#pragma once
+#include &quot;core/Types.hpp&quot;
+#include &quot;containers/FixedString.hpp&quot;
+#include &lt;string&gt;
+#include &lt;vector&gt;
+#include &lt;filesystem&gt;
+
+#ifdef CF_HAS_IMGUI
+#include &lt;imgui.h&gt;
+#endif
+
+namespace Caffeine::Editor {
+using namespace Caffeine;
+
+class ScriptEditorWindow {
+public:
+    ScriptEditorWindow() = default;
+
+    struct OpenFile {
+        std::string path;
+        std::string content;
+        std::string originalContent;
+        bool isDirty = false;
+    };
+
+    // File operations
+    bool openFile(const std::filesystem::path&amp; path);
+    bool saveFile(int index);
+    bool saveFileAs(int index, const std::filesystem::path&amp; path);
+    void closeFile(int index);
+    
+    // Accessors
+    int openFileCount() const { return static_cast&lt;int&gt;(m_openFiles.size()); }
+    const OpenFile&amp; file(int index) const { return m_openFiles[index]; }
+    int activeFileIndex() const { return m_activeFileIndex; }
+    void setActiveFile(int index) { m_activeFileIndex = index; }
+
+    bool isOpen() const { return m_open; }
+    void close() { m_open = false; }
+    void open() { m_open = true; }
+
+#ifdef CF_HAS_IMGUI
+    void render();
+#endif
+
+private:
+    std::vector&lt;OpenFile&gt; m_openFiles;
+    int m_activeFileIndex = -1;
+    bool m_open = true;
+};
+
+} // namespace Caffeine::Editor
+</code></pre>
+<p><strong>Step 2: Commit</strong></p>
+<pre><code class="language-bash">git add src/editor/ScriptEditorWindow.hpp
+git commit -m &quot;feat(editor): add ScriptEditorWindow header&quot;
+</code></pre>
+<hr>
+<h3>Task 2: Create ScriptEditorWindow Implementation</h3>
+<p><strong>Files:</strong></p>
+<ul>
+<li>Create: <code>src/editor/ScriptEditorWindow.cpp</code></li>
+</ul>
+<p><strong>Step 1: Create implementation with basic text editing</strong></p>
+<p>Create <code>src/editor/ScriptEditorWindow.cpp</code>:</p>
+<pre><code class="language-cpp">#include &quot;editor/ScriptEditorWindow.hpp&quot;
+#include &quot;core/io/FileSystem.hpp&quot;
+#include &lt;fstream&gt;
+#include &lt;cstring&gt;
+
+namespace Caffeine::Editor {
+
+// ============================================================================
+// File Operations (no ImGui)
+// ============================================================================
+
+bool ScriptEditorWindow::openFile(const std::filesystem::path&amp; path) {
+    // Check if already open
+    for (const auto&amp; f : m_openFiles) {
+        if (f.path == path.string()) {
+            return true; // Already open
+        }
+    }
+
+    // Read file content
+    std::ifstream file(path, std::ios::binary);
+    if (!file.is_open()) {
+        return false;
+    }
+
+    std::string content((std::istreambuf_iterator&lt;char&gt;(file)),
+                         std::istreambuf_iterator&lt;char&gt;());
+    file.close();
+
+    OpenFile f;
+    f.path = path.string();
+    f.content = std::move(content);
+    f.originalContent = f.content;
+    f.isDirty = false;
+
+    m_openFiles.push_back(std::move(f));
+    m_activeFileIndex = static_cast&lt;int&gt;(m_openFiles.size()) - 1;
+    
+    return true;
+}
+
+bool ScriptEditorWindow::saveFile(int index) {
+    if (index &lt; 0 || index &gt;= static_cast&lt;int&gt;(m_openFiles.size())) {
+        return false;
+    }
+
+    auto&amp; file = m_openFiles[index];
+    std::ofstream out(file.path, std::ios::binary);
+    if (!out.is_open()) {
+        return false;
+    }
+
+    out.write(file.content.data(), file.content.size());
+    out.close();
+
+    file.originalContent = file.content;
+    file.isDirty = false;
+    
+    return true;
+}
+
+bool ScriptEditorWindow::saveFileAs(int index, const std::filesystem::path&amp; path) {
+    if (index &lt; 0 || index &gt;= static_cast&lt;int&gt;(m_openFiles.size())) {
+        return false;
+    }
+
+    auto&amp; file = m_openFiles[index];
+    std::ofstream out(path, std::ios::binary);
+    if (!out.is_open()) {
+        return false;
+    }
+
+    out.write(file.content.data(), file.content.size());
+    out.close();
+
+    file.path = path.string();
+    file.originalContent = file.content;
+    file.isDirty = false;
+    
+    return true;
+}
+
+void ScriptEditorWindow::closeFile(int index) {
+    if (index &lt; 0 || index &gt;= static_cast&lt;int&gt;(m_openFiles.size())) {
+        return;
+    }
+
+    m_openFiles.erase(m_openFiles.begin() + index);
+    
+    if (m_activeFileIndex &gt;= static_cast&lt;int&gt;(m_openFiles.size())) {
+        m_activeFileIndex = m_openFiles.empty() ? -1 : 
+            static_cast&lt;int&gt;(m_openFiles.size()) - 1;
+    }
+}
+
+} // namespace Caffeine::Editor
+
+
+// ============================================================================
+// UI Layer (requires ImGui)
+// ============================================================================
+
+#ifdef CF_HAS_IMGUI
+
+namespace Caffeine::Editor {
+
+void ScriptEditorWindow::render() {
+    if (!m_open) return;
+    
+    if (ImGui::Begin(&quot;Script Editor&quot;, &amp;m_open)) {
+        // Toolbar
+        if (m_activeFileIndex &gt;= 0 &amp;&amp; m_activeFileIndex &lt; static_cast&lt;int&gt;(m_openFiles.size())) {
+            auto&amp; file = m_openFiles[m_activeFileIndex];
+            
+            // Save button
+            if (ImGui::Button(&quot;Save&quot;)) {
+                saveFile(m_activeFileIndex);
+            }
+            ImGui::SameLine();
+            
+            // Dirty indicator
+            if (file.isDirty) {
+                ImGui::TextColored(ImVec4(1, 0.5f, 0, 1), &quot;*&quot;);
+                ImGui::SameLine();
+            }
+            
+            // Filename
+            std::string filename = file.path.substr(file.path.find_last_of(&quot;/\\&quot;) + 1);
+            ImGui::Text(&quot;%s&quot;, filename.c_str());
+            
+            ImGui::Separator();
+            
+            // Text editor using InputTextMultiline
+            // Reserve a large buffer for the content
+            static char textBuffer[65536] = {};
+            
+            // Copy content to buffer (truncate if too large)
+            size_t copyLen = std::min(file.content.size(), sizeof(textBuffer) - 1);
+            if (copyLen &gt; 0) {
+                std::memcpy(textBuffer, file.content.c_str(), copyLen);
+            }
+            textBuffer[copyLen] = &#39;\0&#39;;
+            
+            ImGui::InputTextMultiline(
+                &quot;##script_content&quot;,
+                textBuffer,
+                sizeof(textBuffer),
+                ImVec2(-1, -ImGui::GetFrameHeightWithSpacing() - 40),
+                ImGuiInputTextFlags_AllowTabInput
+            );
+            
+            // Check if content changed
+            if (std::strcmp(textBuffer, file.content.c_str()) != 0) {
+                file.content = textBuffer;
+                file.isDirty = true;
+            }
+        } else {
+            ImGui::Text(&quot;No file open. Double-click a .lua file in Asset Browser to open.&quot;);
+        }
+    }
+    ImGui::End();
+}
+
+} // namespace Caffeine::Editor
+
+#endif // CF_HAS_IMGUI
+</code></pre>
+<p><strong>Step 2: Commit</strong></p>
+<pre><code class="language-bash">git add src/editor/ScriptEditorWindow.cpp
+git commit -m &quot;feat(editor): add ScriptEditorWindow implementation&quot;
+</code></pre>
+<hr>
+<h3>Task 3: Integrate ScriptEditorWindow into SceneEditor</h3>
+<p><strong>Files:</strong></p>
+<ul>
+<li>Modify: <code>src/editor/SceneEditor.hpp</code></li>
+<li>Modify: <code>src/editor/SceneEditor.cpp</code></li>
+</ul>
+<p><strong>Step 1: Add include and member to SceneEditor.hpp</strong></p>
+<p>In <code>src/editor/SceneEditor.hpp</code>, add after line 10:</p>
+<pre><code class="language-cpp">#include &quot;editor/ScriptEditorWindow.hpp&quot;
+</code></pre>
+<p>Add to the member variables (around line 93):</p>
+<pre><code class="language-cpp">ScriptEditorWindow  m_scriptEditor;
+</code></pre>
+<p>Add accessor method (around line 68):</p>
+<pre><code class="language-cpp">ScriptEditorWindow&amp; scriptEditor() { return m_scriptEditor; }
+</code></pre>
+<p><strong>Step 2: Add render call in SceneEditor.cpp</strong></p>
+<p>In <code>src/editor/SceneEditor.cpp</code>, find where other panels are rendered and add the script editor render. Look for where <code>m_console.render()</code> is called and add near it:</p>
+<pre><code class="language-cpp">m_scriptEditor.render();
+</code></pre>
+<p><strong>Step 3: Commit</strong></p>
+<pre><code class="language-bash">git add src/editor/SceneEditor.hpp src/editor/SceneEditor.cpp
+git commit -m &quot;feat(editor): integrate ScriptEditorWindow into SceneEditor&quot;
+</code></pre>
+<hr>
+<h3>Task 4: Add .lua file handling to AssetBrowser</h3>
+<p><strong>Files:</strong></p>
+<ul>
+<li>Modify: <code>src/editor/AssetBrowser.hpp</code></li>
+<li>Modify: <code>src/editor/AssetBrowser.cpp</code></li>
+</ul>
+<p><strong>Step 1: Add Script asset type</strong></p>
+<p>In <code>src/editor/AssetBrowser.hpp</code>, add to the AssetType enum:</p>
+<pre><code class="language-cpp">Script,  // .lua files
+</code></pre>
+<p><strong>Step 2: Update icon and handling</strong></p>
+<p>In <code>AssetBrowser.cpp</code>, update <code>iconForType</code>:</p>
+<pre><code class="language-cpp">case AssetType::Script:    return &quot;[L]&quot;;
+</code></pre>
+<p>And in the file type detection (around line 32-37):</p>
+<pre><code class="language-cpp">else if (ext == &quot;.lua&quot;)                      e.type = AssetType::Script;
+</code></pre>
+<p><strong>Step 3: Add double-click to open in script editor</strong></p>
+<p>In <code>renderGridView</code> or <code>renderListView</code>, add double-click handling for .lua files. The SceneEditor needs to be accessible - this will require passing a callback or using a global/event system.</p>
+<p><strong>Step 4: Commit</strong></p>
+<pre><code class="language-bash">git add src/editor/AssetBrowser.hpp src/editor/AssetBrowser.cpp
+git commit -m &quot;feat(editor): add .lua file type to AssetBrowser&quot;
+</code></pre>
+<hr>
+<h3>Task 5: Build and verify</h3>
+<p><strong>Step 1: Build the project</strong></p>
+<pre><code class="language-bash">cd build &amp;&amp; make caffeine-core -j4
+</code></pre>
+<p><strong>Step 2: Check for any compilation errors</strong></p>
+<p>Fix any issues that arise.</p>
+<p><strong>Step 3: Commit any fixes</strong></p>
+<pre><code class="language-bash">git add . &amp;&amp; git commit -m &quot;fix(editor): resolve build issues&quot;
+</code></pre>
+<hr>
+<h3>Task 6: Create GitHub issue for this work</h3>
+<p><strong>Step 1: Create an issue for M3.1.1 Script Editor</strong></p>
+<p>Using the planning document format, create an issue that describes this feature as part of the M3 milestone.</p>
+<pre><code class="language-bash">gh issue create --title &quot;M3.1.1 Script Editor&quot; --body &quot;$(cat docs/plans/2025-05-15-script-editor.md)&quot;
+</code></pre>
+<hr>
+<h2>Summary</h2>
+<p>This plan adds a native script editor to Caffeine Studio:</p>
+<ol>
+<li><strong>ScriptEditorWindow</strong> - New panel class for editing .lua files</li>
+<li><strong>Integration</strong> - Added to SceneEditor alongside other panels  </li>
+<li><strong>AssetBrowser</strong> - .lua files now recognized and can trigger editor</li>
+</ol>
+<p>The MVP is a basic text editor - syntax highlighting can be added in a future task (M3.1.2) using ImGui syntax highlighting patterns or a library like TextEditor.</p>
+
+</article>

@@ -1,0 +1,119 @@
+<article class="doc-article" data-slug="planning/terrain/7.6-import-png">
+<h1>7.6 — Import PNG (Heightmap Grayscale)</h1>
+<blockquote>
+<p><strong>Fase:</strong> 12 · <strong>Prioridade:</strong> Média · <strong>Esforço:</strong> Baixo
+<strong>Depende de:</strong> Fase 4 (<code>.cterrain</code>), opcionalmente 7.4 (undo)
+<strong>Biblioteca:</strong> <code>stb_image</code> (já usada no projeto)</p>
+</blockquote>
+<hr>
+<h2>Objetivo</h2>
+<p>Importar imagens grayscale (PNG, JPG) como heightmap — permitir edição externa no GIMP/Krita/World Machine e reimportação para o Caffeine.</p>
+<hr>
+<h2>Módulo</h2>
+<pre><code class="language-cpp">class HeightmapImportModule final : public ITerrainGeneratorModule {
+public:
+    const char* name() const override { return &quot;Heightmap Import&quot;; }
+    void apply(TerrainGeneratorContext&amp; ctx) override;
+
+    std::string sourcePath;   // project-relative ou engine asset
+    bool normalizeToFullRange = true;
+    bool invert = false;
+    f32 heightScale = 1.0f;     // multiplicador após normalizar
+    f32 heightOffset = 0.0f;
+};
+</code></pre>
+<hr>
+<h2>Fluxo</h2>
+<pre><code>1. Resolver path (MeshCache::buildCandidatePaths + EditorPaths)
+2. stbi_load(path) → RGBA ou grayscale
+3. Converter para f32 [0,1]:
+     - R channel (ou luminância) / 255
+     - opcional: invert → 1 - h
+     - opcional: normalize min-max para usar range completo
+4. Resample se dimensões ≠ terrain.resolutionX/Z
+     - bilinear resize
+5. Escrever em heightmap.setNormalized(x, z, h)
+</code></pre>
+<hr>
+<h2>Resampling</h2>
+<p>Se PNG é 1024×1024 e terreno é 65×65:</p>
+<pre><code class="language-cpp">for (u32 z = 0; z &lt; resZ; ++z)
+    for (u32 x = 0; x &lt; resX; ++x) {
+        f32 u = x / (resX - 1);
+        f32 v = z / (resZ - 1);
+        f32 h = sampleBilinearFromImage(image, u, v);
+        heightmap.setNormalized(x, z, h);
+    }
+</code></pre>
+<p>Se PNG é menor que resolução do terreno → upscale com aviso no Inspector.</p>
+<hr>
+<h2>UI</h2>
+<h3>Inspector — secção <strong>Import</strong></h3>
+<pre><code>[Heightmap Image]  [Browse...]  assets/heightmaps/island.png
+[ ] Invert
+[ ] Normalize to full range
+Height Scale:  1.0
+Height Offset: 0.0
+[Import Heightmap]
+</code></pre>
+<h3>Asset Browser</h3>
+<ul>
+<li>Drag &amp; drop PNG para entidade Terrain → import automático</li>
+</ul>
+<h3>Combinadores (7.2)</h3>
+<ul>
+<li>Layer tipo <strong>Imported</strong> aponta para ficheiro em vez de sub-gerador</li>
+</ul>
+<hr>
+<h2>Export (bonus)</h2>
+<p>Botão simétrico <strong>Export Heightmap PNG</strong> — útil para round-trip com ferramentas externas.</p>
+<pre><code class="language-cpp">void exportHeightmapPng(const TerrainHeightmap&amp; hm, const std::filesystem::path&amp; out);
+</code></pre>
+<hr>
+<h2>Serialização</h2>
+<pre><code class="language-cpp">// TerrainGenerationSettings ou campo separado
+char importedHeightmapPath[256] = {};
+bool useImportedHeightmap = false;
+</code></pre>
+<p>Ao carregar cena, re-importar se ficheiro existir e flag ativa.</p>
+<hr>
+<h2>Critérios de Aceitação</h2>
+<ul>
+<li><input disabled="" type="checkbox"> Import PNG 16-bit e 8-bit funciona</li>
+<li><input disabled="" type="checkbox"> Resize automático para resolução do terreno</li>
+<li><input disabled="" type="checkbox"> Undo antes de import (7.4)</li>
+<li><input disabled="" type="checkbox"> Path resolve em engine assets e projeto Chair</li>
+<li><input disabled="" type="checkbox"> Export PNG gera imagem coerente com viewport</li>
+</ul>
+<hr>
+<h2>Formatos Suportados</h2>
+<table>
+<thead>
+<tr>
+<th>Formato</th>
+<th align="center">Suporte</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>PNG 8-bit grayscale</td>
+<td align="center">✅</td>
+</tr>
+<tr>
+<td>PNG 8-bit RGB (usa R)</td>
+<td align="center">✅</td>
+</tr>
+<tr>
+<td>PNG 16-bit</td>
+<td align="center">✅ se stbi com 16-bit</td>
+</tr>
+<tr>
+<td>RAW binário</td>
+<td align="center">🔜 futuro</td>
+</tr>
+<tr>
+<td>EXR</td>
+<td align="center">🔜 futuro</td>
+</tr>
+</tbody></table>
+
+</article>

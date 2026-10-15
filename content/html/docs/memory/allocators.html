@@ -1,0 +1,188 @@
+<article class="doc-article" data-slug="docs/memory/allocators">
+<h1>Memory Module</h1>
+<blockquote>
+<p>Documentation for Caffeine Engine Memory module - Phase 1: Atomic Foundation</p>
+</blockquote>
+<h2>Overview</h2>
+<p>The Memory module provides custom allocators for zero-dependency memory management. All allocators implement the <code>IAllocator</code> interface.</p>
+<p><strong>Location:</strong> <code>src/memory/</code></p>
+<p><strong>Namespace:</strong> <code>Caffeine</code> (not <code>Caffeine::Memory</code> — allocators live directly in the root namespace).</p>
+<h2>Files</h2>
+<table>
+<thead>
+<tr>
+<th>File</th>
+<th>Description</th>
+<th>Status</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><a href="../../src/memory/Allocator.hpp"><code>Allocator.hpp</code></a></td>
+<td>IAllocator interface</td>
+<td>✅ Complete</td>
+</tr>
+<tr>
+<td><a href="../../src/memory/LinearAllocator.hpp"><code>LinearAllocator.hpp</code></a></td>
+<td>O(1) allocation, reset() clears all</td>
+<td>✅ Complete</td>
+</tr>
+<tr>
+<td><a href="../../src/memory/PoolAllocator.hpp"><code>PoolAllocator.hpp</code></a></td>
+<td>Fixed-size slots, O(1) amortized</td>
+<td>✅ Complete</td>
+</tr>
+<tr>
+<td><a href="../../src/memory/StackAllocator.hpp"><code>StackAllocator.hpp</code></a></td>
+<td>Markers, freeToMarker()</td>
+<td>✅ Complete</td>
+</tr>
+</tbody></table>
+<h2>Architecture</h2>
+<h3>IAllocator Interface</h3>
+<pre><code class="language-cpp">class IAllocator {
+public:
+    virtual ~IAllocator() = default;
+    virtual void* alloc(usize size, usize alignment = 8) = 0;
+    virtual void free(void* ptr) = 0;
+    virtual void reset() = 0;
+    virtual usize usedMemory() const = 0;
+    virtual usize totalSize() const = 0;
+    virtual usize peakMemory() const = 0;
+    virtual usize allocationCount() const = 0;
+    virtual const char* name() const = 0;
+};
+
+// Free helpers (Allocator.hpp)
+inline usize calculatePadding(void* ptr, usize alignment);
+inline usize calculateAlignedSize(usize size, usize alignment);
+</code></pre>
+<h2>Allocators Comparison</h2>
+<table>
+<thead>
+<tr>
+<th>Allocator</th>
+<th>Allocation</th>
+<th>Deallocation</th>
+<th>Use Case</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><strong>Linear</strong></td>
+<td>O(1)</td>
+<td><code>reset()</code> only (<code>free()</code> is a no-op)</td>
+<td>Frame scratch memory</td>
+</tr>
+<tr>
+<td><strong>Pool</strong></td>
+<td>O(1)</td>
+<td>O(1); <code>free(nullptr)</code> safe; <strong>no double-free detection</strong></td>
+<td>Fixed-size objects (particles)</td>
+</tr>
+<tr>
+<td><strong>Stack</strong></td>
+<td>O(1)</td>
+<td><code>freeToMarker()</code> (<code>free()</code> is a no-op)</td>
+<td>Scoped allocations</td>
+</tr>
+</tbody></table>
+<h2>Semantics confirmed in code</h2>
+<ul>
+<li><strong>Constructors:</strong> each allocator can own its buffer (<code>explicit X(usize size)</code>,
+allocated with <code>new u8[]</code>) or wrap an external buffer (<code>X(void* buffer, usize size)</code>,
+no ownership transfer).</li>
+<li><strong>Out of memory:</strong> <code>alloc()</code> returns <code>nullptr</code> — always check the result.</li>
+<li><strong>Pool specifics:</strong> constructor asserts <code>alignment &gt;= 8</code> and power-of-two;
+<code>alloc()</code> ignores its <code>size</code>/<code>alignment</code> parameters (always returns one fixed
+slot, asserts <code>size &lt;= slotSize</code> in debug); slots must fit a pointer
+(min. 8 bytes — free list is intrusive); <code>reset()</code> rebuilds the free list.
+Introspection: <code>freeSlots()</code>, <code>slotSize()</code>, <code>maxSlots()</code>.</li>
+<li><strong>Stack specifics:</strong> <code>Marker</code> is a <code>usize</code> offset from the buffer start
+(<code>setMarker()</code>); <code>freeToMarker()</code> ignores markers beyond the cursor and resets
+the allocation count; <code>free(ptr)</code> does nothing.</li>
+<li><strong>Stats:</strong> <code>usedMemory()</code> / <code>totalSize()</code> / <code>peakMemory()</code> /
+<code>allocationCount()</code> are tracked live; <code>reset()</code> zeroes the allocation count
+(Linear/Stack) or the used count (Pool).</li>
+</ul>
+<h2>Usage Examples</h2>
+<h3>LinearAllocator</h3>
+<pre><code class="language-cpp">// Create 64KB linear allocator
+Caffeine::LinearAllocator alloc(64 * 1024);
+
+// Allocate (O(1))
+void* ptr = alloc.alloc(1024, 8);
+
+// Reset all at once
+alloc.reset();
+</code></pre>
+<h3>PoolAllocator</h3>
+<pre><code class="language-cpp">// Create pool for 100 particles of 64 bytes each
+Caffeine::PoolAllocator pool(64 * 100, 64);
+
+// Allocate (O(1) amortized)
+void* p1 = pool.alloc(64);
+void* p2 = pool.alloc(64);
+
+// Free returns slot to pool
+pool.free(p1);
+</code></pre>
+<h3>StackAllocator</h3>
+<pre><code class="language-cpp">Caffeine::StackAllocator stack(1024 * 1024); // 1MB
+
+// Set marker
+auto marker = stack.setMarker();
+
+// Allocate
+void* ptr = stack.alloc(512);
+
+// Free to marker (frees everything after marker)
+stack.freeToMarker(marker);
+</code></pre>
+<h2>DOD (Data-Oriented Design)</h2>
+<ul>
+<li>All allocators use contiguous memory blocks</li>
+<li>No dynamic memory after initial allocation</li>
+<li>Not thread-safe for shared instances; use per-thread allocators or external synchronization</li>
+<li>Zero heap allocations during normal operation</li>
+</ul>
+<h2>Quick Reference</h2>
+<table>
+<thead>
+<tr>
+<th>Class</th>
+<th>Complexity</th>
+<th>Key Method</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>LinearAllocator</code></td>
+<td>O(1) alloc, O(1) reset</td>
+<td><code>reset()</code> clears all</td>
+</tr>
+<tr>
+<td><code>PoolAllocator</code></td>
+<td>O(1) amortized</td>
+<td><code>free()</code> returns slot</td>
+</tr>
+<tr>
+<td><code>StackAllocator</code></td>
+<td>O(1) alloc</td>
+<td><code>freeToMarker()</code></td>
+</tr>
+</tbody></table>
+<h2>See Also</h2>
+<h3>Related Documentation</h3>
+<ul>
+<li><a href="../memory/memory-model.md">memory/memory-model.md</a> - Detailed allocator specifications</li>
+<li><a href="../HISTORY.md">HISTORY.md</a> - Phase 1 requirements and development rules</li>
+<li><a href="../architecture_specs.md">architecture_specs.md</a> - Technical specifications</li>
+<li><a href="../api/README.md">API Reference</a> - Complete API documentation</li>
+<li><a href="../../tests/test_allocators.cpp">Test Documentation</a> - Allocator tests</li>
+</ul>
+<h3>Related Modules</h3>
+<ul>
+<li><a href="../core/types.md">Core Module</a> - Foundation types (used by Memory)</li>
+<li><a href="../memory/containers.md">Containers Module</a> - Vector uses allocators</li>
+<li><a href="../math/vectors.md">Math Module</a> - Mathematical types</li>
+</ul>
+
+</article>

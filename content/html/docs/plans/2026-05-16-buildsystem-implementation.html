@@ -1,0 +1,391 @@
+<article class="doc-article" data-slug="docs/plans/2026-05-16-buildsystem-implementation">
+<h1>BuildSystem Implementation Plan</h1>
+<p><strong>Date:</strong> May 16, 2026<br><strong>Status:</strong> In Progress<br><strong>Milestone:</strong> M4 — Advanced Tools &amp; Polish<br><strong>Issue:</strong> #123<br><strong>Reference Design:</strong> <code>docs/plans/2026-05-16-buildsystem-design.md</code></p>
+<hr>
+<h2>Overview</h2>
+<p>This plan breaks down the BuildSystem Integration into 8 bite-sized implementation tasks, each designed to compile and integrate cleanly. Each task includes acceptance criteria and verification steps.</p>
+<hr>
+<h2>Task Breakdown</h2>
+<h3>Task 1: Create BuildSystem Core Header (5 min)</h3>
+<p><strong>File:</strong> <code>src/editor/BuildSystem.hpp</code></p>
+<p><strong>What to do:</strong></p>
+<ul>
+<li>Define namespace <code>Caffeine::Editor</code></li>
+<li>Declare enums: <code>BuildPlatform</code>, <code>BuildStatus</code></li>
+<li>Declare structs: <code>BuildSettings</code>, <code>BuildProgress</code></li>
+<li>Declare <code>class BuildSystem</code> with public static methods:<ul>
+<li><code>static void ExecuteBuild(const BuildSettings&amp; settings);</code></li>
+<li><code>static void CancelBuild();</code></li>
+<li><code>static BuildProgress GetProgress();</code></li>
+<li><code>static bool IsBuilding();</code></li>
+</ul>
+</li>
+<li>Private methods (forward declarations only):<ul>
+<li><code>ValidateSettings()</code>, <code>PrepareOutput()</code>, <code>CompileScripts()</code>, <code>CookAssets()</code>, <code>LinkExecutable()</code>, <code>GenerateProject()</code>, <code>RunGameAndWait()</code></li>
+</ul>
+</li>
+</ul>
+<p><strong>Key types to include:</strong></p>
+<ul>
+<li>BuildPlatform: <code>Windows_x64 = 0, Linux_x64 = 1</code></li>
+<li>BuildStatus: <code>Idle, Validating, PreparingOutput, CompilingScripts, CookingAssets, LinkingExecutable, GeneratingProject, Success, Failed, Cancelled</code></li>
+<li>BuildSettings with fields: <code>projectName</code>, <code>outputDir</code>, <code>platform</code>, <code>isDebug</code>, <code>incrementalBuild</code>, <code>runAfterBuild</code>, <code>scenesToInclude</code>, <code>executableName</code>, <code>icon</code>, <code>version</code></li>
+<li>BuildProgress with fields: <code>progress</code>, <code>status</code>, <code>shouldCancel</code>, <code>currentTask</code></li>
+</ul>
+<p><strong>Acceptance Criteria:</strong></p>
+<ul>
+<li>Header compiles without errors</li>
+<li>All enums and structs defined exactly per design doc</li>
+<li>No implementation in header (only declarations)</li>
+</ul>
+<p><strong>Verification:</strong></p>
+<pre><code class="language-bash">cd build &amp;&amp; cmake .. &amp;&amp; make BuildSystem.hpp.o 2&gt;&amp;1 | grep -i error
+# Should have 0 errors
+</code></pre>
+<hr>
+<h3>Task 2: Create BuildSystem Core Implementation (10 min)</h3>
+<p><strong>File:</strong> <code>src/editor/BuildSystem.cpp</code></p>
+<p><strong>What to do:</strong></p>
+<ul>
+<li>Implement all 7 pipeline stages as private static methods</li>
+<li>Use <code>progress</code> atomic variable to update UI thread-safely</li>
+<li>Each stage:<ol>
+<li>Check <code>shouldCancel</code> flag at start</li>
+<li>Log &quot;Starting [stage]&quot;</li>
+<li>Update <code>progress</code> and <code>currentTask</code></li>
+<li>Perform stage logic (stub for now, return true)</li>
+<li>Log &quot;[stage] complete&quot;</li>
+<li>On failure: call <code>CleanupOnFailure()</code> and return false</li>
+</ol>
+</li>
+<li>Implement <code>ExecuteBuild()</code> to call stages sequentially</li>
+<li>Implement <code>GetProgress()</code> to return current progress safely</li>
+<li>Implement <code>IsBuilding()</code> to return status != Idle</li>
+<li>Implement <code>CancelBuild()</code> to set <code>shouldCancel = true</code></li>
+<li>Implement <code>CleanupOnFailure(outputDir)</code> to remove entire directory</li>
+</ul>
+<p><strong>Key implementation details:</strong></p>
+<ul>
+<li>Use <code>std::filesystem::remove_all()</code> for cleanup</li>
+<li>Progress increments: Validate(0%), Prepare(5%), Scripts(20%), Assets(65%), Link(85%), Generate(95%), Success(100%)</li>
+<li>Log to <code>ConsoleWindow</code> using existing log system</li>
+<li>On any failure, cleanup and set status = Failed</li>
+</ul>
+<p><strong>Acceptance Criteria:</strong></p>
+<ul>
+<li>Compiles without type errors</li>
+<li>All pipeline stages callable</li>
+<li>Progress updates atomically</li>
+<li>Cleanup removes output directory on failure</li>
+<li>Cancellation works between stages</li>
+</ul>
+<p><strong>Verification:</strong></p>
+<pre><code class="language-bash">cd build &amp;&amp; cmake .. &amp;&amp; make
+# Should compile with 0 errors
+lsp_diagnostics /home/pedro/repo/caffeine/src/editor/BuildSystem.cpp
+# Should show 0 errors
+</code></pre>
+<hr>
+<h3>Task 3: Create BuildDialog Header (5 min)</h3>
+<p><strong>File:</strong> <code>src/editor/BuildDialog.hpp</code></p>
+<p><strong>What to do:</strong></p>
+<ul>
+<li>Declare <code>class BuildDialog : public EditorPanel</code> (inherit from existing panel class)</li>
+<li>Declare member variables:<ul>
+<li><code>BuildSettings m_settings;</code></li>
+<li><code>BuildProgress&amp; m_progress;</code> (reference to BuildSystem progress)</li>
+<li><code>std::string m_outputPath;</code></li>
+<li><code>std::vector&lt;std::string&gt; m_scenesToInclude;</code></li>
+<li><code>bool m_showBuildLog;</code></li>
+</ul>
+</li>
+<li>Declare public methods:<ul>
+<li><code>void render()</code> - Main UI render</li>
+<li><code>BuildDialog();</code> constructor</li>
+</ul>
+</li>
+<li>Declare private helper methods (stubs):<ul>
+<li><code>renderConfigSection()</code> - Platform, paths, settings</li>
+<li><code>renderAdvancedSection()</code> - Icon, version, executable name</li>
+<li><code>renderProgressSection()</code> - Progress bar, status, task</li>
+<li><code>renderLogSection()</code> - Build log display</li>
+<li><code>onBuildClicked()</code> - Handle Build button</li>
+<li><code>onCancelClicked()</code> - Handle Cancel button</li>
+</ul>
+</li>
+</ul>
+<p><strong>Acceptance Criteria:</strong></p>
+<ul>
+<li>Header compiles</li>
+<li>Inherits from EditorPanel correctly</li>
+<li>All methods declared with correct signatures</li>
+</ul>
+<p><strong>Verification:</strong></p>
+<pre><code class="language-bash">cd build &amp;&amp; cmake .. &amp;&amp; make
+# Should compile
+</code></pre>
+<hr>
+<h3>Task 4: Create BuildDialog Implementation Part 1 (10 min)</h3>
+<p><strong>File:</strong> <code>src/editor/BuildDialog.cpp</code> — Constructor and <code>render()</code></p>
+<p><strong>What to do:</strong></p>
+<ul>
+<li>Implement <code>BuildDialog()</code> constructor:<ul>
+<li>Initialize settings with defaults (project name, output dir = &quot;./build&quot;, platform = Windows_x64)</li>
+<li>Initialize <code>m_showBuildLog = true</code></li>
+</ul>
+</li>
+<li>Implement <code>render()</code> method as main ImGui window:<ul>
+<li>Create ImGui window titled &quot;Build &amp; Run&quot;</li>
+<li>Call <code>renderConfigSection()</code>, <code>renderAdvancedSection()</code>, <code>renderProgressSection()</code>, <code>renderLogSection()</code> in order</li>
+<li>Render &quot;Build &amp; Run&quot; and &quot;Cancel&quot; buttons at bottom</li>
+<li>Handle button clicks via <code>onBuildClicked()</code> and <code>onCancelClicked()</code></li>
+</ul>
+</li>
+<li>Implement <code>onBuildClicked()</code>:<ul>
+<li>Validate settings (output path not empty, project name not empty)</li>
+<li>Call <code>BuildSystem::ExecuteBuild(m_settings)</code> to start build</li>
+<li>Log &quot;Build started&quot; to console</li>
+</ul>
+</li>
+<li>Implement <code>onCancelClicked()</code>:<ul>
+<li>Call <code>BuildSystem::CancelBuild()</code></li>
+<li>Log &quot;Build cancelled&quot; to console</li>
+</ul>
+</li>
+</ul>
+<p><strong>Key implementation details:</strong></p>
+<ul>
+<li>Use ImGui::Begin/End for window</li>
+<li>Use ImGui::Button for buttons with click detection</li>
+<li>Log to existing ConsoleWindow</li>
+</ul>
+<p><strong>Acceptance Criteria:</strong></p>
+<ul>
+<li>ImGui window renders</li>
+<li>Buttons are clickable and trigger callbacks</li>
+<li>No crashes on button click</li>
+</ul>
+<p><strong>Verification:</strong></p>
+<pre><code class="language-bash">cd build &amp;&amp; cmake .. &amp;&amp; make
+lsp_diagnostics /home/pedro/repo/caffeine/src/editor/BuildDialog.cpp
+# Should compile, 0 errors
+</code></pre>
+<hr>
+<h3>Task 5: Create BuildDialog Implementation Part 2 (8 min)</h3>
+<p><strong>File:</strong> <code>src/editor/BuildDialog.cpp</code> — UI Sections</p>
+<p><strong>What to do:</strong></p>
+<ul>
+<li>Implement <code>renderConfigSection()</code>:<ul>
+<li>ImGui::Separator()</li>
+<li>ImGui::Text(&quot;Configuration&quot;)</li>
+<li>ImGui::InputText(&quot;Project Name&quot;, &amp;m_settings.projectName)</li>
+<li>ImGui::InputText(&quot;Output Directory&quot;, &amp;m_outputPath) with folder icon</li>
+<li>ImGui::Combo(&quot;Platform&quot;, platform selector: Windows_x64 / Linux_x64)</li>
+<li>ImGui::Checkbox(&quot;Debug Build&quot;, &amp;m_settings.isDebug)</li>
+<li>ImGui::Checkbox(&quot;Incremental Build&quot;, &amp;m_settings.incrementalBuild)</li>
+<li>ImGui::Checkbox(&quot;Run After Build&quot;, &amp;m_settings.runAfterBuild)</li>
+</ul>
+</li>
+<li>Implement <code>renderAdvancedSection()</code>:<ul>
+<li>ImGui::Separator()</li>
+<li>ImGui::Text(&quot;Advanced&quot;)</li>
+<li>ImGui::InputText(&quot;Executable Name&quot;, &amp;m_settings.executableName)</li>
+<li>ImGui::InputText(&quot;Icon Path&quot;, &amp;m_settings.icon)</li>
+<li>ImGui::InputText(&quot;Version&quot;, &amp;m_settings.version)</li>
+</ul>
+</li>
+<li>Implement <code>renderProgressSection()</code>:<ul>
+<li>Only show if <code>BuildSystem::IsBuilding()</code></li>
+<li>ImGui::ProgressBar(m_progress.progress)</li>
+<li>ImGui::Text(&quot;Status: %s&quot;, StatusToString(m_progress.status))</li>
+<li>ImGui::Text(&quot;Task: %s&quot;, m_progress.currentTask.c_str())</li>
+</ul>
+</li>
+<li>Implement <code>renderLogSection()</code>:<ul>
+<li>ImGui::BeginChild(&quot;Build Log&quot;)</li>
+<li>Display build log from ConsoleWindow</li>
+<li>ImGui::EndChild()</li>
+</ul>
+</li>
+</ul>
+<p><strong>Helper function:</strong></p>
+<ul>
+<li>Implement <code>StatusToString(BuildStatus)</code> to convert enum to string</li>
+</ul>
+<p><strong>Acceptance Criteria:</strong></p>
+<ul>
+<li>All UI sections render without crashes</li>
+<li>Input fields are editable</li>
+<li>Progress bar appears during builds</li>
+<li>Status text updates</li>
+</ul>
+<p><strong>Verification:</strong></p>
+<pre><code class="language-bash">cd build &amp;&amp; cmake .. &amp;&amp; make
+# No compile errors expected
+</code></pre>
+<hr>
+<h3>Task 6: Create AssetCooker Header &amp; Stubs (8 min)</h3>
+<p><strong>File:</strong> <code>src/editor/AssetCooker.hpp</code> + <code>src/editor/AssetCooker.cpp</code></p>
+<p><strong>Header What to do:</strong></p>
+<ul>
+<li>Declare <code>class AssetCooker</code></li>
+<li>Public static methods:<ul>
+<li><code>static bool CookTextures(const std::string&amp; assetsDir, const std::string&amp; outputDir, BuildProgress&amp; progress);</code></li>
+<li><code>static bool CookShaders(const std::string&amp; assetsDir, const std::string&amp; outputDir, BuildProgress&amp; progress);</code></li>
+<li><code>static bool LoadBuildCache(const std::string&amp; cacheFile);</code></li>
+<li><code>static bool SaveBuildCache(const std::string&amp; cacheFile);</code></li>
+</ul>
+</li>
+<li>Private:<ul>
+<li>Helper for cache checking: <code>shouldCookAsset(const std::string&amp; assetPath)</code></li>
+</ul>
+</li>
+</ul>
+<p><strong>Implementation What to do:</strong></p>
+<ul>
+<li>Implement all methods as stubs that:<ul>
+<li>Return <code>true</code> (success)</li>
+<li>Update <code>progress.progress</code> incrementally</li>
+<li>Log placeholder messages like &quot;Cooking textures... [N assets]&quot;</li>
+<li>Skip actual texture/shader compilation for now</li>
+</ul>
+</li>
+</ul>
+<p><strong>Cache structure (stub for now):</strong></p>
+<ul>
+<li>Cache file format: JSON at <code>outputDir/.build_cache/build_cache.json</code></li>
+<li>Load/save functions stub (return true, don&#39;t actually load/save yet)</li>
+</ul>
+<p><strong>Acceptance Criteria:</strong></p>
+<ul>
+<li>Compiles without errors</li>
+<li>Methods callable from BuildSystem</li>
+<li>Returns bool success/failure</li>
+</ul>
+<p><strong>Verification:</strong></p>
+<pre><code class="language-bash">cd build &amp;&amp; cmake .. &amp;&amp; make
+lsp_diagnostics /home/pedro/repo/caffeine/src/editor/AssetCooker.cpp
+# Should compile, 0 errors
+</code></pre>
+<hr>
+<h3>Task 7: Wire BuildDialog into Editor (5 min)</h3>
+<p><strong>File:</strong> <code>apps/doppio/main.cpp</code> (the editor app)</p>
+<p><strong>What to do:</strong></p>
+<ul>
+<li>Find where <code>ConsoleWindow</code>, <code>InspectorPanel</code>, etc. are created in the editor loop</li>
+<li>Add instantiation of <code>BuildDialog</code>:<pre><code class="language-cpp">static BuildDialog buildDialog;
+</code></pre>
+</li>
+<li>Call <code>buildDialog.render()</code> in the main editor ImGui render loop (alongside other panel renders)</li>
+<li>Ensure BuildDialog renders after ConsoleWindow so logs are visible</li>
+</ul>
+<p><strong>Acceptance Criteria:</strong></p>
+<ul>
+<li>Editor compiles</li>
+<li>BuildDialog window appears in editor UI</li>
+<li>No crashes on startup</li>
+</ul>
+<p><strong>Verification:</strong></p>
+<pre><code class="language-bash">cd build &amp;&amp; cmake .. &amp;&amp; make doppio
+./bin/doppio
+# Editor launches, &quot;Build &amp; Run&quot; window visible (can resize/close like other panels)
+</code></pre>
+<hr>
+<h3>Task 8: Integration Test &amp; Full Build (10 min)</h3>
+<p><strong>File:</strong> Integration verification (no new files)</p>
+<p><strong>What to do:</strong></p>
+<ol>
+<li>Launch editor: <code>./bin/doppio</code></li>
+<li>Locate &quot;Build &amp; Run&quot; window</li>
+<li>Set output directory to <code>./build/test_game</code></li>
+<li>Click &quot;Build &amp; Run&quot;</li>
+<li>Verify:<ul>
+<li>Progress bar appears</li>
+<li>Status changes: Validating → Preparing → Compiling → Cooking → Linking → Generating → Success</li>
+<li>Console logs all stages</li>
+<li>Dialog shows &quot;Build complete&quot; message</li>
+<li><code>./build/test_game/</code> directory exists with placeholder files</li>
+</ul>
+</li>
+<li>Test cancellation:<ul>
+<li>Click &quot;Build &amp; Run&quot; again</li>
+<li>Click &quot;Cancel&quot; mid-build</li>
+<li>Verify <code>./build/test_game/</code> is cleaned up (removed)</li>
+<li>Verify status shows &quot;Cancelled&quot;</li>
+</ul>
+</li>
+</ol>
+<p><strong>Acceptance Criteria:</strong></p>
+<ul>
+<li>Full build pipeline executes without crashes</li>
+<li>Progress updates visibly in UI</li>
+<li>Cancellation works and cleans up</li>
+<li>Log shows all 7 stages completed</li>
+</ul>
+<p><strong>Verification:</strong></p>
+<pre><code class="language-bash">./bin/doppio
+# Manual UI testing - no automated test yet
+# Then run:
+cd build &amp;&amp; make test  # Ensure no regression in other tests
+</code></pre>
+<hr>
+<h2>Sequential Execution Order</h2>
+<ol>
+<li><strong>Task 1</strong> → BuildSystem header (5 min)</li>
+<li><strong>Task 2</strong> → BuildSystem implementation (10 min)</li>
+<li><strong>Task 3</strong> → BuildDialog header (5 min)</li>
+<li><strong>Task 4</strong> → BuildDialog constructor + render (10 min)</li>
+<li><strong>Task 5</strong> → BuildDialog UI sections (8 min)</li>
+<li><strong>Task 6</strong> → AssetCooker stubs (8 min)</li>
+<li><strong>Task 7</strong> → Wire into editor main.cpp (5 min)</li>
+<li><strong>Task 8</strong> → Integration test (10 min)</li>
+</ol>
+<p><strong>Total estimated time:</strong> ~60 minutes</p>
+<hr>
+<h2>Commit Strategy</h2>
+<p>After each task, commit atomically:</p>
+<pre><code class="language-bash"># After Task 1
+git add src/editor/BuildSystem.hpp
+git commit -m &quot;feat: add BuildSystem header with enums and struct definitions&quot;
+
+# After Task 2
+git add src/editor/BuildSystem.cpp
+git commit -m &quot;feat: implement BuildSystem 7-stage pipeline with progress tracking&quot;
+
+# After Tasks 3-5
+git add src/editor/BuildDialog.hpp src/editor/BuildDialog.cpp
+git commit -m &quot;feat: implement BuildDialog ImGui panel with configuration and progress sections&quot;
+
+# After Task 6
+git add src/editor/AssetCooker.hpp src/editor/AssetCooker.cpp
+git commit -m &quot;feat: add AssetCooker stub with texture and shader cooking interfaces&quot;
+
+# After Task 7
+git add apps/doppio/main.cpp
+git commit -m &quot;feat: wire BuildDialog into editor UI rendering loop&quot;
+
+# After Task 8
+git add -A  # If any changes
+git commit -m &quot;test: verify BuildSystem integration and full build pipeline execution&quot;
+</code></pre>
+<hr>
+<h2>Verification Checklist</h2>
+<p>Before marking each task complete:</p>
+<ul>
+<li><input disabled="" type="checkbox"> File compiles: <code>cmake .. &amp;&amp; make</code></li>
+<li><input disabled="" type="checkbox"> No LSP diagnostics: <code>lsp_diagnostics /path/to/file</code></li>
+<li><input disabled="" type="checkbox"> Methods are callable from dependent code</li>
+<li><input disabled="" type="checkbox"> No breaking changes to existing codebase</li>
+</ul>
+<hr>
+<h2>Next Session (After This Plan)</h2>
+<ul>
+<li><strong>Asset cooking implementations:</strong> Actual texture/shader compilation using TextureCompiler and ShaderCompiler APIs</li>
+<li><strong>Build cache implementation:</strong> Load/save JSON, mtime/hash checking</li>
+<li><strong>Game execution:</strong> Platform-specific process launching (CreateProcess for Windows, fork/execv for Linux)</li>
+<li><strong>Integration with ProjectManager:</strong> Load scenes and project settings from <code>project.caffeine</code></li>
+</ul>
+<hr>
+<p><strong>Plan created:</strong> May 16, 2026<br><strong>Plan approved by:</strong> Implementation phase<br><strong>Expected completion:</strong> Same day (~1 hour total)</p>
+
+</article>

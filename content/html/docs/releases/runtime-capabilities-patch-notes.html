@@ -1,0 +1,131 @@
+<article class="doc-article" data-slug="docs/releases/runtime-capabilities-patch-notes">
+<h1>Runtime capabilities — patch notes</h1>
+<p><strong>Date:</strong> 2026-10-14<br><strong>Scope:</strong> Caffeine engine core + scripting (Doppio consumes the same APIs)<br><strong>RFC:</strong> <a href="../../planning/engine-runtime-capabilities-rfc.md">planning/engine-runtime-capabilities-rfc.md</a></p>
+<p>This document is intended for <strong>all engine users</strong> (internal teams and third-party projects). It summarizes what landed in two implementation phases and how to adopt it safely.</p>
+<hr>
+<h2>Design principles (unchanged)</h2>
+<ol>
+<li><strong>Optional</strong> — Projects that only use sprites + scripts pay no map/native/LOD cost unless they use those APIs.</li>
+<li><strong>Neutral</strong> — No real-world map providers, HTTP tile URLs, or game-specific names in core.</li>
+<li><strong>Editor ≠ runtime</strong> — Doppio plugins stay separate from play-mode native modules.</li>
+<li><strong>Single Lua contract</strong> — Documented in <a href="../scripting/runtime-apis.md">runtime-apis.md</a>.</li>
+</ol>
+<hr>
+<h2>Phase 1 (foundation)</h2>
+<table>
+<thead>
+<tr>
+<th>Feature</th>
+<th>Summary</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><strong>Picking</strong></td>
+<td><code>Scene::pickEntityAtWorld</code>, <code>raycastSelectEntity</code>, <code>PlayRenderContext</code>, <code>PickQueryRegistry</code></td>
+</tr>
+<tr>
+<td><strong>Overlays</strong></td>
+<td><code>Render::Overlay2D</code> + <code>caffeine.draw2d.*</code></td>
+</tr>
+<tr>
+<td><strong>UI</strong></td>
+<td>Lua helpers on existing <code>UISystem</code></td>
+</tr>
+<tr>
+<td><strong>Scripts</strong></td>
+<td><code>require</code>, <code>caffeine.assets.loadText</code>, <code>PlayClock</code>, <code>GameStateStack</code></td>
+</tr>
+<tr>
+<td><strong>Map (data model)</strong></td>
+<td><code>MapSurface2DComponent</code> (bounds + chunk size only)</td>
+</tr>
+</tbody></table>
+<p><strong>Tests:</strong> <code>tests/test_pick_query.cpp</code> (<code>[pick]</code>).</p>
+<hr>
+<h2>Phase 2 (this patch)</h2>
+<h3>1. Native runtime modules</h3>
+<ul>
+<li><strong>ABI:</strong> <code>include/caffeine/runtime/NativeModuleAPI.h</code></li>
+<li><strong>Host:</strong> <code>Script::NativeModuleHost</code> (<code>dlopen</code> / <code>LoadLibrary</code>, <code>caffeine_native_module_info</code>, optional <code>caffeine_native_call</code>)</li>
+<li><strong>Lua:</strong> <code>caffeine.native.load</code>, <code>caffeine.native.call(module, fn, json?)</code></li>
+<li><strong>Docs:</strong> <a href="../scripting/native-modules.md">native-modules.md</a></li>
+</ul>
+<h3>2. Overlay RHI path</h3>
+<ul>
+<li><strong>API:</strong> <code>Overlay2D::buildRhiMesh</code>, <code>Overlay2D::drawRhi</code> (SDL GPU / no ImGui entry point)</li>
+<li><strong>Shaders:</strong> <code>overlay2d.vert</code> / <code>overlay2d.frag</code> in tree; wire into builtin shader registration to enable GPU draw</li>
+<li><strong>Docs:</strong> <a href="../rendering/overlay-2d-rhi.md">overlay-2d-rhi.md</a></li>
+</ul>
+<h3>3. Map surface — editor + events</h3>
+<ul>
+<li><strong>Component:</strong> <code>MapSurface2DComponent</code> serialized in <code>.caf</code> (type id <strong>55</strong>)</li>
+<li><strong>Editor:</strong> Add Component → <strong>Map Surface 2D</strong></li>
+<li><strong>Runtime:</strong> <code>Scene::tickMapSurfaceChunkRequests</code> emits <code>Events::OnMapSurfaceChunkRequest</code></li>
+<li><strong>Lua:</strong> <code>caffeine.map.onChunkRequest(fn)</code> or <code>caffeine.events.on(&quot;mapChunkRequest&quot;, fn)</code></li>
+<li><strong>Note:</strong> You supply all content (textures, meshes, data). The engine only reports which logical chunks are visible.</li>
+</ul>
+<h3>4. 2D sprite LOD</h3>
+<ul>
+<li><strong>Component:</strong> <code>SpriteLod2DComponent</code> (type id <strong>56</strong>), zoom thresholds + scale factor</li>
+<li><strong>System:</strong> <code>Scene::applySpriteLod2D</code> driven by active play camera zoom</li>
+<li><strong>Editor:</strong> Add Component → <strong>Sprite LOD 2D</strong> (captures current transform scale as base)</li>
+</ul>
+<h3>5. Custom Lua picking</h3>
+<ul>
+<li><strong>API:</strong> <code>caffeine.pick.register</code>, <code>unregister</code>, <code>query</code></li>
+<li>Custom handlers run before entity AABB pick; return a numeric custom id or false</li>
+</ul>
+<hr>
+<h2>Migration checklist for game teams</h2>
+<ul>
+<li><input disabled="" type="checkbox"> Replace ad-hoc screen→world math with <code>caffeine.pick.screenToWorld</code> / <code>PlayRenderContext</code></li>
+<li><input disabled="" type="checkbox"> Move vector debug draw to <code>caffeine.draw2d</code> instead of editor-only gizmos</li>
+<li><input disabled="" type="checkbox"> For large surfaces, add <code>MapSurface2D</code> + handle <code>mapChunkRequest</code> in Lua (or C++ via <code>EventBus</code>)</li>
+<li><input disabled="" type="checkbox"> For dense 2D scenes, add <code>SpriteLod2D</code> on marker entities</li>
+<li><input disabled="" type="checkbox"> For heavy sim outside Lua, add <code>native/my_module.so</code> using the documented ABI</li>
+<li><input disabled="" type="checkbox"> Read <a href="../scripting/runtime-apis.md">runtime-apis.md</a> (English) before upgrading scripts</li>
+</ul>
+<hr>
+<h2>Binary scene format</h2>
+<table>
+<thead>
+<tr>
+<th align="right">Type ID</th>
+<th>Component</th>
+</tr>
+</thead>
+<tbody><tr>
+<td align="right">55</td>
+<td><code>MapSurface2DComponent</code></td>
+</tr>
+<tr>
+<td align="right">56</td>
+<td><code>SpriteLod2DComponent</code></td>
+</tr>
+</tbody></table>
+<p>Older <code>.caf</code> files load unchanged; new components are opt-in.</p>
+<hr>
+<h2>Known follow-ups</h2>
+<ul>
+<li>Register <code>overlay2d</code> shaders in <code>BuiltinShader</code> + CMake for full GPU overlay draw without ImGui</li>
+<li>Richer <code>caffeine.native.call</code> (typed Lua tables ↔ JSON)</li>
+<li>Inspector widgets for map bounds (today: component defaults + future inspector polish)</li>
+<li>Optional <code>SpatialGrid2D</code> helpers documented under <a href="../physics/spatial-partitioning.md">spatial-partitioning.md</a> usage patterns</li>
+</ul>
+<hr>
+<h2>Files touched (high level)</h2>
+<ul>
+<li><code>src/scene/PickQuery.*</code>, <code>PickRaycast.*</code>, <code>MapSurfaceSystem.*</code>, <code>SpriteLod2DSystem.*</code></li>
+<li><code>src/render/Overlay2D.*</code>, <code>src/render/shaders/overlay2d.*</code></li>
+<li><code>src/script/RuntimeScriptBindings.cpp</code>, <code>NativeModuleHost.*</code>, <code>AssetTextLoader.*</code></li>
+<li><code>src/runtime/PlayClock.*</code>, <code>GameStateStack.*</code></li>
+<li><code>src/ecs/MapComponents.hpp</code>, <code>LodComponents.hpp</code></li>
+<li><code>include/caffeine/runtime/NativeModuleAPI.h</code></li>
+<li><code>src/editor/SceneSerializer.*</code>, <code>ComponentRegistry.cpp</code></li>
+<li><code>docs/scripting/*</code>, <code>docs/rendering/overlay-2d-rhi.md</code>, this file</li>
+</ul>
+<hr>
+<h2>Support</h2>
+<p>Questions or regressions: attach project <code>native/</code> layout, script snippets using new APIs, and whether play mode is 2D or 3D (affects <code>PlayRenderContext</code>).</p>
+
+</article>

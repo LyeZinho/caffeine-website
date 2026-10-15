@@ -1,0 +1,167 @@
+<article class="doc-article" data-slug="planning/m1-scene-editor-foundation/1.5-asset-browser-v1">
+<h1>🔧 Asset Browser (v1)</h1>
+<blockquote>
+<p><strong>Milestone:</strong> M1 — Scene Editor Foundation
+<strong>Namespace:</strong> <code>Caffeine::Editor</code>
+<strong>Arquivos:</strong> <code>src/editor/AssetBrowser.hpp</code>, <code>src/editor/AssetBrowser.cpp</code>
+<strong>Status:</strong> 📅 Planeado
+<strong>RF:</strong> RF6.5</p>
+</blockquote>
+<hr>
+<h2>Visão Geral</h2>
+<p>O <code>AssetBrowser</code> é a porta de entrada para todos os recursos do projeto (texturas, sons, cenas, scripts). Na sua primeira versão (v1), o foco é a navegação no sistema de ficheiros local do projeto e a identificação de ficheiros suportados pelo motor Caffeine, especificamente ficheiros <code>.caf</code> (cenas) e formatos de imagem.</p>
+<p>Este painel permite ao utilizador organizar o projeto em pastas e selecionar assets para visualização no Inspector ou para serem arrastados para a cena.</p>
+<hr>
+<h2>Implementação</h2>
+<h3>Estrutura da Classe</h3>
+<p>O navegador mantém um estado do diretório atual e utiliza a biblioteca padrão do C++ (<code>std::filesystem</code>) para explorar o disco.</p>
+<pre><code class="language-cpp">class AssetBrowser {
+    std::filesystem::path m_rootPath;
+    std::filesystem::path m_currentDirectory;
+    AssetHandle m_selectedAsset = 0;
+
+public:
+    AssetBrowser(const std::string&amp; root) : m_rootPath(root), m_currentDirectory(root) {}
+
+    void onImGuiRender() {
+        ImGui::Begin(&quot;Asset Browser&quot;);
+
+        renderPathBar();
+
+        if (m_currentDirectory != m_rootPath) {
+            if (ImGui::Button(&quot;&lt;- Voltar&quot;)) {
+                m_currentDirectory = m_currentDirectory.parent_path();
+            }
+        }
+
+        float cellSize = 64.0f + 16.0f;
+        float panelWidth = ImGui::GetContentRegionAvail().x;
+        int columnCount = (int)(panelWidth / cellSize);
+        if (columnCount &lt; 1) columnCount = 1;
+
+        ImGui::Columns(columnCount, 0, false);
+
+        for (auto&amp; directoryEntry : std::filesystem::directory_iterator(m_currentDirectory)) {
+            const auto&amp; path = directoryEntry.path();
+            std::string filename = path.filename().string();
+
+            ImGui::PushID(filename.c_str());
+            
+            if (directoryEntry.is_directory()) {
+                renderFolderIcon(filename, path);
+            } else {
+                renderFileIcon(filename, path);
+            }
+
+            ImGui::TextWrapped(&quot;%s&quot;, filename.c_str());
+            ImGui::NextColumn();
+            ImGui::PopID();
+        }
+
+        ImGui::Columns(1);
+        ImGui::End();
+    }
+
+private:
+    void renderFolderIcon(const std::string&amp; name, const std::filesystem::path&amp; path) {
+        // No M1 usamos botões de texto simples ou ícones ASCII
+        if (ImGui::Button(&quot;[DIR]&quot;, { 64, 64 })) {
+            m_currentDirectory /= name;
+        }
+    }
+
+    void renderFileIcon(const std::string&amp; name, const std::filesystem::path&amp; path) {
+        if (ImGui::Button(&quot;[FILE]&quot;, { 64, 64 })) {
+            handleFileSelection(path);
+        }
+        
+        // Drag and Drop: permitir arrastar assets para o viewport ou inspector
+        if (ImGui::BeginDragDropSource()) {
+            std::string itemPath = path.string();
+            ImGui::SetDragDropPayload(&quot;ASSET_PATH&quot;, itemPath.c_str(), itemPath.size() + 1);
+            ImGui::Text(&quot;%s&quot;, name.c_str());
+            ImGui::EndDragDropSource();
+        }
+    }
+};
+</code></pre>
+<h3>Barra de Caminho (Path Bar)</h3>
+<p>Uma barra clicável que permite saltar para diretórios superiores rapidamente.</p>
+<pre><code class="language-cpp">void renderPathBar() {
+    auto relativePath = std::filesystem::relative(m_currentDirectory, m_rootPath);
+    std::string pathStr = relativePath.string();
+    
+    // Divide pathStr por &#39;/&#39; e cria botões para cada segmento
+    // Ex: Assets &gt; Textures &gt; Player
+}
+</code></pre>
+<h3>Tipos de Ficheiro Suportados (M1)</h3>
+<ul>
+<li><strong>Cenas:</strong> <code>.caf</code> — Abre a cena no editor.</li>
+<li><strong>Texturas:</strong> <code>.png</code>, <code>.jpg</code>, <code>.tga</code> — Mostra preview e permite arrastar para <code>SpriteRenderer</code>.</li>
+<li><strong>Áudio:</strong> <code>.wav</code>, <code>.mp3</code> — Identificado mas sem preview no M1.</li>
+</ul>
+<hr>
+<h2>Decisões de Design</h2>
+<table>
+<thead>
+<tr>
+<th>Decisão</th>
+<th>Justificativa</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>std::filesystem</code></td>
+<td>Biblioteca robusta e multiplataforma incluída no C++17.</td>
+</tr>
+<tr>
+<td>Drag-and-Drop Payload</td>
+<td>Utilizar o caminho do ficheiro como payload facilita a integração com o <code>AssetManager</code>.</td>
+</tr>
+<tr>
+<td>Layout em Grelha (Columns)</td>
+<td>Maximiza o uso do espaço horizontal, semelhante aos exploradores de ficheiros modernos.</td>
+</tr>
+</tbody></table>
+<hr>
+<h2>Critério de Aceitação</h2>
+<ul>
+<li><input disabled="" type="checkbox"> Lista todos os ficheiros e pastas no diretório do projeto.</li>
+<li><input disabled="" type="checkbox"> Permite entrar em pastas com duplo clique (ou clique no botão).</li>
+<li><input disabled="" type="checkbox"> Botão &quot;Back&quot; funciona para subir na hierarquia de pastas.</li>
+<li><input disabled="" type="checkbox"> Ficheiros podem ser &quot;arrastados&quot; (ImGui Drag-and-Drop).</li>
+<li><input disabled="" type="checkbox"> Identifica visualmente ficheiros <code>.caf</code> (Cenas).</li>
+<li><input disabled="" type="checkbox"> Botão de &quot;Refresh&quot; atualiza a lista de ficheiros se algo mudar no disco.</li>
+</ul>
+<hr>
+<h2>Dependências</h2>
+<ul>
+<li><strong>Upstream:</strong> <code>docs/assets/asset-manager.md</code></li>
+<li><strong>Downstream:</strong> <code>1.6-scene-editor-orchestrator.md</code>, <code>1.3-inspector-panel.md</code></li>
+</ul>
+<hr>
+<h2>🔗 Tópicos Relacionados</h2>
+<table>
+<thead>
+<tr>
+<th>Tópico</th>
+<th>Descrição</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Asset Manager</td>
+<td>Sistema que carrega os ficheiros selecionados em memória.</td>
+</tr>
+<tr>
+<td>ImGui Drag &amp; Drop</td>
+<td>API para transferência de dados entre janelas.</td>
+</tr>
+</tbody></table>
+<hr>
+<h2>Referências</h2>
+<ul>
+<li><a href="../docs/assets/asset-manager.md"><code>docs/assets/asset-manager.md</code></a> — Como os assets são registados.</li>
+<li><a href="https://en.cppreference.com/w/cpp/filesystem">C++ std::filesystem</a> — Documentação técnica da biblioteca de ficheiros.</li>
+</ul>
+
+</article>

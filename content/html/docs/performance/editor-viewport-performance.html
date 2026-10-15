@@ -1,0 +1,391 @@
+<article class="doc-article" data-slug="docs/performance/editor-viewport-performance">
+<h1>Performance — Editor Viewport &amp; GPU Scene</h1>
+<blockquote>
+<p><strong>Data:</strong> 2026-09-23<br><strong>Contexto:</strong> Investigação de quedas de FPS no Doppio (~12 FPS, ~77 ms em <code>SceneEditor::render</code>)<br><strong>Status:</strong> ✅ Otimizações aplicadas + instrumentação de profiler</p>
+</blockquote>
+<hr>
+<h2>Resumo</h2>
+<p>O editor renderizava a mesma geometria em <strong>CPU e GPU</strong> no mesmo frame, executava <strong>vários passes GPU</strong> (viewport + previews) com sombras e binds redundantes, e rasterizava o <strong>skybox em CPU</strong> a resolução quase total do painel a cada micro-movimento de câmera.</p>
+<p>As correções seguem duas regras:</p>
+<ol>
+<li><strong>Meshes/terreno:</strong> GPU <strong>ou</strong> CPU por frame — nunca os dois.</li>
+<li><strong>Shadow passes</strong> (redraw da cena) são independentes dos <strong>shadow samplers</strong> (texturas ligadas no shader).</li>
+</ol>
+<hr>
+<h2>Resultado validado</h2>
+<table>
+<thead>
+<tr>
+<th>Métrica</th>
+<th>Antes</th>
+<th>Depois</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><strong>FPS</strong></td>
+<td><strong>~10</strong></td>
+<td><strong>~100</strong></td>
+</tr>
+<tr>
+<td>Frame time</td>
+<td>~77–213 ms</td>
+<td>~10 ms</td>
+</tr>
+</tbody></table>
+<p>Ganho medido no Doppio com cena 3D + terreno chunked, após o pacote de correções abaixo.</p>
+<hr>
+<h2>Sintomas observados (profiler, antes)</h2>
+<table>
+<thead>
+<tr>
+<th>Métrica</th>
+<th>Valor</th>
+<th>Interpretação</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Frame time</td>
+<td>~77–213 ms</td>
+<td>CPU baixo (~5%), GPU ~30% → gargalo em draw calls / driver</td>
+</tr>
+<tr>
+<td><code>SceneEditor::render</code></td>
+<td>~55 ms avg</td>
+<td>Scope único engolia todos os painéis</td>
+</tr>
+<tr>
+<td><code>GpuSceneRenderer::draw</code></td>
+<td>~54 ms avg</td>
+<td>Pass principal da cena (terreno + meshes)</td>
+</tr>
+<tr>
+<td><code>SceneViewport::skybox</code></td>
+<td>0.9 ms avg, <strong>80 ms max</strong></td>
+<td>Picos ao re-rasterizar equirect em CPU</td>
+</tr>
+<tr>
+<td><code>cameraPreview</code> / <code>gameplayPreview</code></td>
+<td>~0 ms após throttle</td>
+<td>Previews deixaram de competir com o viewport</td>
+</tr>
+</tbody></table>
+<hr>
+<h2>Arquitetura: um caminho de render por frame</h2>
+<h3>Scene Viewport (3D)</h3>
+<table>
+<thead>
+<tr>
+<th>Camada</th>
+<th>Responsável</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Meshes + terreno</td>
+<td><strong>GPU</strong> (<code>GpuSceneRenderer</code>) quando <code>m_useGpuScene</code> ativo</td>
+</tr>
+<tr>
+<td>Skybox</td>
+<td>CPU (<code>SkyboxRenderer</code>) como fundo; GPU limpa com alpha 0</td>
+</tr>
+<tr>
+<td>Grid, gizmos, frustums, marcadores</td>
+<td>CPU (<code>ImDrawList</code>) — overlays de editor</td>
+</tr>
+</tbody></table>
+<p>Quando <code>gpuOwnsSceneMeshes</code> está ativo, <code>drawEmptyEntities()</code> <strong>não</strong> rasteriza meshes na CPU (inclui terreno e seleção). Só marcadores de entidades vazias e debug de chunks.</p>
+<h3>Camera / Gameplay Preview</h3>
+<ul>
+<li><strong>GPU path:</strong> <code>renderCameraPreviewGpu()</code> ou <code>GameplayPreviewPanel::m_renderer</code> — sem <code>drawSceneMeshesForCamera()</code> no mesmo frame.</li>
+<li><strong>CPU fallback:</strong> só quando o pass GPU falha ou não está disponível (<code>#ifdef CF_HAS_SDL3</code>).</li>
+<li>Throttle: <code>editorPanelWorthGpuRender(..., frameInterval=2)</code> — re-render GPU a cada 2 frames; reutiliza textura anterior.</li>
+</ul>
+<hr>
+<h2>Causa raiz em <code>GpuSceneRenderer::draw</code></h2>
+<p>Para <strong>cada chunk de terreno</strong>, o loop fazia trabalho que deveria ser <strong>uma vez por pass</strong> ou <strong>uma vez por entidade</strong>:</p>
+<table>
+<thead>
+<tr>
+<th>Operação</th>
+<th>Problema</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>pushUniformData(shadowUbo)</code></td>
+<td>Mesmo UBO repetido com sombras desligadas</td>
+</tr>
+<tr>
+<td><code>bindShadowTextures()</code></td>
+<td>6+ samplers por chunk</td>
+</tr>
+<tr>
+<td><code>texCache.acquire()</code></td>
+<td>Lookup de splat/albedo/normal por chunk</td>
+</tr>
+</tbody></table>
+<p>Com <strong>50–200 chunks</strong> visíveis → <strong>milhares de operações redundantes por frame</strong>.</p>
+<hr>
+<h2>Correções aplicadas (10 → 100 FPS)</h2>
+<table>
+<thead>
+<tr>
+<th>#</th>
+<th>Correção</th>
+<th>Impacto</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>1</td>
+<td><code>shadowUbo</code> <strong>uma vez por pass</strong> (não por draw)</td>
+<td>Menos uploads de uniform por frame</td>
+</tr>
+<tr>
+<td>2</td>
+<td>Shadow <strong>passes</strong> off no editor; <strong>samplers</strong> sempre ligados</td>
+<td>Sem redraw × cascatas; sem SIGSEGV NVIDIA</td>
+</tr>
+<tr>
+<td>3</td>
+<td><strong>Cache de texturas de terreno</strong> — bind só na 1ª vez por entidade</td>
+<td>De O(chunks) → O(terrenos) binds de textura</td>
+</tr>
+<tr>
+<td>4</td>
+<td><code>terrainLodDistanceScale = 2</code> no editor</td>
+<td>Menos chunks visíveis / menos draws</td>
+</tr>
+<tr>
+<td>5</td>
+<td>Resolução GPU cap <strong>1280 px</strong> no viewport</td>
+<td>Menos pixels no offscreen target</td>
+</tr>
+<tr>
+<td>6</td>
+<td><code>textureQuality.enabled = false</code> no editor</td>
+<td>Menos churn de mip/tier por draw</td>
+</tr>
+<tr>
+<td>7</td>
+<td>Skybox cap <strong>512–1024 px</strong> (sem throttle de frames)</td>
+<td>Raster CPU mais barato sem desync céu/terreno</td>
+</tr>
+</tbody></table>
+<p>Complementares (mesma sessão): separação GPU/CPU por frame, skip GPU em previews ocultos, profiler granular.</p>
+<hr>
+<h2>Otimizações no <code>GpuSceneRenderer</code></h2>
+<h3>1. Shadow passes vs shadow samplers</h3>
+<table>
+<thead>
+<tr>
+<th>Conceito</th>
+<th>Editor</th>
+<th>Runtime / play</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><strong>Shadow passes</strong> (<code>renderDirectionalShadows</code>, etc.)</td>
+<td>❌ Desligados</td>
+<td>✅ Quando <code>enableShadows=true</code></td>
+</tr>
+<tr>
+<td><strong>Shadow samplers</strong> (<code>bindShadowTextures</code>)</td>
+<td>✅ <strong>Sempre</strong> ligados (white / dummy)</td>
+<td>✅ Sempre</td>
+</tr>
+</tbody></table>
+<p><strong>⚠️ Regra crítica (SIGSEGV NVIDIA):</strong><br>Desligar <code>enableShadows</code> <strong>não</strong> pode omitir <code>bindShadowTextures()</code>. Os shaders <code>scene_lit.frag</code> / <code>terrain_lit.frag</code> declaram samplers de sombra; slots não ligados → crash no driver.</p>
+<pre><code class="language-cpp">// Correto: passes condicionais, binds sempre
+if (options.enableShadows) {
+    renderDirectionalShadows(...);
+}
+bindShadowTextures(2, 4, 6);  // início do pass + ao trocar mesh ↔ terreno
+</code></pre>
+<h3>2. Uniform de sombra uma vez por pass</h3>
+<p><code>SceneShadowUBO</code> é enviado <strong>uma vez</strong> antes do loop de draws (não por mesh/chunk).</p>
+<h3>3. Cache de texturas de terreno</h3>
+<p>Texturas de splat/albedo/normal são ligadas <strong>uma vez por entidade de terreno</strong>, não por chunk LOD.</p>
+<h3>4. LOD de terreno no editor</h3>
+<p><code>GpuSceneRenderOptions::terrainLodDistanceScale = 2.0f</code> no Scene Viewport — distância efectiva dobrada → LOD mais grosseiro, menos chunks visíveis.</p>
+<hr>
+<h2>Otimizações no Scene Viewport</h2>
+<table>
+<thead>
+<tr>
+<th>Opção</th>
+<th>Valor no editor</th>
+<th>Motivo</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>enableShadows</code></td>
+<td><code>false</code></td>
+<td>Evita 4+ redraws da cena por cascata</td>
+</tr>
+<tr>
+<td><code>terrainLodDistanceScale</code></td>
+<td><code>2.0</code></td>
+<td>Menos chunks GPU</td>
+</tr>
+<tr>
+<td><code>textureQuality.enabled</code></td>
+<td><code>false</code></td>
+<td>Menos churn de mips/tiers por draw</td>
+</tr>
+<tr>
+<td><code>imguiFramebufferSize</code> cap</td>
+<td><strong>1280</strong> px</td>
+<td>Menos pixels no offscreen target</td>
+</tr>
+<tr>
+<td>Skybox <code>maxRasterDim</code></td>
+<td>512–1024</td>
+<td>Raster CPU mais barato; re-rasteriza a cada movimento de câmera</td>
+</tr>
+</tbody></table>
+<hr>
+<h2>Otimizações nos previews</h2>
+<p>Helper: <code>editorPanelWorthGpuRender()</code> em <code>EditorPanelUtils.hpp</code></p>
+<ul>
+<li>Ignora painéis colapsados, &lt; 32 px, ou fora de <code>IsRectVisible</code></li>
+<li>Skybox desenhado <strong>todo frame</strong> nos previews (antes do <code>AddImage</code> GPU)</li>
+<li>GPU só é pulado quando o painel está colapsado / invisível / &lt; 32 px</li>
+<li>Resolução GPU cap <strong>960</strong> px nos previews</li>
+<li>Canvas sempre inicializado antes do primeiro draw (<code>resizeCanvas</code> se targets nulos)</li>
+</ul>
+<hr>
+<h2>Instrumentação (<code>CF_PROFILE_SCOPE</code>)</h2>
+<p>O profiler mantém uma <strong>árvore hierárquica</strong> de scopes (stack trace de consumo). Cada nó regista:</p>
+<table>
+<thead>
+<tr>
+<th>Métrica</th>
+<th>Significado</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><strong>self ms</strong></td>
+<td>Tempo exclusivo (sem filhos) — onde procurar gargalos</td>
+</tr>
+<tr>
+<td><strong>total ms</strong></td>
+<td>Tempo inclusivo (scope + filhos)</td>
+</tr>
+<tr>
+<td><strong>% frame</strong></td>
+<td><code>avg self</code> vs último frame time</td>
+</tr>
+<tr>
+<td><strong>% parent</strong></td>
+<td><code>avg self</code> vs <code>avg total</code> do pai</td>
+</tr>
+</tbody></table>
+<p>Scopes adicionados para diagnóstico no painel <strong>Profiler</strong>:</p>
+<h3>SceneEditor</h3>
+<ul>
+<li><code>SceneEditor::render</code> (raiz do frame do editor)</li>
+<li><code>SceneEditor::propagateTransforms</code></li>
+<li><code>SceneEditor::hierarchy</code>, <code>inspector</code>, <code>viewport</code>, <code>assetBrowser</code>, <code>console</code>, <code>profiler</code></li>
+<li><code>SceneEditor::cameraPreview</code>, <code>gameplayPreview</code>, <code>materialEditor</code>, <code>terrainEditor</code>, <code>plugins</code>, …</li>
+</ul>
+<h3>SceneViewport</h3>
+<ul>
+<li><code>SceneViewport::render</code></li>
+<li><code>SceneViewport::gpuPass</code></li>
+<li><code>SceneViewport::skybox</code></li>
+<li><code>SceneViewport::sprites</code>, <code>SceneViewport::entities</code></li>
+</ul>
+<h3>GpuSceneRenderer</h3>
+<ul>
+<li><code>GpuSceneRenderer::renderWithCamera</code></li>
+<li><code>GpuSceneRenderer::gather</code></li>
+<li><code>GpuSceneRenderer::shadows</code> (quando passes activos)</li>
+<li><code>GpuSceneRenderer::draw</code></li>
+</ul>
+<p><strong>Como usar:</strong> abrir Profiler → <strong>Reset Stats</strong> → orbitar câmera / abrir previews → expandir a árvore em <strong>Scope tree</strong> → ordenar por <strong>self ms</strong> (activo por defeito). Passar o rato sobre um scope mostra o caminho completo (<code>SceneEditor::render &gt; SceneEditor::viewport &gt; …</code>).</p>
+<hr>
+<h2>Pipeline actual (3D)</h2>
+<pre><code>1. imguiFramebufferSize(viewportSize, 1280)
+2. syncTerrainMeshes(world)                    // só se resolução/revisão mudou
+3. GpuSceneRenderer::render(...)
+   ├── gatherMeshDraws (frustum + LOD terreno ×2)
+   ├── (sem shadow passes no editor)
+   └── renderMeshes — bind samplers dummy, 1× shadow UBO
+4. ImGui: skybox (CPU, cap resolução) → AddImage(GPU) → grid → overlays CPU
+</code></pre>
+<hr>
+<h2>Ficheiros principais</h2>
+<table>
+<thead>
+<tr>
+<th>Ficheiro</th>
+<th>Alterações</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>src/render/GpuSceneRenderer.cpp</code></td>
+<td>Shadow UBO 1×, cache terreno, binds obrigatórios</td>
+</tr>
+<tr>
+<td><code>src/render/GpuSceneRenderer.hpp</code></td>
+<td><code>terrainLodDistanceScale</code></td>
+</tr>
+<tr>
+<td><code>src/editor/SceneViewport.cpp</code></td>
+<td>GPU-only meshes, opções editor, scopes</td>
+</tr>
+<tr>
+<td><code>src/editor/CameraPreviewPanel.cpp</code></td>
+<td>GPU-only / CPU fallback, throttle</td>
+</tr>
+<tr>
+<td><code>src/editor/GameplayPreviewPanel.cpp</code></td>
+<td>Idem + resizeCanvas seguro</td>
+</tr>
+<tr>
+<td><code>src/editor/EditorPanelUtils.hpp</code></td>
+<td><code>editorPanelWorthGpuRender()</code></td>
+</tr>
+<tr>
+<td><code>src/render/SkyboxRenderer.cpp</code></td>
+<td>Cap resolução; raster sincronizado com câmera</td>
+</tr>
+<tr>
+<td><code>src/terrain/TerrainLodSystem.cpp</code></td>
+<td><code>lodDistanceScale</code> no gather</td>
+</tr>
+</tbody></table>
+<hr>
+<h2>Limitações e trabalho futuro</h2>
+<table>
+<thead>
+<tr>
+<th>Item</th>
+<th>Notas</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>GpuSceneRenderer::draw</code> ainda domina frame time em cenas com muito terreno</td>
+<td>Próximo passo: instancing/batching de chunks</td>
+</tr>
+<tr>
+<td>Skybox continua CPU</td>
+<td>Migrar para cubemap GPU ou shader fullscreen</td>
+</tr>
+<tr>
+<td>MSAA no pass GPU</td>
+<td>Pendente</td>
+</tr>
+<tr>
+<td>Profiler próprio pode picar ~30 ms</td>
+<td><code>SceneEditor::profiler</code> ao redesenhar tabela</td>
+</tr>
+</tbody></table>
+<hr>
+<h2>Ver também</h2>
+<ul>
+<li><a href="../editor/scene-viewport.md">Scene Viewport</a></li>
+<li><a href="../rendering/shadow-mapping.md">Shadow Mapping</a></li>
+<li><a href="../rendering/texture-quality-lod.md">Texture Quality LOD</a></li>
+<li><a href="../plans/2026-09-22-viewport-rendering-quality-session.md">Sessão 2026-09-22 — Viewport</a></li>
+</ul>
+
+</article>

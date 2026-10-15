@@ -1,0 +1,101 @@
+<article class="doc-article" data-slug="docs/editor/material-editor">
+<h1>Material Editor</h1>
+<blockquote>
+<p><strong>Painel:</strong> Doppio → Material Editor<br><strong>Core:</strong> <code>Assets::MaterialSurface</code>, <code>MaterialFile</code> (<code>.mat</code>), <code>MaterialCache</code>, <code>Render::MaterialPreviewRenderer</code><br><strong>Shader:</strong> <code>scene_lit.frag</code> / <code>terrain_lit.frag</code></p>
+</blockquote>
+<p>O editor de materiais vive no <strong>core</strong> da engine. O Doppio só abre o painel, publica alterações no <code>MaterialCache</code> e mostra a textura GPU devolvida pelo preview renderer.</p>
+<hr>
+<h2>Fluxo de dados</h2>
+<ol>
+<li>Abrir ou criar um <code>.mat</code> (<code>CAFMAT2</code>).</li>
+<li>Sliders e combos alteram <code>MaterialSurface</code> em memória.</li>
+<li><code>publishLive()</code> grava no <code>MaterialCache</code> com a chave do ficheiro (ou <code>__caffeine_material_preview__.mat</code> durante edição).</li>
+<li>O viewport e o preview leem a revisão do cache; o carimbo da cena (<code>EditorPanelUtils</code>) inclui bytes do material para redesenhar sem mover a câmara.</li>
+<li><strong>File → Save</strong> serializa <code>CAFMAT2</code> no disco.</li>
+</ol>
+<p>Browse de texturas usa <code>Widgets::AssetField</code> + <code>BrowseSession</code> (mesmo fluxo que o Asset Browser).</p>
+<hr>
+<h2>Secções do painel</h2>
+<table>
+<thead>
+<tr>
+<th>Secção</th>
+<th>Campos</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><strong>Preset</strong></td>
+<td>Lista agrupada por categoria (<code>MaterialPresets.hpp</code>: Mirror, Chrome, Gold, Clear Glass, …)</td>
+</tr>
+<tr>
+<td><strong>Surface</strong></td>
+<td>Albedo (RGBA), metallic, roughness, reflectance</td>
+</tr>
+<tr>
+<td><strong>Maps &amp; UV</strong></td>
+<td>Albedo / normal / ORM / emission maps; normal strength; AO strength; UV tiling &amp; offset</td>
+</tr>
+<tr>
+<td><strong>Transparency</strong></td>
+<td>Alpha mode (Opaque / Cutout / Blend), cutoff, transmission, IOR</td>
+</tr>
+<tr>
+<td><strong>Clear coat</strong></td>
+<td>Clearcoat, coat roughness</td>
+</tr>
+<tr>
+<td><strong>Sheen</strong></td>
+<td>Cor, roughness (tecido/veludo)</td>
+</tr>
+<tr>
+<td><strong>Iridescence</strong></td>
+<td>Força, espessura do filme (nm), IOR do filme</td>
+</tr>
+<tr>
+<td><strong>Emission</strong></td>
+<td>Cor, strength, mapa de emissão</td>
+</tr>
+</tbody></table>
+<p>Albedo no editor é <strong>sRGB</strong>; o renderer lineariza na GPU.</p>
+<hr>
+<h2>Pré-visualização GPU</h2>
+<p><code>MaterialPreviewRenderer</code> monta um <code>World</code> mínimo (esfera + chão opcional, luz direcional, céu da cena ativa) e chama <code>GpuSceneRenderer</code> com:</p>
+<ul>
+<li>HDR + stack de pós-processamento (TAA por defeito)</li>
+<li><strong>Reflection probes</strong> (até 1 probe, resolução 32–256)</li>
+<li>Mesmo <code>scene_lit</code> que o viewport</li>
+</ul>
+<p>Controles <strong>Orbit</strong>, <strong>Height</strong> e <strong>Floor</strong> no painel. O renderer pede frames extra enquanto <code>needsAnotherFrame()</code> (TAA, probes, auto-exposure).</p>
+<p>Ver <a href="../rendering/materials-pbr.md"><code>../rendering/materials-pbr.md</code></a> e <a href="../rendering/reflections.md"><code>../rendering/reflections.md</code></a>.</p>
+<hr>
+<h2>Ficheiros</h2>
+<table>
+<thead>
+<tr>
+<th>Ficheiro</th>
+<th>Função</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>src/assets/MaterialTypes.hpp</code></td>
+<td><code>MaterialSurface</code>, <code>MaterialAlphaMode</code></td>
+</tr>
+<tr>
+<td><code>src/assets/MaterialFile.cpp</code></td>
+<td>Leitura/escrita <code>CAFMAT2</code>, <code>sanitizeMaterialSurface</code></td>
+</tr>
+<tr>
+<td><code>src/assets/MaterialPresets.hpp</code></td>
+<td>Presets nomeados</td>
+</tr>
+<tr>
+<td><code>src/render/MaterialPreviewRenderer.cpp</code></td>
+<td>Preview offscreen</td>
+</tr>
+<tr>
+<td><code>src/editor/MaterialEditorPanel.cpp</code></td>
+<td>UI ImGui</td>
+</tr>
+</tbody></table>
+
+</article>

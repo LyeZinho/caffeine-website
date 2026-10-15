@@ -1,0 +1,231 @@
+<article class="doc-article" data-slug="docs/ui/editor-ui">
+<h1>🖥️ Embedded UI — Dear ImGui</h1>
+<blockquote>
+<p><strong>Fase:</strong> 6 — O Olimpo<br><strong>Namespace:</strong> <code>Caffeine::Editor</code><br><strong>Status:</strong> ✅ Implementado<br><strong>RFs:</strong> RF6.1, RF6.2, RF6.6</p>
+</blockquote>
+<hr>
+<h2>Visão Geral</h2>
+<p>Integração de <strong>Dear ImGui</strong> para a interface do Caffeine Studio IDE. ImGui é uma biblioteca de UI em modo imediato (immediate mode) — cada frame redesenha todos os widgets. Ideal para ferramentas de desenvolvimento.</p>
+<p><strong>Distinção da Fase 4:</strong></p>
+<ul>
+<li><a href="../ui/game-ui.md">UI System</a> — UI <strong>retida</strong> para jogos (HUD, menus, HealthBar)</li>
+<li><strong>Embedded ImGui</strong> — UI <strong>imediata</strong> para ferramentas de desenvolvimento (editor, profiler, console)</li>
+</ul>
+<hr>
+<h2>API Implementada</h2>
+<pre><code class="language-cpp">namespace Caffeine::Editor {
+
+// ============================================================================
+// @brief  FrameStats — metrics de frame para StatsOverlay.
+// ============================================================================
+struct FrameStats {
+    f64 deltaTime   = 0.0;
+    f64 fps         = 0.0;
+    u64 frameCount  = 0;
+    f64 elapsedTime = 0.0;
+};
+
+// ============================================================================
+// @brief  Integração ImGui com SDL3 + RHI da Caffeine.
+//         Disponível apenas quando CF_HAS_SDL3 e CF_HAS_IMGUI estão definidos.
+// ============================================================================
+class ImGuiIntegration {
+public:
+    bool init(SDL_Window* window, RHI::RenderDevice* device);
+    void shutdown();
+
+    void beginFrame();
+    void endFrame(RHI::CommandBuffer* cmd);
+
+    bool processEvent(const SDL_Event&amp; event);
+
+    bool wantsKeyboard() const;
+    bool wantsMouse()    const;
+};
+
+// ============================================================================
+// @brief  Janela de profiler — visualiza dados do Profiler da Fase 2.
+//         Renderização ImGui disponível via CF_HAS_IMGUI.
+// ============================================================================
+class ProfilerWindow {
+public:
+    void pushFrameTime(f32 ms);
+    void pause();
+    void resume();
+    bool isPaused() const;
+    bool isOpen()   const;
+    void close();
+    void open();
+
+    f32 lastFrameTime() const;
+    const std::array&lt;f32, 120&gt;&amp; frameTimes() const;
+    u32 frameIndex() const;
+
+#ifdef CF_HAS_IMGUI
+    void render(const Debug::Profiler&amp; profiler);
+#endif
+};
+
+// ============================================================================
+// @brief  Console window — exibe logs e aceita comandos.
+//         Renderização ImGui disponível via CF_HAS_IMGUI.
+// ============================================================================
+class ConsoleWindow {
+public:
+    void addLog(Debug::LogLevel level, const char* category,
+                const char* message);
+    void clear();
+
+    usize entryCount() const;
+    const LogEntry&amp; entry(usize i) const;
+
+    bool isOpen()     const;
+    bool autoScroll() const;
+    void setAutoScroll(bool v);
+    void close();
+    void open();
+
+    Debug::LogLevel filterLevel() const;
+    void setFilterLevel(Debug::LogLevel lvl);
+
+#ifdef CF_HAS_IMGUI
+    void render();
+#endif
+
+    struct LogEntry {
+        Debug::LogLevel level;
+        FixedString&lt;32&gt;  category;
+        FixedString&lt;256&gt; message;
+    };
+};
+
+// ============================================================================
+// @brief  Stats overlay — frame time, FPS, cache stats.
+//         Renderização ImGui disponível via CF_HAS_IMGUI.
+// ============================================================================
+class StatsOverlay {
+public:
+    bool isOpen()  const;
+    void close();
+    void open();
+
+#ifdef CF_HAS_IMGUI
+    void render(const FrameStats&amp; stats,
+                const Assets::CacheStats&amp; cache);
+#endif
+};
+
+}  // namespace Caffeine::Editor
+</code></pre>
+<hr>
+<h2>Janelas do Editor</h2>
+<h3>ProfilerWindow</h3>
+<pre><code>┌──────────────────────────────────────────┐
+│ 🔬 Profiler                  [Pause] [X] │
+├──────────────────────────────────────────┤
+│ Frame: 16.7ms  |  FPS: 60               │
+│ ████████████████████████ (frame graph)  │
+│                                          │
+│ Scope                    avg    max      │
+│ ECS::PhysicsSystem       2.1ms  4.3ms   │
+│ BatchRenderer::flush     0.8ms  1.2ms   │
+│ AnimationSystem          0.3ms  0.6ms   │
+│ AudioSystem::update      0.1ms  0.2ms   │
+└──────────────────────────────────────────┘
+</code></pre>
+<h3>ConsoleWindow</h3>
+<pre><code>┌──────────────────────────────────────────┐
+│ 💬 Console                          [X] │
+├──────────────────────────────────────────┤
+│ Filter: [All ▾]  [✓ Auto-scroll]        │
+├──────────────────────────────────────────┤
+│ [INFO] AssetManager  Loaded hero.caf    │
+│ [WARN] Physics       Overlap detected   │
+│ [INFO] Audio         Playing bgm.caf    │
+│ [INFO] ECS           Created 50 entit. │
+├──────────────────────────────────────────┤
+│ &gt; _                                      │
+└──────────────────────────────────────────┘
+</code></pre>
+<hr>
+<h2>Integração no Game Loop</h2>
+<pre><code class="language-cpp">// ── Init ──────────────────────────────────────────────────────
+#if CF_EDITOR_MODE
+Caffeine::Editor::ImGuiIntegration imgui;
+imgui.init(window, &amp;device);
+
+Caffeine::Editor::ProfilerWindow profilerWindow;
+Caffeine::Editor::ConsoleWindow consoleWindow;
+
+// Hook no LogSystem para exibir no console:
+Debug::LogSystem::instance().addSink([&amp;](LogLevel lvl, const char* cat,
+                                         const char* msg) {
+    consoleWindow.addLog(lvl, cat, msg);
+});
+#endif
+
+// ── Por frame ─────────────────────────────────────────────────
+#if CF_EDITOR_MODE
+imgui.beginFrame();
+
+profilerWindow.render(Debug::Profiler::instance());
+consoleWindow.render();
+sceneEditor.render(world, camera);   // Fase 6.3
+
+imgui.endFrame(cmd);
+#endif
+</code></pre>
+<hr>
+<h2>Hot-Reload Runtime (RF6.6)</h2>
+<pre><code>FileWatcher (já no AssetManager::pollFileChanges())
+    │
+    ▼
+Arquivo modificado em disco
+    │
+    ├── textura (.png) → re-encode → upload GPU → todos os handles atualizados
+    ├── shader (.hlsl/.glsl) → recompile → novo Pipeline → substituído
+    └── script (.lua) → reload VM → funções atualizadas
+</code></pre>
+<hr>
+<h2>Critério de Aceitação</h2>
+<ul>
+<li><input checked="" disabled="" type="checkbox"> Dear ImGui integrado com SDL3 sem conflitos de input</li>
+<li><input checked="" disabled="" type="checkbox"> ProfilerWindow mostra dados do Profiler real-time</li>
+<li><input checked="" disabled="" type="checkbox"> ConsoleWindow filtra por nível e categoria</li>
+<li><input disabled="" type="checkbox"> Hot-reload: textura atualizada sem restart do jogo</li>
+<li><input checked="" disabled="" type="checkbox"> ImGui não interfere com input do jogo quando não em foco</li>
+</ul>
+<hr>
+<h2>Dependências</h2>
+<ul>
+<li><strong>Upstream:</strong> <a href="../debug/debug-tools.md">Debug Tools</a>, <a href="../rendering/rhi.md">RHI</a>, <a href="../assets/asset-manager.md">Asset Manager</a></li>
+<li><strong>Downstream:</strong> <a href="scene-editor.md">Scene Editor</a></li>
+</ul>
+<hr>
+<h2>🔗 Tópicos Relacionados</h2>
+<table>
+<thead>
+<tr>
+<th>Tópico</th>
+<th>Descrição</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><a href="">Editor &amp; Debug</a></td>
+<td>Embedded UI como base do Editor</td>
+</tr>
+<tr>
+<td><a href="">Sistemas de Jogo</a></td>
+<td>UI do jogo (F4) vs UI do editor (F6)</td>
+</tr>
+</tbody></table>
+<h2>Referências</h2>
+<ul>
+<li><a href="https://github.com/ocornut/imgui">Dear ImGui</a> — biblioteca UI</li>
+<li><a href="https://github.com/ocornut/imgui/blob/master/examples/example_sdl3_opengl3/main.cpp">Dear ImGui SDL3 example</a></li>
+<li><a href="../debug/debug-tools.md"><code>docs/fase2/debug.md</code></a> — Profiler + LogSystem</li>
+<li><a href="../ui/game-ui.md"><code>docs/fase4/ui.md</code></a> — UI System do jogo (retained mode)</li>
+<li><a href="">Índice de Tópicos Transversais</a></li>
+</ul>
+
+</article>

@@ -1,0 +1,20 @@
+{
+  "name": "caffeine-website",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Caffeine Engine documentation (Svelte site, TeX/PDF, MCP for agents)",
+  "type": "module",
+  "workspaces": [
+    "packages/docs-site",
+    "packages/docs-mcp"
+  ],
+  "scripts": {
+    "migrate:md": "node scripts/migrate-markdown-to-html.mjs",
+    "dev": "npm run dev -w @caffeine/docs-site",
+    "build": "npm run build -w @caffeine/docs-site",
+    "mcp": "npm run start -w @caffeine/docs-mcp"
+  },
+  "devDependencies": {
+    "marked": "^15.0.6"
+  }
+}

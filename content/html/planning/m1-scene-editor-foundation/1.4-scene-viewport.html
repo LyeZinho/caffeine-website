@@ -1,0 +1,166 @@
+<article class="doc-article" data-slug="planning/m1-scene-editor-foundation/1.4-scene-viewport">
+<h1>🔧 Scene Viewport</h1>
+<blockquote>
+<p><strong>Milestone:</strong> M1 — Scene Editor Foundation
+<strong>Namespace:</strong> <code>Caffeine::Editor</code>
+<strong>Arquivos:</strong> <code>src/editor/SceneViewport.hpp</code>, <code>src/editor/SceneViewport.cpp</code>
+<strong>Status:</strong> 📅 Planeado
+<strong>RF:</strong> RF6.4</p>
+</blockquote>
+<hr>
+<h2>Visão Geral</h2>
+<p>O <code>SceneViewport</code> é a janela principal de visualização do mundo de jogo. Ao contrário de uma aplicação de jogo comum que renderiza diretamente para o backbuffer da janela, o editor renderiza a cena para um Framebuffer (FBO) separado. Este FBO é depois apresentado como uma imagem dentro de uma janela ImGui.</p>
+<p>Esta abordagem permite que a interface do editor (menus, painéis) seja independente da resolução ou rácio de aspeto da cena, além de possibilitar a sobreposição de ferramentas de edição (gizmos, grelhas, indicadores de debug) sem sujar a renderização final do jogo.</p>
+<hr>
+<h2>Implementação</h2>
+<h3>Estrutura da Classe</h3>
+<p>O Viewport gere o seu próprio Framebuffer e uma câmara de editor separada da câmara de jogo.</p>
+<pre><code class="language-cpp">class SceneViewport {
+    RHI::TextureHandle m_viewportTexture;
+    RHI::FramebufferHandle m_fbo;
+    EditorCamera m_editorCamera;
+    Vec2 m_viewportSize = { 0, 0 };
+    bool m_viewportFocused = false;
+    bool m_viewportHovered = false;
+
+public:
+    void onUpdate(float dt) {
+        if (m_viewportFocused) {
+            m_editorCamera.onUpdate(dt);
+        }
+    }
+
+    void onImGuiRender() {
+        ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2{ 0, 0 });
+        ImGui::Begin(&quot;Scene Viewport&quot;);
+
+        m_viewportFocused = ImGui::IsWindowFocused();
+        m_viewportHovered = ImGui::IsWindowHovered();
+
+        ImVec2 viewportPanelSize = ImGui::GetContentRegionAvail();
+        if (m_viewportSize.x != viewportPanelSize.x || m_viewportSize.y != viewportPanelSize.y) {
+            resizeViewport(viewportPanelSize.x, viewportPanelSize.y);
+        }
+
+        // Renderizar a textura do FBO
+        u64 textureID = (u64)m_viewportTexture;
+        ImGui::Image((void*)textureID, viewportPanelSize, { 0, 1 }, { 1, 0 });
+
+        // Toolbar sobreposta (overlay)
+        renderToolbar();
+
+        ImGui::End();
+        ImGui::PopStyleVar();
+    }
+
+private:
+    void resizeViewport(float width, float height) {
+        m_viewportSize = { width, height };
+        RHI::resizeFramebuffer(m_fbo, (u32)width, (u32)height);
+        m_editorCamera.setViewportSize(width, height);
+    }
+
+    void renderToolbar() {
+        ImGui::SetCursorPos({ 10, 10 });
+        if (ImGui::Button(&quot;2D/3D&quot;)) { /* Toggle mode */ }
+        ImGui::SameLine();
+        if (ImGui::Button(&quot;Grid&quot;)) { /* Toggle grid */ }
+    }
+};
+</code></pre>
+<h3>Renderização Offscreen</h3>
+<p>O ciclo de renderização do editor deve seguir esta sequência:</p>
+<pre><code class="language-cpp">// No Main Loop do Editor
+void renderScene() {
+    RHI::bindFramebuffer(viewport.getFBO());
+    RHI::clear({ 0.1f, 0.1f, 0.1f, 1.0f });
+
+    // Configurar câmara do editor
+    auto viewProj = viewport.getCamera().getViewProjection();
+    BatchRenderer::begin(viewProj);
+
+    // Renderizar entidades
+    auto view = world-&gt;view&lt;TransformComponent, SpriteRenderer&gt;();
+    for (auto entity : view) {
+        auto&amp; transform = view.get&lt;TransformComponent&gt;(entity);
+        auto&amp; sprite = view.get&lt;SpriteRenderer&gt;(entity);
+        BatchRenderer::drawQuad(transform, sprite);
+    }
+
+    // Desenhar Grelha de Editor
+    drawEditorGrid();
+
+    BatchRenderer::end();
+    RHI::unbindFramebuffer();
+}
+</code></pre>
+<h3>Controlos da Câmara de Editor</h3>
+<ul>
+<li><strong>Zoom:</strong> Roda do rato (Scroll).</li>
+<li><strong>Pan (Mover):</strong> Botão central do rato (Middle Click) + Arrastar.</li>
+<li><strong>Snap:</strong> Tecla <code>F</code> para focar na entidade selecionada.</li>
+</ul>
+<hr>
+<h2>Decisões de Design</h2>
+<table>
+<thead>
+<tr>
+<th>Decisão</th>
+<th>Justificativa</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Framebuffer Separado</td>
+<td>Permite isolar a resolução da cena da resolução da UI e aplicar pós-processamento específico.</td>
+</tr>
+<tr>
+<td>Inversão de UVs no <code>ImGui::Image</code></td>
+<td>O OpenGL utiliza a origem no canto inferior esquerdo, enquanto o ImGui utiliza o superior esquerdo.</td>
+</tr>
+<tr>
+<td>Window Padding a Zero</td>
+<td>Garante que a cena ocupe todo o espaço disponível na janela do viewport sem margens brancas.</td>
+</tr>
+</tbody></table>
+<hr>
+<h2>Critério de Aceitação</h2>
+<ul>
+<li><input disabled="" type="checkbox"> A cena é renderizada dentro de uma janela ImGui via <code>ImGui::Image</code>.</li>
+<li><input disabled="" type="checkbox"> O redimensionamento da janela do editor atualiza corretamente o tamanho do Framebuffer.</li>
+<li><input disabled="" type="checkbox"> O scroll do rato aproxima ou afasta a câmara (Zoom).</li>
+<li><input disabled="" type="checkbox"> O botão central do rato permite mover a vista (Pan).</li>
+<li><input disabled="" type="checkbox"> Uma grelha 2D é visível como referência de escala.</li>
+<li><input disabled="" type="checkbox"> A taxa de frames (FPS) no viewport é independente da complexidade da UI.</li>
+</ul>
+<hr>
+<h2>Dependências</h2>
+<ul>
+<li><strong>Upstream:</strong> <code>docs/rendering/rhi.md</code>, <code>docs/rendering/batch-renderer.md</code></li>
+<li><strong>Downstream:</strong> <code>1.6-scene-editor-orchestrator.md</code></li>
+</ul>
+<hr>
+<h2>🔗 Tópicos Relacionados</h2>
+<table>
+<thead>
+<tr>
+<th>Tópico</th>
+<th>Descrição</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Framebuffers</td>
+<td>Gestão de alvos de renderização no RHI.</td>
+</tr>
+<tr>
+<td>Batch Rendering</td>
+<td>Sistema de desenho otimizado para múltiplos sprites.</td>
+</tr>
+</tbody></table>
+<hr>
+<h2>Referências</h2>
+<ul>
+<li><a href="../docs/rendering/rhi.md"><code>docs/rendering/rhi.md</code></a> — Especificação do interface de renderização.</li>
+<li><a href="https://github.com/ocornut/imgui/wiki/Image-Handling">ImGui: Using Textures</a> — Guia de integração de texturas.</li>
+</ul>
+
+</article>

@@ -1,0 +1,463 @@
+<article class="doc-article" data-slug="docs/AUDIT_REPORT">
+<h1>Caffeine Engine — Audit Report</h1>
+<p><strong>Date</strong>: 2026-05-26<br><strong>Auditor</strong>: Sisyphus (automated session)<br><strong>Scope</strong>: Full engine review — Rendering 3D, ECS, Memory, Math, Editor, Serialization, Audio/Preview, Build/Tests<br><strong>Status of Fixes</strong>: Rendering bugs (Bug 1–3) were corrected during this session. All other findings below are <strong>unresolved</strong>.</p>
+<hr>
+<h2>Severity Legend</h2>
+<table>
+<thead>
+<tr>
+<th>Level</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>🔴 CRITICAL</td>
+<td>Crash, data corruption, undefined behaviour, infinite loop</td>
+</tr>
+<tr>
+<td>🟠 HIGH</td>
+<td>Incorrect behaviour, wrong results, silent data loss</td>
+</tr>
+<tr>
+<td>🟡 MEDIUM</td>
+<td>Degraded correctness, performance problem, dangerous pattern</td>
+</tr>
+<tr>
+<td>🟢 LOW</td>
+<td>Code smell, minor inconsistency, latent risk</td>
+</tr>
+<tr>
+<td>🔵 INFO</td>
+<td>Stub / not implemented / known limitation</td>
+</tr>
+</tbody></table>
+<hr>
+<h2>1. Rendering 3D (<code>src/editor/SceneViewport.cpp</code>)</h2>
+<h3>✅ Verified Correct</h3>
+<table>
+<thead>
+<tr>
+<th>Item</th>
+<th>Location</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>Mat4::perspective()</code></td>
+<td><code>src/math/Mat4.hpp</code></td>
+<td>Matches OpenGL RH spec exactly</td>
+</tr>
+<tr>
+<td><code>Mat4::lookAt()</code></td>
+<td><code>src/math/Mat4.hpp</code></td>
+<td>Right-handed, translation correct</td>
+</tr>
+<tr>
+<td><code>Mat4::transformVec4()</code></td>
+<td><code>src/math/Mat4.hpp</code></td>
+<td>Correct</td>
+</tr>
+<tr>
+<td>NDC→screen mapping <code>(ndcX+1)*0.5*w</code></td>
+<td><code>SceneViewport.cpp:651</code></td>
+<td>Correct</td>
+</tr>
+<tr>
+<td>Y-flip <code>1.0 - ndcY</code></td>
+<td><code>SceneViewport.cpp:651</code></td>
+<td>Correct</td>
+</tr>
+<tr>
+<td>Near-plane clipping in <code>drawLine3D</code></td>
+<td><code>SceneViewport.cpp</code></td>
+<td>Existed and correct</td>
+</tr>
+</tbody></table>
+<h3>✅ Fixed This Session</h3>
+<table>
+<thead>
+<tr>
+<th>ID</th>
+<th>Severity</th>
+<th>File:Line</th>
+<th>Description</th>
+<th>Fix Applied</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>R-1</td>
+<td>🔴 CRITICAL</td>
+<td><code>SceneViewport.cpp:1807–1810, 1827, 1831</code></td>
+<td>Grid spacing: <code>(int)(...) * (int)spacing</code> with <code>(int)0.5f == 0</code> → infinite loop when <code>camDistance &lt; 1.0f</code></td>
+<td>Changed to <code>(int)(floor(...) * spacing)</code>; loops changed from <code>int</code> to <code>float</code></td>
+</tr>
+<tr>
+<td>R-2</td>
+<td>🟠 HIGH</td>
+<td><code>SceneViewport.cpp:651</code></td>
+<td><code>projectToScreen</code> lacked NDC bounds check; off-screen objects behind the frustum sides generated huge ImGui coords</td>
+<td>Added <code>if (ndcX/Y outside [-1,1]) return (-10000,-10000)</code>; W threshold raised from <code>0.001f</code> to <code>0.1f</code></td>
+</tr>
+<tr>
+<td>R-3</td>
+<td>🟡 MEDIUM</td>
+<td><code>SceneViewport.cpp:651</code></td>
+<td><code>projectToScreen</code> recomputed <code>view + proj + VP</code> matrix on every call; called per-entity per-frame in <code>drawEmptyEntities</code> + <code>drawLightGizmos</code></td>
+<td>Added <code>computeVP3D()</code> static helper + <code>projectToScreenVP()</code> overload; callers now pre-compute once per frame</td>
+</tr>
+</tbody></table>
+<hr>
+<h2>2. ECS (<code>src/ecs/World.hpp</code>, <code>src/ecs/Archetype.hpp</code>)</h2>
+<table>
+<thead>
+<tr>
+<th>ID</th>
+<th>Severity</th>
+<th>File:Line</th>
+<th>Description</th>
+<th>Suggested Fix</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>E-1</td>
+<td>🟠 HIGH</td>
+<td><code>src/ecs/World.hpp</code></td>
+<td>No generation/version counter on Entity IDs. After <code>world.destroy(e)</code>, the same ID can be reused and assigned to a new entity. Any stale <code>Entity</code> handle silently points to the wrong entity.</td>
+<td>Add a 16-bit generation field to <code>Entity</code> (upper bits). Increment on destroy. Validate on access.</td>
+</tr>
+<tr>
+<td>E-2</td>
+<td>🟡 MEDIUM</td>
+<td><code>src/ecs/World.hpp</code> — <code>forEach</code></td>
+<td><code>forEach</code> iterates <code>m_archetypes</code> by index. If a callback calls <code>world.add&lt;T&gt;(e)</code> on an entity (triggering archetype migration), <code>m_archetypes</code> may reallocate. The raw <code>Archetype*</code> captured before iteration could dangle.</td>
+<td>Snapshot archetype count before loop, or use a stable indirection (index into stable slab). Mark <code>forEach</code> callbacks as &quot;no structural mutation&quot; in docs.</td>
+</tr>
+<tr>
+<td>E-3</td>
+<td>🟢 LOW</td>
+<td><code>src/ecs/World.hpp</code></td>
+<td>No assertion or compile-time guard preventing structural mutations (add/remove/destroy) inside <code>forEach</code>.</td>
+<td>Add a <code>m_iterating</code> boolean; assert in <code>add</code>, <code>remove</code>, <code>destroy</code> when set.</td>
+</tr>
+</tbody></table>
+<hr>
+<h2>3. Memory (<code>src/memory/</code>)</h2>
+<table>
+<thead>
+<tr>
+<th>ID</th>
+<th>Severity</th>
+<th>File:Line</th>
+<th>Description</th>
+<th>Suggested Fix</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>M-1</td>
+<td>🟢 LOW</td>
+<td><code>src/memory/LinearAllocator.hpp</code></td>
+<td>Reset is all-or-nothing. No partial rewind. Clients that mix lifetimes can&#39;t selectively free.</td>
+<td>Document clearly or add a marker/rewind API.</td>
+</tr>
+<tr>
+<td>M-2</td>
+<td>🟢 LOW</td>
+<td><code>src/memory/PoolAllocator.hpp</code></td>
+<td>No double-free detection. Freeing the same block twice silently corrupts the free list.</td>
+<td>Add a debug-mode allocated-block bitset.</td>
+</tr>
+<tr>
+<td>M-3</td>
+<td>🟢 LOW</td>
+<td><code>src/memory/StackAllocator.hpp</code></td>
+<td>Stack unwind depends on callers pushing/popping in matched order. No guard against mismatched pop.</td>
+<td>Add stack-marker cookies in debug builds.</td>
+</tr>
+</tbody></table>
+<hr>
+<h2>4. Math (<code>src/math/</code>)</h2>
+<table>
+<thead>
+<tr>
+<th>ID</th>
+<th>Severity</th>
+<th>File:Line</th>
+<th>Description</th>
+<th>Suggested Fix</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>MA-1</td>
+<td>🟢 LOW</td>
+<td><code>src/math/Vec3.hpp</code> — <code>normalized()</code></td>
+<td>Returns <code>Vec3(0,0,0)</code> on zero-length input. Silent — callers downstream may produce NaN normals.</td>
+<td>Return an <code>Optional&lt;Vec3&gt;</code> or log a warning in debug builds.</td>
+</tr>
+<tr>
+<td>MA-2</td>
+<td>🟢 LOW</td>
+<td><code>src/math/Mat4.hpp</code> — <code>inverted()</code></td>
+<td>Returns identity on singular matrix. Silent fallback can mask bugs in projection/transform chains.</td>
+<td>Assert in debug builds or return <code>Optional&lt;Mat4&gt;</code>.</td>
+</tr>
+<tr>
+<td>MA-3</td>
+<td>🟢 LOW</td>
+<td><code>src/math/Quat.hpp</code> — <code>normalized()</code></td>
+<td>Returns identity quaternion on zero quaternion. Same silent-fallback concern.</td>
+<td>Assert in debug builds.</td>
+</tr>
+<tr>
+<td>MA-4</td>
+<td>🟡 MEDIUM</td>
+<td><code>src/math/Mat4.hpp</code> — <code>lookAt()</code></td>
+<td>Degenerates when <code>eye == target</code> (forward = zero → <code>normalized()</code> = zero → bad matrix). Currently guarded only by camera pitch clamp <code>±1.5f</code> in the editor.</td>
+<td>Add explicit <code>CF_ASSERT(eye != target)</code> or early-out returning identity with a warning.</td>
+</tr>
+</tbody></table>
+<hr>
+<h2>5. Editor</h2>
+<h3>5a. Selection &amp; Raycasting (<code>src/editor/EditorContext.cpp</code>, <code>SceneViewport.cpp</code>)</h3>
+<table>
+<thead>
+<tr>
+<th>ID</th>
+<th>Severity</th>
+<th>File:Line</th>
+<th>Description</th>
+<th>Suggested Fix</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>S-1</td>
+<td>🟠 HIGH</td>
+<td><code>SceneViewport.cpp</code> — <code>raycastSelectEntity</code></td>
+<td>Raycast only tests entities that have <code>ECS::Transform</code> (2D transform component). Entities that exist purely in 3D (<code>Position3D</code> only, no <code>ECS::Transform</code>) are invisible to selection.</td>
+<td>Add a separate raycast pass over entities with <code>Position3D</code>.</td>
+</tr>
+<tr>
+<td>S-2</td>
+<td>🟢 LOW</td>
+<td><code>SceneViewport.cpp</code> — <code>rayIntersectsAABB</code></td>
+<td>AABB is axis-aligned in world space — correct. But no OBB support. Rotated meshes use a world-space AABB that can be very loose, making small-angle selection imprecise.</td>
+<td>Acceptable limitation. Document or add OBB for selected component types.</td>
+</tr>
+</tbody></table>
+<h3>5b. Undo Stack (<code>src/editor/EditorContext.hpp</code>, <code>EditorContext.cpp</code>)</h3>
+<table>
+<thead>
+<tr>
+<th>ID</th>
+<th>Severity</th>
+<th>File:Line</th>
+<th>Description</th>
+<th>Suggested Fix</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>U-1</td>
+<td>🟡 MEDIUM</td>
+<td><code>EditorContext.hpp</code> — <code>UndoStack</code></td>
+<td>Snapshot-based undo serialises the entire world on every <code>beginUndo</code>. For large scenes this is O(scene size) per action.</td>
+<td>Consider command-based undo (store delta / inverse operation) for frequent transforms.</td>
+</tr>
+<tr>
+<td>U-2</td>
+<td>🟡 MEDIUM</td>
+<td><code>EditorContext.hpp:MAX_UNDO=256</code></td>
+<td>Static array of 256 <code>EditorCommand</code>, each holding <code>std::vector&lt;u8&gt; beforeState + afterState</code>. Memory scales with scene size × 256. A 10 MB scene = up to 5 GB undo buffer.</td>
+<td>Cap total buffer size in bytes, not command count. Evict oldest on overflow.</td>
+</tr>
+<tr>
+<td>U-3</td>
+<td>🟠 HIGH</td>
+<td><code>EditorContext.cpp</code> — <code>applySnapshot</code></td>
+<td><code>CF_ASSERT(!snapshot.empty())</code> — if <code>beginUndo</code> fails silently (serializer returns empty bytes), this assert fires and crashes the editor on next undo/redo.</td>
+<td>Guard <code>beginUndo</code> return value; skip pushing if serialization failed; log error.</td>
+</tr>
+</tbody></table>
+<hr>
+<h2>6. Serialization</h2>
+<table>
+<thead>
+<tr>
+<th>ID</th>
+<th>Severity</th>
+<th>File:Line</th>
+<th>Description</th>
+<th>Suggested Fix</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>SE-1</td>
+<td>🔵 INFO</td>
+<td><code>src/editor/AssetCooker.cpp:123,129</code></td>
+<td>Asset cooking cache not implemented (stub comments). Assets re-cook on every load.</td>
+<td>Implement file-hash–based cache.</td>
+</tr>
+<tr>
+<td>SE-2</td>
+<td>🟢 LOW</td>
+<td>General</td>
+<td>No versioning observed on serialized scene format. Format changes will silently corrupt or crash on older scene files.</td>
+<td>Add a format version header; write migration path for each bump.</td>
+</tr>
+</tbody></table>
+<hr>
+<h2>7. Audio / Preview (Stubs)</h2>
+<table>
+<thead>
+<tr>
+<th>ID</th>
+<th>Severity</th>
+<th>File:Line</th>
+<th>Description</th>
+<th>Suggested Fix</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>A-1</td>
+<td>🔵 INFO</td>
+<td><code>src/editor/AudioPreviewPanel.cpp:188,229</code></td>
+<td>Audio asset load not implemented. Panel exists but plays nothing.</td>
+<td>Implement or gate behind a feature flag.</td>
+</tr>
+<tr>
+<td>A-2</td>
+<td>🔵 INFO</td>
+<td><code>src/editor/PreviewRenderer.cpp:91–102</code></td>
+<td>Shader pipeline blocked — RHI incomplete. Preview renderer renders nothing.</td>
+<td>Track RHI completion milestone; hook up once ready.</td>
+</tr>
+<tr>
+<td>A-3</td>
+<td>🔵 INFO</td>
+<td><code>src/editor/ProjectManager.cpp:236</code></td>
+<td>AssetBrowser load capacity (CAP) not implemented.</td>
+<td>Implement or document limit.</td>
+</tr>
+</tbody></table>
+<hr>
+<h2>8. Build &amp; Tests</h2>
+<h3>8a. Hardcoded Absolute Paths</h3>
+<table>
+<thead>
+<tr>
+<th>ID</th>
+<th>Severity</th>
+<th>File:Line</th>
+<th>Description</th>
+<th>Suggested Fix</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>B-1</td>
+<td>🟠 HIGH</td>
+<td><code>tests/doppio_ui_client.py:264–265</code></td>
+<td>Hardcoded <code>/home/pedro/repo/caffeine/...</code> — test suite fails on any machine other than the author&#39;s.</td>
+<td>Replace with <code>Path(__file__).resolve().parents[N]</code> or a <code>CAFFEINE_ROOT</code> env var.</td>
+</tr>
+<tr>
+<td>B-2</td>
+<td>🟠 HIGH</td>
+<td><code>tests/editor_test_automation.py:379</code></td>
+<td>Same hardcoded absolute path.</td>
+<td>Same fix.</td>
+</tr>
+<tr>
+<td>B-3</td>
+<td>🟠 HIGH</td>
+<td><code>tests/gen_test_scene.py:133</code></td>
+<td>Same hardcoded absolute path.</td>
+<td>Same fix.</td>
+</tr>
+<tr>
+<td>B-4</td>
+<td>🟠 HIGH</td>
+<td><code>tests/test_viewport_systems.py:335–336</code></td>
+<td>Same hardcoded absolute path.</td>
+<td>Same fix.</td>
+</tr>
+</tbody></table>
+<h3>8b. Test Infrastructure</h3>
+<table>
+<thead>
+<tr>
+<th>ID</th>
+<th>Severity</th>
+<th>File:Line</th>
+<th>Description</th>
+<th>Suggested Fix</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>B-5</td>
+<td>🟡 MEDIUM</td>
+<td><code>tests/CMakeLists.txt</code></td>
+<td>New <code>DoppioUIAutomated</code> CTest target added this session (timeout 60s). No CI pipeline observed to run it automatically.</td>
+<td>Hook CTest into CI (GitHub Actions / CMake preset).</td>
+</tr>
+<tr>
+<td>B-6</td>
+<td>🟢 LOW</td>
+<td><code>tests/run_ui_tests.sh</code></td>
+<td>Convenience runner script added. Assumes editor binary is already built and at a relative path.</td>
+<td>Add a build step or document prerequisite clearly.</td>
+</tr>
+</tbody></table>
+<hr>
+<h2>Summary Table</h2>
+<table>
+<thead>
+<tr>
+<th>Severity</th>
+<th>Count</th>
+<th>Areas</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>🔴 CRITICAL (fixed)</td>
+<td>1</td>
+<td>Rendering</td>
+</tr>
+<tr>
+<td>🟠 HIGH (fixed)</td>
+<td>2</td>
+<td>Rendering</td>
+</tr>
+<tr>
+<td>🟠 HIGH (open)</td>
+<td>6</td>
+<td>ECS (E-1), Editor (S-1, U-3), Build (B-1–B-4)</td>
+</tr>
+<tr>
+<td>🟡 MEDIUM (open)</td>
+<td>7</td>
+<td>ECS (E-2), Rendering (R-3 fixed), Math (MA-4), Editor (U-1, U-2), Build (B-5)</td>
+</tr>
+<tr>
+<td>🟢 LOW (open)</td>
+<td>10</td>
+<td>ECS (E-3), Memory (M-1–M-3), Math (MA-1–MA-3), Editor (S-2), Serialization (SE-2), Build (B-6)</td>
+</tr>
+<tr>
+<td>🔵 INFO (stubs)</td>
+<td>4</td>
+<td>Serialization (SE-1), Audio/Preview (A-1–A-3)</td>
+</tr>
+</tbody></table>
+<hr>
+<h2>Recommended Priority Order</h2>
+<ol>
+<li><strong>E-1</strong> — Entity generation counters (prevents silent dangling-handle bugs as scene complexity grows)</li>
+<li><strong>B-1–B-4</strong> — Hardcoded paths (CI is broken for anyone else)</li>
+<li><strong>U-3</strong> — Undo crash on empty snapshot</li>
+<li><strong>S-1</strong> — 3D-only entities not selectable</li>
+<li><strong>U-1/U-2</strong> — Undo memory explosion in large scenes</li>
+<li><strong>E-2</strong> — Archetype mutation safety inside <code>forEach</code></li>
+<li><strong>MA-4</strong> — <code>lookAt</code> degeneration assert</li>
+<li><strong>SE-2</strong> — Scene format versioning (before first external release)</li>
+<li>Stubs (A-1–A-3, SE-1) — track on RHI milestone</li>
+</ol>
+
+</article>

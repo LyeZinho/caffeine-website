@@ -1,0 +1,167 @@
+<article class="doc-article" data-slug="docs/plans/2026-09-22-phong-gpu-handles-session">
+<h1>Sessão 2026-09-22 — Phong GPU, Handles e Sombras</h1>
+<blockquote>
+<p><strong>Branch:</strong> <code>feature/editor-plugin-sdk</code><br><strong>Objetivo:</strong> avançar pilares P0 (rendering Phong + handles) e tarefas P1 (sombras pontuais GPU, normal maps no terreno).<br><strong>Build verificado:</strong> <code>caffeine-core</code>, <code>caffeine-runtime</code>, <code>doppio</code> compilam com sucesso.</p>
+</blockquote>
+<hr>
+<h2>Resumo executivo</h2>
+<table>
+<thead>
+<tr>
+<th>Prioridade</th>
+<th>Item</th>
+<th>Estado</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>P0</td>
+<td>Remover fallback CPU shadows no editor (<code>SceneViewport</code>)</td>
+<td>✅</td>
+</tr>
+<tr>
+<td>P0</td>
+<td>Inspector UI para <code>customNormalPath</code> e <code>shininess</code> (mesh + terreno)</td>
+<td>✅</td>
+</tr>
+<tr>
+<td>P1</td>
+<td>Point light shadows GPU</td>
+<td>✅</td>
+</tr>
+<tr>
+<td>P1</td>
+<td>Terreno com normal maps em <code>terrain_lit.frag</code></td>
+<td>✅</td>
+</tr>
+<tr>
+<td>P0</td>
+<td>Asset handles com generation + LRU + invalidation callbacks</td>
+<td>✅</td>
+</tr>
+</tbody></table>
+<hr>
+<h2>1. Asset handles (Pilar 6)</h2>
+<h3>O que mudou</h3>
+<ul>
+<li><code>AssetHandle&lt;T&gt;</code> passou a guardar <code>{ id, generation }</code>. <code>get()</code> devolve <code>nullptr</code> se a geração não coincidir.</li>
+<li><code>LoadStatus::Invalid</code> quando o slot foi invalidado (LRU ou GC).</li>
+<li><strong>Hot-reload</strong> (<code>clearEntryData</code>): recarrega payload <strong>sem</strong> incrementar geração — handles activos continuam válidos.</li>
+<li><strong>Invalidação</strong> (<code>invalidateEntry</code>): incrementa geração, limpa payload, notifica callbacks.</li>
+<li><strong>LRU eviction</strong>: quando <code>m_cachedBytes &gt; m_maxCacheBytes</code>, remove entradas não referenciadas pela ordem <code>lastAccessFrame</code>.</li>
+<li><code>registerInvalidationCallback</code> / <code>unregisterInvalidationCallback</code> para libertar recursos GPU quando um asset é evicted.</li>
+<li><code>CacheStats::evictedCount</code> para telemetria.</li>
+</ul>
+<h3>Ficheiros</h3>
+<ul>
+<li><code>src/assets/AssetHandle.hpp</code>, <code>AssetTypes.hpp</code>, <code>AssetManager.{hpp,cpp}</code></li>
+<li><code>tests/test_assetmanager.cpp</code> — testes de geração, LRU, callbacks</li>
+</ul>
+<h3>Documentação</h3>
+<ul>
+<li><a href="../assets/asset-manager.md"><code>assets/asset-manager.md</code></a></li>
+</ul>
+<hr>
+<h2>2. Rendering Phong + sombras GPU (Pilar 1)</h2>
+<h3>Meshes (<code>scene_lit.*</code>)</h3>
+<ul>
+<li>Shader Phong: ambient + diffuse + specular com <code>shininess</code>.</li>
+<li>Normal mapping via TBN (<code>scene_lit.vert</code> exporta tangent/bitangent).</li>
+<li>Tangentes calculadas em <code>MeshLoader::computeMeshTangents()</code> para OBJ e glTF.</li>
+<li><code>MeshFilterComponent</code>: <code>customNormalPath</code>, <code>shininess</code> (default 32).</li>
+<li>Sombras direcionais: depth pass + PCF 3×3 no fragment shader.</li>
+<li>Sombras pontuais: até 2 luzes, cubemap depth (<code>GpuPointShadowMap</code>), sample no <code>scene_lit.frag</code>.</li>
+</ul>
+<h3>Terreno (<code>terrain_lit.frag</code>)</h3>
+<ul>
+<li>Mesmo modelo Phong que meshes.</li>
+<li>Normal map triplanar via <code>uNormalMap</code> (sampler slot 5).</li>
+<li><code>TerrainComponent</code>: <code>normalMapPath</code>, <code>shininess</code> (default 16).</li>
+<li><code>TerrainGpuTextureCache</code> carrega e invalida <code>normalMap</code> em sync com <code>texturePath</code>.</li>
+<li>Sombras: direcionais (slots 6–7) + pontuais (slots 8–9).</li>
+<li><code>castShadows</code> / <code>receiveShadows</code> respeitados no gather GPU.</li>
+</ul>
+<h3>Editor viewport</h3>
+<ul>
+<li>Com GPU 3D texturizado activo, <code>gatherSceneLighting(..., buildCpuShadowMaps = false)</code>.</li>
+<li><code>drawSceneMeshesForCamera</code> usa <code>collectSceneLights</code> apenas — sem CPU shadow maps.</li>
+<li>CPU raster permanece para wireframe/debug e entidades vazias quando GPU não está activo.</li>
+</ul>
+<h3>Inspector + serialização</h3>
+<table>
+<thead>
+<tr>
+<th>Componente</th>
+<th>Campos novos</th>
+<th>Blob</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>MeshFilterComponent</code></td>
+<td>Normal Map, Shininess</td>
+<td>append após <code>customMaterialPath</code></td>
+</tr>
+<tr>
+<td><code>TerrainComponent</code></td>
+<td>Normal Map, Shininess</td>
+<td>blob versão <strong>10</strong></td>
+</tr>
+</tbody></table>
+<h3>Ficheiros principais</h3>
+<ul>
+<li><code>src/render/GpuSceneRenderer.cpp</code>, <code>GpuPointShadowMap.{hpp,cpp}</code></li>
+<li><code>src/render/shaders/scene_lit.{vert,frag}</code>, <code>terrain_lit.frag</code></li>
+<li><code>src/scene/LightingSystem.{hpp,cpp}</code></li>
+<li><code>src/editor/SceneViewport.cpp</code>, <code>InspectorPanel.cpp</code>, <code>SceneSerializer.cpp</code></li>
+<li><code>src/terrain/TerrainGpuTextures.cpp</code>, <code>src/ecs/TerrainComponents.hpp</code></li>
+</ul>
+<h3>Documentação</h3>
+<ul>
+<li><a href="../rendering/materials-phong.md"><code>rendering/materials-phong.md</code></a></li>
+<li><a href="../rendering/shadow-mapping.md"><code>rendering/shadow-mapping.md</code></a></li>
+<li><a href="../terrain/terrain-system.md"><code>terrain/terrain-system.md</code></a></li>
+<li><a href="../assets/mesh-loading.md"><code>assets/mesh-loading.md</code></a></li>
+</ul>
+<hr>
+<h2>3. Continuação (mesma branch)</h2>
+<table>
+<thead>
+<tr>
+<th>Item</th>
+<th>Estado</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Runtime GPU shadows</td>
+<td>✅ <code>RuntimeSceneRenderer</code> integra <code>GpuSceneRenderer</code></td>
+</tr>
+<tr>
+<td>CSM 4 cascatas (luz dir 0)</td>
+<td>✅ atlas 1024², splits práticos</td>
+</tr>
+<tr>
+<td>Spot shadows GPU (2 luzes)</td>
+<td>✅ <code>GpuSpotShadowMap</code> + loop spot nos shaders</td>
+</tr>
+<tr>
+<td><code>test_scenemanager.cpp</code></td>
+<td>✅ usa <code>Transform</code>/<code>Acceleration2D</code>; compila</td>
+</tr>
+<tr>
+<td>Componentes ECS em falta nos testes</td>
+<td>✅ <code>Position2D</code>, <code>Velocity2D</code>, <code>Scale2D</code>, <code>Rotation</code>, <code>Health</code></td>
+</tr>
+</tbody></table>
+<h2>4. Próximos passos sugeridos</h2>
+<ol>
+<li><strong>PCSS / cascade blending</strong> — qualidade visual das sombras.</li>
+<li><strong>PBR</strong> — metallic/roughness sobre a base Phong.</li>
+<li><strong>Suite completa</strong> — outros testes (<code>test_cap_loader</code>, integração editor) ainda com erros pré-existentes.</li>
+</ol>
+<hr>
+<h2>Links</h2>
+<ul>
+<li><a href="2026-09-22-engine-pillars-roadmap.md">Engine Pillars Roadmap</a></li>
+<li><a href="2026-09-21-rendering-roadmap.md">Rendering Roadmap P0–P6</a></li>
+</ul>
+
+</article>

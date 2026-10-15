@@ -1,0 +1,376 @@
+<article class="doc-article" data-slug="docs/ecs/core">
+<h1>🧩 ECS Core</h1>
+<blockquote>
+<p><strong>Fase:</strong> 4 — O Cérebro<br><strong>Namespace:</strong> <code>Caffeine::ECS</code><br><strong>Arquivos:</strong> <code>src/ecs/World.hpp</code>, <code>Entity.hpp</code>, <code>ComponentQuery.hpp</code>, <code>ISystem.hpp</code><br><strong>Status:</strong> 📅 Planejado<br><strong>RFs:</strong> RF4.1, RF4.2, RF4.3, RF4.4</p>
+</blockquote>
+<hr>
+<h2>Visão Geral</h2>
+<p>O ECS (Entity Component System) da Caffeine é <strong>archetype-based</strong> — entidades com o mesmo conjunto de componentes vivem em memória contígua. Isso maximiza cache locality e permite SIMD nos systems.</p>
+<p><strong>Conceitos:</strong></p>
+<ul>
+<li><strong>Entity</strong> = <code>u32</code> ID único. Sem dados, sem lógica.</li>
+<li><strong>Component</strong> = struct POD. Sem métodos, sem virtual.</li>
+<li><strong>Archetype</strong> = grupo de entidades com mesmo <code>ComponentSet</code>. Arrays contíguos por tipo.</li>
+<li><strong>System</strong> = função que itera entidades que combinam um query.</li>
+<li><strong>World</strong> = container que gerencia tudo.</li>
+</ul>
+<hr>
+<h2>API Planejada</h2>
+<pre><code class="language-cpp">namespace Caffeine::ECS {
+
+// ============================================================================
+// @brief  Handle para uma entidade.
+//
+//  Encapsula (id, World*) — o World é necessário para operações de
+//  add/remove/has/get/destroy.
+// ============================================================================
+class Entity {
+public:
+    static const Entity INVALID;
+
+    Entity() : m_id(u32_max), m_world(nullptr) {}
+    Entity(u32 id, World* world) : m_id(id), m_world(world) {}
+
+    u32  id()      const { return m_id; }
+    bool isValid() const;
+
+    template&lt;typename T, typename... Args&gt;
+    T&amp; add(Args&amp;&amp;... args);         // Adiciona componente
+
+    template&lt;typename T&gt;
+    void remove();                   // Remove componente
+
+    template&lt;typename T&gt;
+    bool has() const;                // Verifica existência
+
+    template&lt;typename T&gt;
+    T* get();                        // Retorna ponteiro (nullptr se não tem)
+
+    template&lt;typename T&gt;
+    T&amp; getOrAdd();                   // get se existe, add se não existe
+
+    void destroy();
+
+    explicit operator bool() const { return isValid(); }
+    bool operator==(Entity o) const { return m_id == o.m_id; }
+
+private:
+    u32    m_id;
+    World* m_world;
+};
+
+// ============================================================================
+// @brief  Query — especifica quais componentes uma entidade deve ter.
+//
+//  Uso:
+//      ComponentQuery q;
+//      q.with&lt;Position2D, Velocity2D&gt;().without&lt;Disabled&gt;();
+//      world.query(q, [](Position2D&amp; p, const Velocity2D&amp; v) { ... });
+// ============================================================================
+class ComponentQuery {
+public:
+    template&lt;typename... Ts&gt;
+    ComponentQuery&amp; with();           // Inclui entidades com todos estes
+
+    template&lt;typename... Ts&gt;
+    ComponentQuery&amp; without();        // Exclui entidades com qualquer destes
+
+    // Iteração single-thread
+    template&lt;typename Func&gt;
+    void forEach(World&amp; world, Func&amp;&amp; func) const;
+
+    // Iteração paralela via Job System
+    template&lt;typename Func&gt;
+    void forEachParallel(World&amp; world, Func&amp;&amp; func,
+                         Threading::JobBarrier* barrier) const;
+
+private:
+    std::vector&lt;ComponentID&gt; m_includes;
+    std::vector&lt;ComponentID&gt; m_excludes;
+};
+
+// ============================================================================
+// @brief  Interface base para todos os Systems ECS.
+// ============================================================================
+class ISystem {
+public:
+    virtual ~ISystem() = default;
+    virtual void update(World&amp; world, f64 dt) = 0;
+    virtual i32  priority() const = 0;   // menor = executa primeiro
+    virtual const char* name() const = 0;
+    virtual bool isEnabled() const { return true; }
+};
+
+// ============================================================================
+// @brief  World — container principal do ECS.
+//
+//  Gerencia:
+//  - Entity lifecycle (create, destroy)
+//  - Component storage (archetype-based arrays)
+//  - System registry (execução em ordem de prioridade)
+//  - CommandBuffer diferido (safe point de mutação)
+// ============================================================================
+class World {
+public:
+    World();
+    ~World();
+
+    // ── Entity lifecycle ───────────────────────────────────────
+    Entity create(const char* name = nullptr);
+    void   destroy(Entity e);       // marca para destruição (cmd buffer)
+    void   destroyAll();
+
+    // ── Component access ───────────────────────────────────────
+    template&lt;typename T, typename... Args&gt;
+    T&amp; add(Entity e, Args&amp;&amp;... args);
+
+    template&lt;typename T&gt;
+    void remove(Entity e);
+
+    template&lt;typename T&gt;
+    bool has(Entity e) const;
+
+    template&lt;typename T&gt;
+    T* get(Entity e);
+
+    // ── Queries ────────────────────────────────────────────────
+    template&lt;typename Func&gt;
+    void query(const ComponentQuery&amp; q, Func&amp;&amp; func) const;
+
+    // ── System registry ────────────────────────────────────────
+    template&lt;typename SystemT, typename... Args&gt;
+    SystemT* registerSystem(Args&amp;&amp;... args);
+
+    template&lt;typename SystemT&gt;
+    void unregisterSystem();
+
+    template&lt;typename SystemT&gt;
+    SystemT* getSystem();
+
+    // ── Frame update (chama todos os systems em ordem) ─────────
+    void update(f64 dt);
+
+    // ── Command buffer (flush automático após update) ──────────
+    void flushCommands();  // aplicado pelo GameLoop após World::update()
+
+    // ── Estatísticas ───────────────────────────────────────────
+    u32 entityCount()    const;
+    u32 archetypeCount() const;
+
+private:
+    Archetype* getOrCreateArchetype(ComponentSet set);
+    void       executeCommands();
+
+    std::vector&lt;Archetype&gt;         m_archetypes;
+    HashMap&lt;ComponentSet, u32&gt;     m_archetypeIndex;
+    u32                             m_entityCount    = 0;
+    std::vector&lt;std::unique_ptr&lt;ISystem&gt;&gt; m_systems;
+
+    // Command buffer diferido
+    struct Command {
+        enum class Type { Create, Destroy, AddComponent, RemoveComponent } type;
+        u32  entityId;
+        u32  componentId;
+        std::vector&lt;u8&gt; data;
+    };
+    std::vector&lt;Command&gt; m_pendingCommands;
+};
+
+}  // namespace Caffeine::ECS
+</code></pre>
+<hr>
+<h2>Componentes Pré-definidos</h2>
+<pre><code class="language-cpp">namespace Caffeine::Components {
+
+// ── Transform 2D ──────────────────────────────────────────────
+struct Position2D  { f32 x = 0, y = 0; };
+struct Velocity2D  { f32 x = 0, y = 0; };
+struct Rotation2D  { f32 angle = 0; };
+
+// ── Transform 3D (Fase 5) ─────────────────────────────────────
+// struct Position3D  { f32 x, y, z; };
+// struct Rotation3D  { Quat rotation; };
+
+// ── Sprite Visual ─────────────────────────────────────────────
+struct Sprite {
+    u32   textureId  = u32_max;
+    Vec2  offset    = {0, 0};
+    Vec2  scale     = {1, 1};
+    f32   rotation  = 0;
+    Color tint      = Color::WHITE;
+    i32   layer    = 0;
+    bool  flipX    = false;
+    bool  flipY    = false;
+};
+
+// ── Physics ───────────────────────────────────────────────────
+struct RigidBody2D {
+    f32  mass        = 1.0f;
+    f32  restitution = 0.5f;
+    f32  friction    = 0.3f;
+    Vec2 acceleration = {0, 0};
+    bool isKinematic = false;
+};
+
+struct Collider2D {
+    Vec2 size     = {1, 1};
+    Vec2 offset   = {0, 0};
+    bool isStatic = false;
+    u32  layer    = 0;
+    bool isTrigger = false;
+};
+
+// ── Audio ─────────────────────────────────────────────────────
+struct AudioEmitter {
+    FixedString&lt;128&gt; clipPath;
+    f32 volume  = 1.0f;
+    bool loop   = false;
+    bool spatial = true;
+};
+
+// ── Tags ──────────────────────────────────────────────────────
+struct Player     {};
+struct Enemy      {};
+struct Projectile {};
+struct Particle   {};
+struct Disabled   {};  // sistemas pulam entidades com este tag
+struct Destroy    {};  // marcada para destruição no fim do frame
+
+// ── Meta ──────────────────────────────────────────────────────
+struct Name {
+    FixedString&lt;32&gt; value;
+};
+
+struct Parent {
+    Entity parent = Entity::INVALID;
+    bool   dirty  = true;
+};
+
+struct WorldTransform {
+    Mat4 matrix = Mat4::identity();
+};
+
+}  // namespace Caffeine::Components
+</code></pre>
+<hr>
+<h2>Command Buffer Diferido (RF4.4)</h2>
+<pre><code class="language-cpp">// ── POR QUE DIFERIR? ─────────────────────────────────────────
+// Sistemas NÃO podem criar/destruir entidades durante iteração:
+// isso invalida ponteiros nos archetypes e causa UB.
+
+// ERRADO (durante forEach):
+world.query(enemyQuery, [&amp;](Enemy&amp; e, Position2D&amp; pos) {
+    if (pos.x &gt; 1000) world.destroy(entity);  // ❌ invalida iteração!
+});
+
+// CORRETO (comand buffer):
+world.query(enemyQuery, [&amp;](Enemy&amp; e, Position2D&amp; pos, Entity self) {
+    if (pos.x &gt; 1000) world.destroy(self);    // ✅ anotado para depois
+});
+// world.flushCommands() chamado pelo GameLoop APÓS todos os updates
+</code></pre>
+<hr>
+<h2>Exemplos de Uso</h2>
+<pre><code class="language-cpp">// ── Criar entidade ────────────────────────────────────────────
+Caffeine::ECS::World world;
+
+Entity player = world.create(&quot;Player&quot;);
+world.add&lt;Position2D&gt;(player, {100, 200});
+world.add&lt;Velocity2D&gt;(player, {0, 0});
+world.add&lt;Sprite&gt;(player, { .textureId = heroTexId });
+world.add&lt;PlayerInput&gt;(player);
+world.add&lt;RigidBody2D&gt;(player, { .mass = 5.0f });
+world.add&lt;Collider2D&gt;(player, { .size = {32, 64} });
+
+// ── Query simples ─────────────────────────────────────────────
+ComponentQuery movQuery;
+movQuery.with&lt;Position2D, Velocity2D&gt;().without&lt;Disabled&gt;();
+
+world.query(movQuery, [](Position2D&amp; pos, const Velocity2D&amp; vel, f64 dt) {
+    pos.x += vel.x * dt;
+    pos.y += vel.y * dt;
+});
+
+// ── Registrar sistemas ────────────────────────────────────────
+world.registerSystem&lt;PhysicsSystem2D&gt;();   // priority = 100
+world.registerSystem&lt;AnimationSystem&gt;();  // priority = 200
+world.registerSystem&lt;RenderSystem&gt;();     // priority = 1000
+
+// ── Game loop ─────────────────────────────────────────────────
+while (running) {
+    world.update(fixedDt);      // executa todos os systems em ordem
+    world.flushCommands();       // aplica create/destroy pendentes
+}
+</code></pre>
+<hr>
+<h2>Decisões de Design</h2>
+<table>
+<thead>
+<tr>
+<th>Decisão</th>
+<th>Justificativa</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Archetype-based</td>
+<td>Cache locality máximo — arrays contíguos por tipo</td>
+</tr>
+<tr>
+<td>Entity = u32</td>
+<td>Sem alocação, sem virtual, handle leve</td>
+</tr>
+<tr>
+<td>ComponentSet como bitmask</td>
+<td>Comparação O(1) para encontrar archetype</td>
+</tr>
+<tr>
+<td>Command buffer diferido</td>
+<td>Sem invalidação de iteração durante updates</td>
+</tr>
+<tr>
+<td>Systems por prioridade</td>
+<td>Física antes de Animação, UI por último</td>
+</tr>
+</tbody></table>
+<hr>
+<h2>Critério de Aceitação</h2>
+<ul>
+<li><input disabled="" type="checkbox"> 100K entidades a 60fps com 5 systems ativos</li>
+<li><input disabled="" type="checkbox"> <code>query()</code> &lt; 5ms para 100K entidades</li>
+<li><input disabled="" type="checkbox"> Command buffer: create/destroy aplicados após todos os updates</li>
+<li><input disabled="" type="checkbox"> <code>tsan</code> clean — sem data races em <code>forEachParallel</code></li>
+<li><input disabled="" type="checkbox"> ECS benchmark: insert/query/destroy sem fragmentação de memória</li>
+</ul>
+<hr>
+<h2>Dependências</h2>
+<ul>
+<li><strong>Upstream:</strong> <a href="../memory/allocators.md">Fase 1 — Memory, Containers</a>, <a href="../concurrency/job-system.md">Fase 2 — Job System</a></li>
+<li><strong>Downstream:</strong> <a href="scene.md">Scene</a>, <a href="physics.md">Physics</a>, <a href="animation.md">Animation</a>, <a href="audio.md">Audio</a>, <a href="ui.md">UI</a>, <a href="../rendering/batch-renderer.md">Fase 3 — Batch Renderer</a></li>
+</ul>
+<hr>
+<h2>🔗 Tópicos Relacionados</h2>
+<table>
+<thead>
+<tr>
+<th>Tópico</th>
+<th>Descrição</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><a href="">Sistemas de Jogo</a></td>
+<td>ECS como base de todos os sistemas de gameplay</td>
+</tr>
+<tr>
+<td><a href="">Memória &amp; Dados</a></td>
+<td>ComponentPools, archetypes e layout de dados</td>
+</tr>
+</tbody></table>
+<h2>Referências</h2>
+<ul>
+<li><a href="../architecture_specs.md"><code>docs/architecture_specs.md</code></a> — §4 ECS Core</li>
+<li><a href="https://github.com/SanderMertens/flecs">flecs — Archetype ECS</a></li>
+<li><a href="https://github.com/skypjack/entt/wiki/EnTT-in-Action">EnTT in Action</a></li>
+<li><a href="">Índice de Tópicos Transversais</a></li>
+</ul>
+
+</article>

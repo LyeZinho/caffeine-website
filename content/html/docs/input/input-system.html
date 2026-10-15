@@ -1,0 +1,320 @@
+<article class="doc-article" data-slug="docs/input/input-system">
+<h1>⌨️ Input System</h1>
+<blockquote>
+<p><strong>Fase:</strong> 2 — O Pulso e a Concorrência<br><strong>Namespace:</strong> <code>Caffeine::Input</code><br><strong>Arquivo:</strong> <code>src/input/InputManager.hpp</code><br><strong>Status:</strong> 📅 Planejado<br><strong>RF:</strong> RF2.9</p>
+</blockquote>
+<hr>
+<h2>Visão Geral</h2>
+<p>O Input System abstrai dispositivos (teclado, mouse, gamepad) e expõe <strong>ações nomeadas</strong> em vez de scancodes crus. Isso permite remapear controles sem alterar o código do jogo.</p>
+<p><strong>Filosofia:</strong> O código do jogo nunca pergunta &quot;foi pressionado W?&quot; — pergunta &quot;foi ativada a ação <code>MoveUp</code>?&quot;. As bindings mapeiam W → MoveUp, mas podem ser reconfiguradas pelo jogador.</p>
+<hr>
+<h2>Arquitetura</h2>
+<pre><code>SDL Events
+      │
+      ▼
+InputManager.beginFrame()  ← chamado pelo GameLoop
+      │
+      ├── KeyboardState    ──▶ ActionMap  ──▶ ActionState (pressed/justPressed/justReleased)
+      ├── MouseState       ──▶ AxisMap   ──▶ AxisState (value/delta)
+      └── GamepadState[]   ──▶           ──▶ (fornecido ao ECS via PlayerInput component)
+</code></pre>
+<hr>
+<h2>API Planejada</h2>
+<pre><code class="language-cpp">namespace Caffeine::Input {
+
+// ============================================================================
+// @brief  Ações predefinidas.
+//
+//  Adicionar ações customizadas a partir de CUSTOM_START.
+// ============================================================================
+enum class Action : u16 {
+    None = 0,
+    // Movimento
+    MoveUp, MoveDown, MoveLeft, MoveRight,
+    // Gameplay
+    Jump, Attack, Interact, Pause,
+    // Menus
+    MenuUp, MenuDown, MenuLeft, MenuRight,
+    MenuConfirm, MenuBack,
+    // Espaço para ações customizadas do jogo
+    CUSTOM_START = 128
+};
+
+// ============================================================================
+// @brief  Eixos analógicos.
+// ============================================================================
+enum class Axis : u8 {
+    None = 0,
+    MoveX,    // -1.0 (esquerda) a +1.0 (direita)
+    MoveY,    // -1.0 (cima) a +1.0 (baixo)
+    LookX,    // Mouse X delta / Right stick X
+    LookY,    // Mouse Y delta / Right stick Y
+    CUSTOM_START = 64
+};
+
+// ============================================================================
+// @brief  Estado de uma ação digital.
+// ============================================================================
+struct ActionState {
+    bool pressed      = false;   // mantido enquanto tecla estiver pressionada
+    bool justPressed  = false;   // true apenas no primeiro frame
+    bool justReleased = false;   // true apenas no frame de soltura
+};
+
+// ============================================================================
+// @brief  Estado de um eixo analógico.
+// ============================================================================
+struct AxisState {
+    f32 value = 0.0f;  // -1.0 a +1.0
+    f32 delta = 0.0f;  // mudança desde o último frame
+};
+
+// ============================================================================
+// @brief  Binding — mapeia um dispositivo físico a uma ação/eixo.
+// ============================================================================
+struct Binding {
+    enum class Type : u8 {
+        Key,           // SDL_Scancode
+        MouseButton,   // SDL_BUTTON_*
+        GamepadButton, // SDL_GAMEPAD_BUTTON_*
+        GamepadAxis    // SDL_GAMEPAD_AXIS_*
+    };
+    Type type;
+    u32  code;
+    f32  scale = 1.0f;  // para gamepad axis (inverte/escalona)
+};
+
+// ============================================================================
+// @brief  Gerenciador de input principal.
+//
+//  Ciclo:
+//  1. beginFrame()          — clear justPressed/justReleased, poll SDL events
+//  2. actionState(Jump)     — consulta estado durante update
+//  3. endFrame()            — atualiza histórico para próximo frame
+// ============================================================================
+class InputManager {
+public:
+    InputManager();
+    ~InputManager();
+
+    // Chamado no início de cada frame pelo GameLoop
+    void beginFrame();
+    // Chamado no fim de cada frame
+    void endFrame();
+
+    // Consulta de ações
+    const ActionState&amp; actionState(Action a) const;
+    const AxisState&amp;   axisState(Axis a) const;
+
+    bool isPressed(Action a)      const { return actionState(a).pressed; }
+    bool justPressed(Action a)    const { return actionState(a).justPressed; }
+    bool justReleased(Action a)   const { return actionState(a).justReleased; }
+    f32  axisValue(Axis a)         const { return axisState(a).value; }
+
+    // Mouse
+    Vec2 mousePosition() const;
+    Vec2 mouseDelta()    const;
+    void setMouseRelative(bool enabled);  // para mouse look (câmera)
+
+    // Configuração de bindings (remapável em runtime)
+    void bindAction(Action action, std::initializer_list&lt;Binding&gt; bindings);
+    void bindAxis(Axis axis, std::initializer_list&lt;Binding&gt; bindings);
+    void clearBindings(Action action);
+    void resetToDefaults();
+
+private:
+    void processSdlEvent(const SDL_Event&amp; e);
+
+    HashMap&lt;SDL_Scancode, Action&gt; m_keyBindings;
+    HashMap&lt;u32, Action&gt;          m_mouseBindings;
+    HashMap&lt;i32, Action&gt;          m_gamepadButtonBindings;
+    HashMap&lt;i32, Axis&gt;            m_gamepadAxisBindings;
+
+    Array&lt;ActionState, 256&gt; m_actionStates;   // indexed by Action
+    Array&lt;AxisState,  64&gt;   m_axisStates;     // indexed by Axis
+    Array&lt;bool, 256&gt;         m_prevPressed;   // para calcular justPressed/Released
+
+    Vec2 m_mousePos     = {0, 0};
+    Vec2 m_mouseDelta   = {0, 0};
+    bool m_mouseRelative = false;
+};
+
+}  // namespace Caffeine::Input
+</code></pre>
+<hr>
+<h2>Componente ECS para Input</h2>
+<pre><code class="language-cpp">namespace Caffeine::Components {
+
+// ============================================================================
+// @brief  Componente que permite a uma entidade reagir a input do jogador.
+//
+//  Adicionado ao Entity &quot;Player&quot; pelo jogo.
+//  O MovementSystem lê este componente junto com Velocity2D.
+// ============================================================================
+struct PlayerInput {
+    Caffeine::Input::Action moveUpAction    = Caffeine::Input::Action::MoveUp;
+    Caffeine::Input::Action moveDownAction  = Caffeine::Input::Action::MoveDown;
+    Caffeine::Input::Action moveLeftAction  = Caffeine::Input::Action::MoveLeft;
+    Caffeine::Input::Action moveRightAction = Caffeine::Input::Action::MoveRight;
+    Caffeine::Input::Action jumpAction      = Caffeine::Input::Action::Jump;
+    Caffeine::Input::Axis   moveAxisX       = Caffeine::Input::Axis::MoveX;
+    Caffeine::Input::Axis   moveAxisY       = Caffeine::Input::Axis::MoveY;
+    f32 moveSpeed  = 200.0f;  // pixels/segundo
+    f32 jumpForce  = 500.0f;
+};
+
+}  // namespace Caffeine::Components
+</code></pre>
+<hr>
+<h2>Exemplos de Uso</h2>
+<pre><code class="language-cpp">// ── Setup de bindings ─────────────────────────────────────────
+Caffeine::Input::InputManager input;
+
+input.bindAction(Caffeine::Input::Action::Jump, {
+    { Caffeine::Input::Binding::Type::Key, SDL_SCANCODE_SPACE },
+    { Caffeine::Input::Binding::Type::GamepadButton, SDL_GAMEPAD_BUTTON_SOUTH }
+});
+
+input.bindAxis(Caffeine::Input::Axis::MoveX, {
+    { Caffeine::Input::Binding::Type::Key, SDL_SCANCODE_D,  +1.0f },
+    { Caffeine::Input::Binding::Type::Key, SDL_SCANCODE_A,  -1.0f },
+    { Caffeine::Input::Binding::Type::GamepadAxis, SDL_GAMEPAD_AXIS_LEFTX, 1.0f }
+});
+
+// ── Uso no Game Loop ─────────────────────────────────────────
+input.beginFrame();  // dentro de GameLoop::processInput()
+
+// ── Uso no Movement System ───────────────────────────────────
+world.query(movementQuery, [&amp;](PlayerInput&amp; pi, Velocity2D&amp; vel) {
+    vel.x = input.axisValue(pi.moveAxisX) * pi.moveSpeed;
+
+    if (input.justPressed(pi.jumpAction)) {
+        vel.y = pi.jumpForce;
+    }
+});
+
+input.endFrame();
+</code></pre>
+<hr>
+<h2>Bindings Padrão (a ser configurado)</h2>
+<table>
+<thead>
+<tr>
+<th>Ação</th>
+<th>Teclado</th>
+<th>Gamepad</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>MoveUp</td>
+<td>W / ↑</td>
+<td>Left Stick Up</td>
+</tr>
+<tr>
+<td>MoveDown</td>
+<td>S / ↓</td>
+<td>Left Stick Down</td>
+</tr>
+<tr>
+<td>MoveLeft</td>
+<td>A / ←</td>
+<td>Left Stick Left</td>
+</tr>
+<tr>
+<td>MoveRight</td>
+<td>D / →</td>
+<td>Left Stick Right</td>
+</tr>
+<tr>
+<td>Jump</td>
+<td>Space</td>
+<td>A / Cross</td>
+</tr>
+<tr>
+<td>Attack</td>
+<td>LMB / Z</td>
+<td>X / Square</td>
+</tr>
+<tr>
+<td>Interact</td>
+<td>E</td>
+<td>B / Circle</td>
+</tr>
+<tr>
+<td>Pause</td>
+<td>Esc</td>
+<td>Start</td>
+</tr>
+</tbody></table>
+<hr>
+<h2>Decisões de Design</h2>
+<table>
+<thead>
+<tr>
+<th>Decisão</th>
+<th>Justificativa</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Action-based, não scancode</td>
+<td>Games portáteis; remapping em runtime sem alterar código</td>
+</tr>
+<tr>
+<td><code>justPressed</code>/<code>justReleased</code> por frame</td>
+<td>Elimina necessidade de polling manual</td>
+</tr>
+<tr>
+<td>Binding map mutável</td>
+<td>Remapping em runtime (menu de opções do jogador)</td>
+</tr>
+<tr>
+<td>Mouse relative mode</td>
+<td>Mouse look para câmera sem drift (FPS, twin-stick)</td>
+</tr>
+<tr>
+<td>Array&lt;ActionState, 256&gt;</td>
+<td>Acesso O(1) por índice; sem hash para hot path</td>
+</tr>
+</tbody></table>
+<hr>
+<h2>Critério de Aceitação</h2>
+<ul>
+<li><input disabled="" type="checkbox"> <code>justPressed</code> registrado no mesmo frame em que a tecla é pressionada</li>
+<li><input disabled="" type="checkbox"> Latência de input &lt; 1ms (input não adiciona overhead perceptível)</li>
+<li><input disabled="" type="checkbox"> Remapping funciona sem reiniciar</li>
+<li><input disabled="" type="checkbox"> Gamepad e teclado funcionam simultaneamente</li>
+<li><input disabled="" type="checkbox"> <code>setMouseRelative(true)</code> desativa cursor e fornece deltas</li>
+</ul>
+<hr>
+<h2>Dependências</h2>
+<ul>
+<li><strong>Upstream:</strong> <code>SDL3::SDL_PollEvent</code>, <code>Caffeine::Core::Types</code></li>
+<li><strong>Downstream:</strong> <a href="../core/game-loop.md">Game Loop</a>, <a href="../ecs/core.md">Fase 4 — ECS Movement System</a></li>
+</ul>
+<hr>
+<h2>🔗 Tópicos Relacionados</h2>
+<table>
+<thead>
+<tr>
+<th>Tópico</th>
+<th>Descrição</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><a href="">Sistemas de Jogo</a></td>
+<td>Input alimenta sistemas ECS</td>
+</tr>
+<tr>
+<td><a href="">Concorrência &amp; Runtime</a></td>
+<td>Input processado no Game Loop</td>
+</tr>
+</tbody></table>
+<h2>Referências</h2>
+<ul>
+<li><a href="../architecture_specs.md"><code>docs/architecture_specs.md</code></a> — §3 Input System</li>
+<li><a href="../core/game-loop.md"><code>core/game-loop.md</code></a> — <code>processInput()</code> chama InputManager</li>
+<li><a href="../ecs/core.md"><code>ecs/core.md</code></a> — <code>PlayerInput</code> component</li>
+<li><a href="">Índice de Tópicos Transversais</a></li>
+</ul>
+
+</article>

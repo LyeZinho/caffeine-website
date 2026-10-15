@@ -1,0 +1,132 @@
+<article class="doc-article" data-slug="planning/m2-visual-editing-assets/2.7-multiple-scene-tabs">
+<h1>🔧 Multiple Scene Tabs</h1>
+<blockquote>
+<p><strong>Milestone:</strong> M2 — Visual Editing &amp; Assets
+<strong>Namespace:</strong> <code>Caffeine::Editor</code>
+<strong>Arquivos:</strong> <code>src/editor/SceneTabManager.hpp</code>, <code>src/editor/SceneTabManager.cpp</code>
+<strong>Status:</strong> 📅 Planeado
+<strong>RF:</strong> RF6.7</p>
+</blockquote>
+<hr>
+<h2>Visão Geral</h2>
+<p>O sistema de Multiple Scene Tabs permite que o utilizador trabalhe em várias cenas simultaneamente dentro do mesmo editor. Cada tab (separador) representa uma cena distinta com o seu próprio <code>ECS World</code> independente, permitindo comparar níveis, copiar entidades entre cenas ou manter uma cena de teste aberta enquanto se edita a cena principal.</p>
+<p>Esta funcionalidade aproxima o Caffeine Studio de ferramentas profissionais de produtividade, permitindo uma gestão de janelas flexível onde os separadores podem ser reordenados ou destacados para janelas flutuantes independentes.</p>
+<hr>
+<h2>Implementação</h2>
+<p>O <code>SceneTabManager</code> gere uma coleção de instâncias de <code>Scene</code>, cada uma associada a um separador no ImGui.</p>
+<h3>Estrutura de Classes</h3>
+<pre><code class="language-cpp">namespace Caffeine::Editor {
+
+    struct SceneTab {
+        std::string Name;
+        std::shared_ptr&lt;Scene&gt; SceneInstance;
+        bool IsDirty = false;
+        bool IsActive = false;
+    };
+
+    class SceneTabManager {
+    public:
+        void OnImGuiRender();
+        
+        void OpenScene(const std::filesystem::path&amp; path);
+        void CloseScene(int index);
+        void SetActiveScene(int index);
+
+        Scene* GetActiveScene() { return m_Tabs[m_ActiveTabIndex].SceneInstance.get(); }
+
+    private:
+        void RenderTabBar();
+        void HandleTabShortcuts();
+
+        std::vector&lt;SceneTab&gt; m_Tabs;
+        int m_ActiveTabIndex = 0;
+    };
+}
+</code></pre>
+<h3>Isolamento de ECS World</h3>
+<p>Cada cena aberta possui o seu próprio gestor de entidades e sistemas.</p>
+<pre><code class="language-cpp">void SceneTabManager::OpenScene(const std::filesystem::path&amp; path) {
+    auto scene = std::make_shared&lt;Scene&gt;();
+    scene-&gt;Load(path);
+    
+    SceneTab tab;
+    tab.Name = path.filename().string();
+    tab.SceneInstance = scene;
+    m_Tabs.push_back(tab);
+    
+    m_ActiveTabIndex = m_Tabs.size() - 1;
+}
+</code></pre>
+<h3>Funcionalidade de Destacamento (Floating)</h3>
+<p>Utilizando a funcionalidade de Viewports do ImGui, os separadores podem ser arrastados para fora da janela principal.</p>
+<pre><code class="language-cpp">if (ImGui::BeginTabItem(tab.Name.c_str())) {
+    // Renderizar Viewport para esta cena específica
+    m_Viewport.Render(tab.SceneInstance);
+    ImGui::EndTabItem();
+}
+</code></pre>
+<hr>
+<h2>Decisões de Design</h2>
+<table>
+<thead>
+<tr>
+<th>Decisão</th>
+<th>Justificativa</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>ECS World por Tab</td>
+<td>Garante que as alterações numa cena não afetem as outras, evitando corrupção de dados entre níveis.</td>
+</tr>
+<tr>
+<td>Indicador &quot;Dirty&quot; (*)</td>
+<td>Mostrar um asterisco no nome do separador alerta o utilizador para alterações não guardadas antes de fechar.</td>
+</tr>
+<tr>
+<td>Drag-to-Reorder</td>
+<td>Segue as convenções de navegadores web e IDEs (como VS Code) para uma experiência familiar.</td>
+</tr>
+</tbody></table>
+<hr>
+<h2>Critério de Aceitação</h2>
+<ul>
+<li><input disabled="" type="checkbox"> É possível abrir múltiplas cenas (.scene) em separadores diferentes.</li>
+<li><input disabled="" type="checkbox"> Cada separador renderiza apenas a sua própria hierarquia de entidades.</li>
+<li><input disabled="" type="checkbox"> Clicar num separador altera o foco do Inspector e Hierarchy para essa cena.</li>
+<li><input disabled="" type="checkbox"> Arrastar um separador para fora do editor cria uma janela flutuante (requer suporte a Viewports).</li>
+<li><input disabled="" type="checkbox"> Atalhos de teclado (Ctrl+Tab) permitem alternar entre cenas abertas.</li>
+<li><input disabled="" type="checkbox"> Fechar um separador com alterações não guardadas mostra um diálogo de confirmação.</li>
+</ul>
+<hr>
+<h2>Dependências</h2>
+<ul>
+<li><strong>Upstream:</strong> <code>Caffeine::ECS::World</code>, <code>Caffeine::Editor::Viewport</code></li>
+<li><strong>Downstream:</strong> <code>Caffeine::Editor::SceneHierarchy</code></li>
+</ul>
+<hr>
+<h2>🔗 Tópicos Relacionados</h2>
+<table>
+<thead>
+<tr>
+<th>Tópico</th>
+<th>Descrição</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Scene Editor</td>
+<td>Renderiza o conteúdo do separador ativo.</td>
+</tr>
+<tr>
+<td>ECS Core</td>
+<td>Fornece a base de dados para cada cena isolada.</td>
+</tr>
+</tbody></table>
+<hr>
+<h2>Referências</h2>
+<ul>
+<li>Unity &quot;Sub-scenes&quot; and multiple scene editing.</li>
+<li>VS Code Tab Management system.</li>
+<li>Dear ImGui TabBar API.</li>
+</ul>
+
+</article>

@@ -1,0 +1,557 @@
+<article class="doc-article" data-slug="docs/plans/2026-05-16-project-startup-dialog-tabs">
+<h1>ProjectStartupDialog Tabs Implementation Plan</h1>
+<blockquote>
+<p><strong>For Claude:</strong> REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.</p>
+</blockquote>
+<p><strong>Goal:</strong> Implement a 3-tab ProjectStartupDialog (Create New, Open Recent, Browse) with toast notifications and proper ImGui window management.</p>
+<p><strong>Architecture:</strong> </p>
+<ul>
+<li>Refactor render() into tab-based architecture using ImGui::BeginTabBar()</li>
+<li>Extract tab rendering into separate methods (renderCreateTab, renderRecentTab, renderBrowseTab)</li>
+<li>Implement toast notification system for error/success feedback</li>
+<li>Add progress dialog for blocking project creation flow</li>
+</ul>
+<p><strong>Tech Stack:</strong> </p>
+<ul>
+<li>ImGui with tab bar API</li>
+<li>ProjectManager (existing file operations)</li>
+<li>Standard file I/O for directory scanning</li>
+</ul>
+<hr>
+<h2>Phase 1: Toast Notification System (Foundation)</h2>
+<h3>Task 1: Add Toast Data Structure</h3>
+<p><strong>Files:</strong></p>
+<ul>
+<li>Modify: <code>src/editor/ProjectStartupDialog.hpp</code> (add after line 50)</li>
+</ul>
+<p><strong>Step 1: Write structure definition</strong></p>
+<p>Add this to the private section of ProjectStartupDialog class:</p>
+<pre><code class="language-cpp">    // ── Toast Notification System ───────────────────────────────
+    enum class ToastType {
+        Success,  // Green
+        Error,    // Red
+        Info      // Yellow
+    };
+
+    struct Toast {
+        std::string message;
+        ToastType type;
+        double showTime;  // SDL_GetTicks() when created
+        static constexpr double DURATION_MS = 3000.0;  // 3 seconds
+        
+        bool isExpired(double currentTime) const {
+            return (currentTime - showTime) &gt;= DURATION_MS;
+        }
+    };
+
+    std::vector&lt;Toast&gt; m_toastQueue;
+    static constexpr int MAX_VISIBLE_TOASTS = 3;
+</code></pre>
+<p><strong>Step 2: Add toast helper methods to ProjectStartupDialog</strong></p>
+<p>Add to private section (after line 80):</p>
+<pre><code class="language-cpp">    void showToast(const std::string&amp; message, ToastType type);
+    void updateToasts();
+    void renderToasts();
+</code></pre>
+<p><strong>Step 3: Include necessary headers</strong></p>
+<p>Add at top of ProjectStartupDialog.hpp:</p>
+<pre><code class="language-cpp">#include &lt;vector&gt;
+#include &lt;cstdint&gt;
+</code></pre>
+<p><strong>Step 4: Commit</strong></p>
+<pre><code class="language-bash">git add src/editor/ProjectStartupDialog.hpp
+git commit -m &quot;feat: add toast notification data structure to ProjectStartupDialog&quot;
+</code></pre>
+<hr>
+<h2>Phase 2: Toast Implementation in .cpp</h2>
+<h3>Task 2: Implement Toast Methods</h3>
+<p><strong>Files:</strong></p>
+<ul>
+<li>Modify: <code>src/editor/ProjectStartupDialog.cpp</code> (add after line 56 - setError method)</li>
+</ul>
+<p><strong>Step 1: Implement showToast()</strong></p>
+<p>Add after setError() method:</p>
+<pre><code class="language-cpp">void ProjectStartupDialog::showToast(const std::string&amp; message, ToastType type) {
+    m_toastQueue.push_back({message, type, static_cast&lt;double&gt;(SDL_GetTicksNS()) / 1&#39;000&#39;000.0});
+    if (m_toastQueue.size() &gt; MAX_VISIBLE_TOASTS) {
+        m_toastQueue.erase(m_toastQueue.begin());
+    }
+}
+</code></pre>
+<p><strong>Step 2: Implement updateToasts()</strong></p>
+<p>Add after showToast():</p>
+<pre><code class="language-cpp">void ProjectStartupDialog::updateToasts() {
+    double currentTime = static_cast&lt;double&gt;(SDL_GetTicksNS()) / 1&#39;000&#39;000.0;
+    auto it = m_toastQueue.begin();
+    while (it != m_toastQueue.end()) {
+        if (it-&gt;isExpired(currentTime)) {
+            it = m_toastQueue.erase(it);
+        } else {
+            ++it;
+        }
+    }
+}
+</code></pre>
+<p><strong>Step 3: Implement renderToasts() (stub for now)</strong></p>
+<p>Add after updateToasts():</p>
+<pre><code class="language-cpp">void ProjectStartupDialog::renderToasts() {
+    // Will implement ImGui rendering in Phase 3
+}
+</code></pre>
+<p><strong>Step 4: Include SDL header for time</strong></p>
+<p>Add to top of ProjectStartupDialog.cpp (in CF_HAS_IMGUI section):</p>
+<pre><code class="language-cpp">#include &lt;SDL3/SDL.h&gt;
+</code></pre>
+<p><strong>Step 5: Commit</strong></p>
+<pre><code class="language-bash">git add src/editor/ProjectStartupDialog.cpp
+git commit -m &quot;feat: implement toast notification methods (showToast, updateToasts)&quot;
+</code></pre>
+<hr>
+<h2>Phase 3: ImGui Toast Rendering</h2>
+<h3>Task 3: Render Toasts in ImGui</h3>
+<p><strong>Files:</strong></p>
+<ul>
+<li>Modify: <code>src/editor/ProjectStartupDialog.cpp</code> (replace renderToasts stub, line ~90)</li>
+</ul>
+<p><strong>Step 1: Implement renderToasts() with ImGui</strong></p>
+<p>Replace the stub:</p>
+<pre><code class="language-cpp">void ProjectStartupDialog::renderToasts() {
+    if (m_toastQueue.empty()) return;
+
+    ImGuiIO&amp; io = ImGui::GetIO();
+    float toastWidth = 300.0f;
+    float toastHeight = 60.0f;
+    float padding = 10.0f;
+    float spacing = 5.0f;
+
+    float totalHeight = m_toastQueue.size() * (toastHeight + spacing);
+    ImVec2 startPos(
+        io.DisplaySize.x - toastWidth - padding,
+        io.DisplaySize.y - totalHeight - padding
+    );
+
+    for (size_t i = 0; i &lt; m_toastQueue.size(); ++i) {
+        const Toast&amp; toast = m_toastQueue[i];
+        ImVec2 pos(startPos.x, startPos.y + i * (toastHeight + spacing));
+
+        ImGui::SetNextWindowPos(pos);
+        ImGui::SetNextWindowSize(ImVec2(toastWidth, toastHeight));
+
+        // Color based on type
+        ImVec4 bgColor;
+        switch (toast.type) {
+            case ToastType::Success:
+                bgColor = ImVec4(0.2f, 0.7f, 0.2f, 0.8f);  // Green
+                break;
+            case ToastType::Error:
+                bgColor = ImVec4(0.9f, 0.2f, 0.2f, 0.8f);  // Red
+                break;
+            case ToastType::Info:
+                bgColor = ImVec4(1.0f, 1.0f, 0.2f, 0.8f);  // Yellow
+                break;
+        }
+
+        ImGui::PushStyleColor(ImGuiCol_WindowBg, bgColor);
+        char label[64];
+        snprintf(label, sizeof(label), &quot;##toast_%zu&quot;, i);
+        
+        if (ImGui::Begin(label, nullptr, ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_AlwaysAutoResize)) {
+            ImGui::TextWrapped(&quot;%s&quot;, toast.message.c_str());
+            ImGui::End();
+        }
+        ImGui::PopStyleColor();
+    }
+}
+</code></pre>
+<p><strong>Step 2: Call updateToasts() and renderToasts() in main render()</strong></p>
+<p>Find the main render() method and add at the very start (after the early return check):</p>
+<pre><code class="language-cpp">std::optional&lt;ProjectConfig&gt; ProjectStartupDialog::render() {
+    if (!m_open) {
+        return std::nullopt;
+    }
+
+    updateToasts();  // ADD THIS LINE
+    
+    // ... rest of render() ...
+</code></pre>
+<p>And add renderToasts() call at the very end of render(), right before the final return:</p>
+<pre><code class="language-cpp">    // At the very end of render(), before &quot;return result;&quot;
+    renderToasts();
+
+    return result;
+}
+</code></pre>
+<p><strong>Step 3: Build and verify no ImGui errors</strong></p>
+<pre><code class="language-bash">cd /home/pedro/repo/caffeine/build &amp;&amp; timeout 60 make -j8 doppio 2&gt;&amp;1 | tail -20
+</code></pre>
+<p>Expected: Should compile without errors</p>
+<p><strong>Step 4: Commit</strong></p>
+<pre><code class="language-bash">git add src/editor/ProjectStartupDialog.cpp
+git commit -m &quot;feat: implement toast notification rendering with ImGui&quot;
+</code></pre>
+<hr>
+<h2>Phase 4: Refactor render() into Tab-Based Architecture</h2>
+<h3>Task 4: Implement Tab Bar Structure</h3>
+<p><strong>Files:</strong></p>
+<ul>
+<li>Modify: <code>src/editor/ProjectStartupDialog.cpp</code> (refactor render() method, lines 66-101)</li>
+</ul>
+<p><strong>Step 1: Replace simple render() with tab structure</strong></p>
+<p>Replace the entire main render() method (from line 66 to 101) with:</p>
+<pre><code class="language-cpp">std::optional&lt;ProjectConfig&gt; ProjectStartupDialog::render() {
+    if (!m_open) {
+        return std::nullopt;
+    }
+
+    updateToasts();
+
+    std::optional&lt;ProjectConfig&gt; result;
+    ImVec2 center = ImGui::GetMainViewport()-&gt;GetCenter();
+    
+    ImGui::SetNextWindowPos(center, ImGuiCond_FirstUseEver, ImVec2(0.5f, 0.5f));
+    ImGui::SetNextWindowSize(ImVec2(600, 500), ImGuiCond_FirstUseEver);
+    
+    if (ImGui::Begin(&quot;Project Manager&quot;, &amp;m_open, ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoCollapse)) {
+        ImGui::Text(&quot;Welcome to Doppio — Select or Create a Project&quot;);
+        ImGui::Separator();
+
+        // ── Tab Bar ─────────────────────────────────────────────────
+        if (ImGui::BeginTabBar(&quot;ProjectDialogTabs&quot;)) {
+            
+            // Tab 0: Create New
+            if (ImGui::BeginTabItem(&quot;Create New&quot;)) {
+                if (auto config = renderCreateTab()) {
+                    result = config;
+                }
+                ImGui::EndTabItem();
+            }
+
+            // Tab 1: Open Recent
+            if (ImGui::BeginTabItem(&quot;Open Recent&quot;)) {
+                if (auto config = renderRecentTab()) {
+                    result = config;
+                }
+                ImGui::EndTabItem();
+            }
+
+            // Tab 2: Browse Projects
+            if (ImGui::BeginTabItem(&quot;Browse Projects&quot;)) {
+                if (auto config = renderBrowseTab()) {
+                    result = config;
+                }
+                ImGui::EndTabItem();
+            }
+
+            ImGui::EndTabBar();
+        }
+
+        renderErrorPopup();
+        ImGui::End();
+    }
+
+    renderToasts();
+
+    return result;
+}
+</code></pre>
+<p><strong>Step 2: Update renderCreateTab() to work standalone</strong></p>
+<p>The existing renderCreateTab() method (lines 103-129) needs adjustment. Update it:</p>
+<pre><code class="language-cpp">std::optional&lt;ProjectConfig&gt; ProjectStartupDialog::renderCreateTab() {
+    std::optional&lt;ProjectConfig&gt; result;
+
+    // Project Name Input
+    ImGui::Text(&quot;Project Name:&quot;);
+    ImGui::InputText(&quot;##ProjectName&quot;, m_projectName, sizeof(m_projectName));
+    
+    if (m_projectName[0] == &#39;\0&#39;) {
+        ImGui::TextDisabled(&quot;(Enter a project name)&quot;);
+    }
+
+    ImGui::Spacing();
+    ImGui::Separator();
+
+    // Template Selection (3 Cards)
+    ImGui::Text(&quot;Template:&quot;);
+    ImGui::BeginGroup();
+    
+    const char* templates[] = {&quot;Empty&quot;, &quot;2D&quot;, &quot;3D&quot;};
+    const char* descriptions[] = {
+        &quot;Blank project, no starter assets&quot;,
+        &quot;Pre-configured for 2D games&quot;,
+        &quot;Pre-configured for 3D games&quot;
+    };
+    
+    for (int i = 0; i &lt; 3; ++i) {
+        bool selected = (m_templateIndex == i);
+        ImVec4 borderColor = selected ? ImVec4(1.0f, 1.0f, 0.0f, 1.0f) : ImVec4(0.5f, 0.5f, 0.5f, 0.5f);
+        
+        ImGui::PushStyleColor(ImGuiCol_Border, borderColor);
+        ImGui::PushStyleVar(ImGuiStyleVar_FrameBorderSize, 2.0f);
+        
+        if (ImGui::Selectable(templates[i], selected, ImGuiSelectableFlags_None, ImVec2(150, 80))) {
+            m_templateIndex = i;
+        }
+        
+        ImGui::SameLine();
+        ImGui::TextWrapped(&quot;%s&quot;, descriptions[i]);
+        
+        ImGui::PopStyleVar();
+        ImGui::PopStyleColor();
+    }
+
+    ImGui::EndGroup();
+
+    ImGui::Spacing();
+    ImGui::Separator();
+
+    // Location Selector
+    ImGui::Text(&quot;Location: %s&quot;, m_selectedLocation.c_str());
+    if (ImGui::Button(&quot;Browse Location...##Create&quot;, ImVec2(150, 0))) {
+        m_locationPicked = true;
+        showToast(&quot;File picker coming soon&quot;, ToastType::Info);
+    }
+
+    ImGui::Spacing();
+    ImGui::Separator();
+
+    // Create Button
+    bool canCreate = (m_projectName[0] != &#39;\0&#39;);
+    if (!canCreate) ImGui::BeginDisabled();
+    
+    if (ImGui::Button(&quot;Create &amp; Open&quot;, ImVec2(150, 0))) {
+        result = tryCreateProject();
+        if (result) {
+            showToast(&quot;Project created successfully!&quot;, ToastType::Success);
+        } else {
+            showToast(&quot;Failed to create project&quot;, ToastType::Error);
+        }
+    }
+    
+    if (!canCreate) ImGui::EndDisabled();
+
+    return result;
+}
+</code></pre>
+<p><strong>Step 3: Build and test</strong></p>
+<pre><code class="language-bash">cd /home/pedro/repo/caffeine/build &amp;&amp; timeout 60 make -j8 doppio 2&gt;&amp;1 | tail -15
+</code></pre>
+<p>Expected: Should compile without errors. Test: <code>./doppio</code> should show tabbed dialog.</p>
+<p><strong>Step 4: Commit</strong></p>
+<pre><code class="language-bash">git add src/editor/ProjectStartupDialog.cpp
+git commit -m &quot;feat: refactor render() into tab-based architecture with BeginTabBar&quot;
+</code></pre>
+<hr>
+<h2>Phase 5: Implement &quot;Open Recent&quot; Tab</h2>
+<h3>Task 5: Add Recent Projects State</h3>
+<p><strong>Files:</strong></p>
+<ul>
+<li>Modify: <code>src/editor/ProjectStartupDialog.hpp</code> (add state after line 60)</li>
+</ul>
+<p><strong>Step 1: Add state variables for Recent tab</strong></p>
+<p>Add to private section (after m_browseResults):</p>
+<pre><code class="language-cpp">    // ── Recent tab state ────────────────────────────────────────
+    std::vector&lt;std::filesystem::path&gt; m_recentProjects;
+    bool m_showAllRecents = false;
+    char m_searchFilter[256] = {0};
+    int m_selectedRecentIndex = -1;
+</code></pre>
+<p><strong>Step 2: Commit</strong></p>
+<pre><code class="language-bash">git add src/editor/ProjectStartupDialog.hpp
+git commit -m &quot;feat: add recent projects state variables to ProjectStartupDialog&quot;
+</code></pre>
+<h3>Task 6: Implement renderRecentTab()</h3>
+<p><strong>Files:</strong></p>
+<ul>
+<li>Modify: <code>src/editor/ProjectStartupDialog.cpp</code> (replace stub at line ~131)</li>
+</ul>
+<p><strong>Step 1: Load recent projects in init()</strong></p>
+<p>Find the init() method and add this to load recent projects:</p>
+<pre><code class="language-cpp">void ProjectStartupDialog::init() {
+    m_locationPicked = false;
+    m_popupOpened = false;
+    m_recentProjects = m_projectManager.GetRecentProjects();  // ADD THIS LINE
+}
+</code></pre>
+<p><strong>Step 2: Implement renderRecentTab()</strong></p>
+<p>Replace the existing stub:</p>
+<pre><code class="language-cpp">std::optional&lt;ProjectConfig&gt; ProjectStartupDialog::renderRecentTab() {
+    std::optional&lt;ProjectConfig&gt; result;
+
+    // Search &amp; Filter Controls
+    ImGui::InputTextWithHint(&quot;##search_recent&quot;, &quot;Search projects...&quot;, m_searchFilter, sizeof(m_searchFilter));
+    ImGui::SameLine();
+    ImGui::Checkbox(&quot;Show All##recent&quot;, &amp;m_showAllRecents);
+
+    ImGui::Spacing();
+    ImGui::Separator();
+
+    // Project List
+    if (ImGui::BeginChild(&quot;recent_list&quot;, ImVec2(0, 300), true)) {
+        if (m_recentProjects.empty()) {
+            ImGui::TextDisabled(&quot;No projects yet. Create one in &#39;Create New&#39; tab!&quot;);
+        } else {
+            for (size_t i = 0; i &lt; m_recentProjects.size(); ++i) {
+                const auto&amp; projPath = m_recentProjects[i];
+                std::string projName = projPath.filename().string();
+                
+                // Apply search filter
+                if (strlen(m_searchFilter) &gt; 0) {
+                    if (projName.find(m_searchFilter) == std::string::npos) {
+                        continue;
+                    }
+                }
+
+                bool selected = (m_selectedRecentIndex == (int)i);
+                if (ImGui::Selectable(projName.c_str(), selected)) {
+                    m_selectedRecentIndex = i;
+                }
+
+                ImGui::SameLine(ImGui::GetWindowWidth() - 80);
+                ImGui::PushID((int)i);
+                if (ImGui::Button(&quot;Open##recent&quot;, ImVec2(70, 0))) {
+                    result = tryOpenProject(projPath);
+                    if (result) {
+                        showToast(&quot;Project opened!&quot;, ToastType::Success);
+                    } else {
+                        showToast(&quot;Failed to open project&quot;, ToastType::Error);
+                    }
+                }
+                ImGui::PopID();
+            }
+        }
+        ImGui::EndChild();
+    }
+
+    return result;
+}
+</code></pre>
+<p><strong>Step 3: Build and test</strong></p>
+<pre><code class="language-bash">cd /home/pedro/repo/caffeine/build &amp;&amp; timeout 60 make -j8 doppio 2&gt;&amp;1 | tail -15
+</code></pre>
+<p>Expected: Compiles, tab shows in dialog.</p>
+<p><strong>Step 4: Commit</strong></p>
+<pre><code class="language-bash">git add src/editor/ProjectStartupDialog.cpp src/editor/ProjectStartupDialog.hpp
+git commit -m &quot;feat: implement Open Recent tab with search filtering&quot;
+</code></pre>
+<hr>
+<h2>Phase 6: Implement &quot;Browse Projects&quot; Tab</h2>
+<h3>Task 7: Implement renderBrowseTab()</h3>
+<p><strong>Files:</strong></p>
+<ul>
+<li>Modify: <code>src/editor/ProjectStartupDialog.cpp</code> (replace stub at line ~150)</li>
+</ul>
+<p><strong>Step 1: Implement renderBrowseTab()</strong></p>
+<p>Replace the existing stub:</p>
+<pre><code class="language-cpp">std::optional&lt;ProjectConfig&gt; ProjectStartupDialog::renderBrowseTab() {
+    std::optional&lt;ProjectConfig&gt; result;
+
+    // Path Input
+    ImGui::InputTextWithHint(&quot;##browse_path&quot;, &quot;Enter directory path...&quot;, 
+                            m_browsePath.data(), m_browsePath.capacity());
+    ImGui::SameLine();
+    if (ImGui::Button(&quot;Browse Folder...##browse&quot;, ImVec2(120, 0))) {
+        showToast(&quot;File picker coming soon&quot;, ToastType::Info);
+    }
+
+    ImGui::Spacing();
+    ImGui::Separator();
+
+    // Results List
+    if (ImGui::BeginChild(&quot;browse_list&quot;, ImVec2(0, 300), true)) {
+        if (m_browseResults.empty()) {
+            ImGui::TextDisabled(&quot;No projects found. Type a path and press Enter.&quot;);
+        } else {
+            ImGui::Text(&quot;Found %zu project(s):&quot;, m_browseResults.size());
+            ImGui::Separator();
+
+            for (size_t i = 0; i &lt; m_browseResults.size(); ++i) {
+                const auto&amp; projPath = m_browseResults[i];
+                std::string projName = projPath.filename().string();
+
+                bool selected = (m_selectedBrowseIndex == (int)i);
+                if (ImGui::Selectable(projName.c_str(), selected)) {
+                    m_selectedBrowseIndex = i;
+                }
+
+                ImGui::SameLine(ImGui::GetWindowWidth() - 80);
+                ImGui::PushID((int)i + 1000);  // Offset ID to avoid collision with Recent tab
+                if (ImGui::Button(&quot;Open##browse&quot;, ImVec2(70, 0))) {
+                    result = tryOpenProject(projPath);
+                    if (result) {
+                        showToast(&quot;Project opened!&quot;, ToastType::Success);
+                    } else {
+                        showToast(&quot;Failed to open project&quot;, ToastType::Error);
+                    }
+                }
+                ImGui::PopID();
+            }
+        }
+        ImGui::EndChild();
+    }
+
+    return result;
+}
+</code></pre>
+<p><strong>Step 2: Add state variables for Browse tab</strong></p>
+<p>Add to ProjectStartupDialog.hpp private section (if not already there):</p>
+<pre><code class="language-cpp">    int m_selectedBrowseIndex = -1;
+</code></pre>
+<p><strong>Step 3: Build and test</strong></p>
+<pre><code class="language-bash">cd /home/pedro/repo/caffeine/build &amp;&amp; timeout 60 make -j8 doppio 2&gt;&amp;1 | tail -15
+</code></pre>
+<p>Expected: All 3 tabs render without errors.</p>
+<p><strong>Step 4: Commit</strong></p>
+<pre><code class="language-bash">git add src/editor/ProjectStartupDialog.cpp src/editor/ProjectStartupDialog.hpp
+git commit -m &quot;feat: implement Browse Projects tab with results list&quot;
+</code></pre>
+<hr>
+<h2>Phase 7: Cleanup &amp; Final Testing</h2>
+<h3>Task 8: Remove Old Tab Methods (No Longer Needed)</h3>
+<p><strong>Files:</strong></p>
+<ul>
+<li>Modify: <code>src/editor/ProjectStartupDialog.cpp</code> (remove old stubs)</li>
+</ul>
+<p><strong>Step 1: Check if old renderCreateTab, renderRecentTab, renderBrowseTab exist as separate methods</strong></p>
+<p>Look for duplicate method definitions that were stubs. If they exist as separate implementations (not the new tab-based ones), remove them to avoid confusion.</p>
+<p><strong>Step 2: Clean build</strong></p>
+<pre><code class="language-bash">cd /home/pedro/repo/caffeine/build &amp;&amp; rm -rf * &amp;&amp; cmake .. &amp;&amp; timeout 120 make -j8 doppio 2&gt;&amp;1 | tail -20
+</code></pre>
+<p>Expected: Full clean build succeeds.</p>
+<p><strong>Step 3: Test execution</strong></p>
+<pre><code class="language-bash">cd /home/pedro/repo/caffeine/build &amp;&amp; timeout 3 ./doppio 2&gt;&amp;1 | head -20
+</code></pre>
+<p>Expected: No crash, 3 tabs visible, clean output.</p>
+<p><strong>Step 4: Commit</strong></p>
+<pre><code class="language-bash">git add src/editor/ProjectStartupDialog.cpp
+git commit -m &quot;cleanup: remove old stub methods, verify tab-based dialog works&quot;
+</code></pre>
+<hr>
+<h2>Summary</h2>
+<p><strong>12 Steps Total:</strong></p>
+<ol>
+<li>Add toast data structure</li>
+<li>Implement toast helper methods</li>
+<li>Implement toast ImGui rendering</li>
+<li>Refactor render() into tabs (with updated Create tab)</li>
+<li>Add recent projects state</li>
+<li>Implement Open Recent tab</li>
+<li>Implement Browse Projects tab</li>
+<li>Cleanup &amp; final testing</li>
+</ol>
+<p><strong>Expected Output:</strong></p>
+<ul>
+<li>ProjectStartupDialog with 3 working tabs</li>
+<li>Toast notifications for success/error feedback</li>
+<li>Project creation with success feedback</li>
+<li>Recent projects list with search</li>
+<li>Browse projects (UI ready, file picker stub)</li>
+</ul>
+<hr>
+<h2>Plan Ready</h2>
+<p><strong>Saved to:</strong> <code>docs/plans/2026-05-16-project-startup-dialog-tabs.md</code></p>
+<h3>Execution Options:</h3>
+<p><strong>1. Subagent-Driven (this session)</strong> - I dispatch fresh subagent per task, review between tasks, fast iteration</p>
+<p><strong>2. Parallel Session (separate)</strong> - You continue in separate terminal with executing-plans skill</p>
+<p>Which approach do you prefer?</p>
+
+</article>

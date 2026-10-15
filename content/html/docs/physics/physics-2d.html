@@ -1,0 +1,308 @@
+<article class="doc-article" data-slug="docs/physics/physics-2d">
+<h1>⚙️ Physics 2D</h1>
+<blockquote>
+<p><strong>Fase:</strong> 4 — O Cérebro<br><strong>Namespace:</strong> <code>Caffeine::Physics2D</code><br><strong>Arquivo:</strong> <code>src/physics/PhysicsSystem2D.hpp</code><br><strong>Status:</strong> ✅ Implementado<br><strong>RF:</strong> RF4.10</p>
+</blockquote>
+<hr>
+<h2>Visão Geral</h2>
+<p>Sistema de física 2D simples com suporte a rigid body dynamics, AABB e circle collision, layers e resposta simples de colisão (restitution + friction).</p>
+<p><strong>Escopo intencional:</strong> Este sistema cobre 90% dos casos de jogos 2D. Para features avançadas (joints, CCD, convex hulls), integrar biblioteca dedicada (Box2D/Jolt) como escalation trigger.</p>
+<hr>
+<h2>API</h2>
+<pre><code class="language-cpp">namespace Caffeine::Physics2D {
+
+struct PhysicsMaterial {
+    f32 friction    = 0.5f;
+    f32 restitution = 0.3f;
+    static PhysicsMaterial ice();
+    static PhysicsMaterial rubber();
+    static PhysicsMaterial metal();
+    static PhysicsMaterial wood();
+    static PhysicsMaterial stone();
+};
+
+struct RigidBody2D {
+    f32  mass          = 1.0f;
+    f32  restitution   = 0.3f;
+    f32  friction      = 0.5f;
+    f32  linearDamping = 0.0f;
+    bool isKinematic   = false;
+    bool lockRotation  = true;
+};
+
+struct Collider2D {
+    Vec2          size      = { 32.0f, 32.0f };
+    Vec2          offset    = { 0.0f, 0.0f };
+    f32           radius    = 16.0f;
+    u32           layer     = 0;
+    u32           layerMask = 0xFFFFFFFF;
+    ColliderShape shape     = ColliderShape::AABB;
+    bool          isStatic  = false;
+    bool          isTrigger = false;
+    bool          isOneWay  = false;
+};
+
+struct Rect2D { Vec2 position; Vec2 size; };
+struct RaycastHit { ECS::Entity entity; Vec2 point; Vec2 normal; f32 distance; bool hit; };
+struct CollisionManifold { Vec2 contactPoint; Vec2 normal; f32 penetration; };
+
+class PhysicsSystem2D : public ECS::ISystem {
+public:
+    explicit PhysicsSystem2D(Events::EventBus* eventBus = nullptr);
+    void onUpdate(ECS::World&amp; world, f32 dt) override;
+
+    void setGravity(Vec2 gravity);
+    Vec2 gravity() const;
+
+    RaycastHit               raycast(ECS::World&amp; world, Vec2 origin, Vec2 dir, f32 maxDist, u32 layerMask = 0xFFFFFFFF);
+    std::vector&lt;ECS::Entity&gt; overlapCircle(ECS::World&amp; world, Vec2 center, f32 radius, u32 layerMask = 0xFFFFFFFF);
+    std::vector&lt;ECS::Entity&gt; overlapAABB(ECS::World&amp; world, Rect2D rect, u32 layerMask = 0xFFFFFFFF);
+
+    void applyForce(ECS::Entity e, Vec2 force);
+    void applyImpulse(ECS::Entity e, Vec2 impulse);
+    void setKinematic(ECS::Entity e, bool kinematic);
+    void teleport(ECS::Entity e, Vec2 position);
+
+    const std::vector&lt;CollisionManifold&gt;&amp; lastManifolds() const;
+};
+
+}
+</code></pre>
+<hr>
+<h2>API Planejada (original de referência)</h2>
+<pre><code class="language-cpp">namespace Caffeine::Physics2D {
+
+// ============================================================================
+// @brief  Resultado de um raycast.
+// ============================================================================
+struct RaycastHit {
+    ECS::Entity entity;
+    Vec2         point;
+    Vec2         normal;
+    f32          distance;
+    bool         hit = false;
+};
+
+// ============================================================================
+// @brief  Manifold de colisão — dados de contato entre dois corpos.
+// ============================================================================
+struct CollisionManifold {
+    Vec2 contactPoint;
+    Vec2 normal;       // de B para A
+    f32  penetration;
+};
+
+// ============================================================================
+// @brief  Sistema de física 2D.
+//
+//  Integração com ECS:
+//  - Lê: RigidBody2D, Collider2D, Position2D, Velocity2D
+//  - Escreve: Position2D, Velocity2D
+//  - Publica: Events::OnCollision2D via EventBus
+//
+//  NÃO suporta (para integrar biblioteca dedicada quando necessário):
+//  - Rotação de rigid bodies
+//  - Joints / constraints
+//  - Complex shapes (convex hulls)
+//  - CCD (Continuous Collision Detection)
+// ============================================================================
+class PhysicsSystem2D : public ECS::ISystem {
+public:
+    explicit PhysicsSystem2D(Events::EventBus* eventBus = nullptr);
+
+    void update(ECS::World&amp; world, f64 dt) override;
+    i32  priority() const override { return 100; }
+    const char* name() const override { return &quot;Physics2D&quot;; }
+
+    // ── Configuração ───────────────────────────────────────────
+    void setGravity(Vec2 gravity);
+    Vec2 gravity() const { return m_gravity; }
+
+    // ── Queries espaciais ──────────────────────────────────────
+    RaycastHit raycast(Vec2 origin, Vec2 direction, f32 maxDistance,
+                       u32 layerMask = 0xFFFFFFFF) const;
+
+    Array&lt;ECS::Entity, 32&gt; overlapCircle(Vec2 center, f32 radius,
+                                          u32 layerMask = 0xFFFFFFFF) const;
+
+    Array&lt;ECS::Entity, 32&gt; overlapAABB(Rect2D rect,
+                                        u32 layerMask = 0xFFFFFFFF) const;
+
+    // ── Controle de bodies ─────────────────────────────────────
+    void applyForce(ECS::Entity e, Vec2 force);      // acumulado, limpo no update
+    void applyImpulse(ECS::Entity e, Vec2 impulse);  // instantâneo
+    void setKinematic(ECS::Entity e, bool kinematic);
+    void teleport(ECS::Entity e, Vec2 position);     // sem sweep de colisão
+
+private:
+    void integrate(ECS::Entity e, RigidBody2D&amp; rb, Position2D&amp; pos,
+                   Velocity2D&amp; vel, f32 dt);
+    bool detectAABBvsAABB(const Collider2D&amp; a, const Position2D&amp; pa,
+                           const Collider2D&amp; b, const Position2D&amp; pb,
+                           CollisionManifold* out);
+    bool detectCirclevsCircle(f32 rA, Vec2 cA, f32 rB, Vec2 cB,
+                               CollisionManifold* out);
+    void resolveCollision(ECS::Entity a, ECS::Entity b,
+                          const CollisionManifold&amp; m);
+    void publishCollisionEvent(ECS::Entity a, ECS::Entity b,
+                                const CollisionManifold&amp; m);
+
+    Vec2 m_gravity = {0, -9.81f * 60.0f};  // pixels/s²
+    HashMap&lt;ECS::Entity, Vec2&gt;  m_pendingForces;
+    Events::EventBus*            m_eventBus = nullptr;
+};
+
+}  // namespace Caffeine::Physics2D
+</code></pre>
+<hr>
+<h2>Pipeline de Física por Frame</h2>
+<pre><code>1. Broad phase
+   └── AABB bounding box check para todos os pares
+       (evita narrow phase para objetos distantes)
+
+2. Narrow phase
+   ├── AABB vs AABB  (Separating Axis Theorem)
+   └── Circle vs Circle
+
+3. Resolver colisões
+   └── Apply impulse baseado em restitution/friction/mass
+
+4. Integração
+   └── pos += vel * dt  (Euler semi-implícito)
+       vel += (gravity + forces) * dt
+
+5. Publicar eventos
+   └── EventBus::publishDeferred(OnCollision2D{...})
+</code></pre>
+<hr>
+<h2>Exemplos de Uso</h2>
+<pre><code class="language-cpp">// ── Setup ─────────────────────────────────────────────────────
+auto* physics = world.registerSystem&lt;PhysicsSystem2D&gt;(&amp;eventBus);
+physics-&gt;setGravity({0, -500.0f});  // pixels/s²
+
+// ── Entidade com física ───────────────────────────────────────
+world.add&lt;RigidBody2D&gt;(player, {
+    .mass        = 5.0f,
+    .restitution = 0.3f,
+    .friction    = 0.8f
+});
+world.add&lt;Collider2D&gt;(player, {
+    .size     = {30, 60},
+    .offset   = {0, 0},
+    .isStatic = false,
+    .layer    = 1  // player layer
+});
+
+// ── Plataforma estática ───────────────────────────────────────
+world.add&lt;Collider2D&gt;(platform, {
+    .size     = {200, 20},
+    .isStatic = true,
+    .layer    = 0  // world layer
+});
+
+// ── Aplicar força de pulo ─────────────────────────────────────
+if (input.justPressed(Action::Jump)) {
+    physics-&gt;applyImpulse(player, {0, 800.0f});
+}
+
+// ── Raycast para &quot;chão existe abaixo?&quot; ────────────────────────
+auto hit = physics-&gt;raycast(playerPos, {0, -1}, 32.0f);
+bool onGround = hit.hit;
+
+// ── Overlap para área de ataque ───────────────────────────────
+Rect2D attackBox = { playerPos + Vec2{20, 0}, {40, 40} };
+auto hits = physics-&gt;overlapAABB(attackBox);
+for (auto&amp; enemy : hits) {
+    world.add&lt;TakeDamage&gt;(enemy, { .amount = 25 });
+}
+</code></pre>
+<hr>
+<h2>Collision Layers</h2>
+<pre><code>Layer 0 = World (plataformas, paredes)
+Layer 1 = Player
+Layer 2 = Enemy
+Layer 3 = Projectile
+Layer 4 = Trigger
+
+Máscara: layerMask = (1&lt;&lt;0)|(1&lt;&lt;2) = colide com World E Enemy
+</code></pre>
+<hr>
+<h2>Escalation Triggers</h2>
+<p>Se o jogo precisar de:</p>
+<ul>
+<li>Rotação de rigid bodies → integrar <strong>Box2D</strong> ou <strong>Jolt Physics</strong></li>
+<li>Joints/constraints → integrar biblioteca dedicada</li>
+<li>CCD (evitar tunelamento em velocidade alta) → biblioteca dedicada</li>
+</ul>
+<hr>
+<h2>Decisões de Design</h2>
+<table>
+<thead>
+<tr>
+<th>Decisão</th>
+<th>Justificativa</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>AABB simples</td>
+<td>Cobre 90% dos casos 2D sem complexidade</td>
+</tr>
+<tr>
+<td>Semi-implicit Euler</td>
+<td>Estável e simples para plataformers</td>
+</tr>
+<tr>
+<td>Eventos de colisão via EventBus</td>
+<td>Physics não acopla a Audio/FX</td>
+</tr>
+<tr>
+<td><code>priority = 100</code></td>
+<td>Física antes de tudo — base para movement/animation</td>
+</tr>
+<tr>
+<td><code>pendingForces</code> mapa</td>
+<td>Permite aplicar forças de múltiplos sistemas</td>
+</tr>
+</tbody></table>
+<hr>
+<h2>Critério de Aceitação</h2>
+<ul>
+<li><input disabled="" type="checkbox"> 1K rigid bodies a 60fps</li>
+<li><input disabled="" type="checkbox"> Physics step &lt; 3ms para 1K bodies</li>
+<li><input disabled="" type="checkbox"> <code>tsan</code> clean — <code>applyForce</code> thread-safe</li>
+<li><input checked="" disabled="" type="checkbox"> Raycast retorna hit correto para todos ângulos</li>
+<li><input checked="" disabled="" type="checkbox"> Colisões publicam <code>OnCollision2D</code> corretamente</li>
+</ul>
+<hr>
+<h2>Dependências</h2>
+<ul>
+<li><strong>Upstream:</strong> <a href="ecs.md">ECS Core</a>, <a href="events.md">Event Bus</a>, <a href="../math/vectors.md">Fase 1 — Math</a></li>
+<li><strong>Downstream:</strong> <a href="audio.md">Audio</a> (reage a colisões), <a href="../physics/spatial-partitioning.md">Fase 5 — Spatial Partitioning</a></li>
+</ul>
+<hr>
+<h2>🔗 Tópicos Relacionados</h2>
+<table>
+<thead>
+<tr>
+<th>Tópico</th>
+<th>Descrição</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><a href="">Sistemas de Jogo</a></td>
+<td>Physics como sistema ECS</td>
+</tr>
+<tr>
+<td><a href="">Memória &amp; Dados</a></td>
+<td>AABB trees e dados espaciais</td>
+</tr>
+</tbody></table>
+<h2>Referências</h2>
+<ul>
+<li><a href="../architecture_specs.md"><code>docs/architecture_specs.md</code></a> — §13 Physics 2D</li>
+<li><a href="../core/events.md"><code>docs/core/events.md</code></a> — <code>OnCollision2D</code> event</li>
+<li><a href="https://github.com/google/liquidfun">Box2D/LiquidFun</a> — referência para casos avançados</li>
+<li><a href="">Índice de Tópicos Transversais</a></li>
+</ul>
+
+</article>

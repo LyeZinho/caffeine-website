@@ -1,0 +1,217 @@
+<article class="doc-article" data-slug="docs/api/README">
+<h1>API Reference</h1>
+<blockquote>
+<p>Complete API documentation for Caffeine Engine</p>
+</blockquote>
+<h2>Module Index</h2>
+<h3>Core Module</h3>
+<table>
+<thead>
+<tr>
+<th>Type/Function</th>
+<th>Description</th>
+<th>Header</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>u8</code>, <code>u16</code>, <code>u32</code>, <code>u64</code></td>
+<td>Unsigned integers</td>
+<td><a href="../../src/core/Types.hpp"><code>src/core/Types.hpp</code></a></td>
+</tr>
+<tr>
+<td><code>i8</code>, <code>i16</code>, <code>i32</code>, <code>i64</code></td>
+<td>Signed integers</td>
+<td><a href="../../src/core/Types.hpp"><code>src/core/Types.hpp</code></a></td>
+</tr>
+<tr>
+<td><code>f32</code>, <code>f64</code></td>
+<td>Floating point</td>
+<td><a href="../../src/core/Types.hpp"><code>src/core/Types.hpp</code></a></td>
+</tr>
+<tr>
+<td><code>CF_ASSERT(condition, msg)</code></td>
+<td>Debug assertion</td>
+<td><a href="../../src/core/Assertions.hpp"><code>src/core/Assertions.hpp</code></a></td>
+</tr>
+<tr>
+<td><code>CF_PLATFORM_WINDOWS</code></td>
+<td>Windows platform macro</td>
+<td><a href="../../src/core/Platform.hpp"><code>src/core/Platform.hpp</code></a></td>
+</tr>
+<tr>
+<td><code>CF_PLATFORM_LINUX</code></td>
+<td>Linux platform macro</td>
+<td><a href="../../src/core/Platform.hpp"><code>src/core/Platform.hpp</code></a></td>
+</tr>
+<tr>
+<td><code>CF_PLATFORM_MACOS</code></td>
+<td>macOS platform macro</td>
+<td><a href="../../src/core/Platform.hpp"><code>src/core/Platform.hpp</code></a></td>
+</tr>
+</tbody></table>
+<p><strong>Documentation:</strong> <a href="../core/types.md"><code>docs/core/types.md</code></a></p>
+<h3>Memory Module</h3>
+<table>
+<thead>
+<tr>
+<th>Class</th>
+<th>Description</th>
+<th>Header</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>IAllocator</code></td>
+<td>Base allocator interface</td>
+<td><a href="../../src/memory/Allocator.hpp"><code>src/memory/Allocator.hpp</code></a></td>
+</tr>
+<tr>
+<td><code>LinearAllocator</code></td>
+<td>O(1) allocation, reset() clears all</td>
+<td><a href="../../src/memory/LinearAllocator.hpp"><code>src/memory/LinearAllocator.hpp</code></a></td>
+</tr>
+<tr>
+<td><code>PoolAllocator</code></td>
+<td>Fixed-size slot allocator</td>
+<td><a href="../../src/memory/PoolAllocator.hpp"><code>src/memory/PoolAllocator.hpp</code></a></td>
+</tr>
+<tr>
+<td><code>StackAllocator</code></td>
+<td>Marker-based allocator</td>
+<td><a href="../../src/memory/StackAllocator.hpp"><code>src/memory/StackAllocator.hpp</code></a></td>
+</tr>
+</tbody></table>
+<p><strong>Documentation:</strong> <a href="../memory/allocators.md"><code>docs/memory/allocators.md</code></a> | <a href="../memory/memory-model.md"><code>docs/memory/memory-model.md</code></a></p>
+<h3>Containers Module</h3>
+<table>
+<thead>
+<tr>
+<th>Class</th>
+<th>Description</th>
+<th>Header</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>Vector&lt;T&gt;</code></td>
+<td>Dynamic array</td>
+<td><a href="../../src/containers/Vector.hpp"><code>src/containers/Vector.hpp</code></a></td>
+</tr>
+<tr>
+<td><code>HashMap&lt;K, V&gt;</code></td>
+<td>Hash table</td>
+<td><a href="../../src/containers/HashMap.hpp"><code>src/containers/HashMap.hpp</code></a></td>
+</tr>
+<tr>
+<td><code>StringView</code></td>
+<td>Non-owning string</td>
+<td><a href="../../src/containers/StringView.hpp"><code>src/containers/StringView.hpp</code></a></td>
+</tr>
+<tr>
+<td><code>FixedString&lt;T, N&gt;</code></td>
+<td>Fixed-size string</td>
+<td><a href="../../src/containers/FixedString.hpp"><code>src/containers/FixedString.hpp</code></a></td>
+</tr>
+</tbody></table>
+<p><strong>Documentation:</strong> <a href="../memory/containers.md"><code>docs/memory/containers.md</code></a></p>
+<h3>Math Module</h3>
+<table>
+<thead>
+<tr>
+<th>Class/Function</th>
+<th>Description</th>
+<th>Header</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>Vec2</code></td>
+<td>2D vector</td>
+<td><a href="../../src/math/Vec2.hpp"><code>src/math/Vec2.hpp</code></a></td>
+</tr>
+<tr>
+<td><code>Vec3</code></td>
+<td>3D vector</td>
+<td><a href="../../src/math/Vec3.hpp"><code>src/math/Vec3.hpp</code></a></td>
+</tr>
+<tr>
+<td><code>Vec4</code></td>
+<td>4D vector</td>
+<td><a href="../../src/math/Vec4.hpp"><code>src/math/Vec4.hpp</code></a></td>
+</tr>
+<tr>
+<td><code>Mat4</code></td>
+<td>4x4 matrix</td>
+<td><a href="../../src/math/Mat4.hpp"><code>src/math/Mat4.hpp</code></a></td>
+</tr>
+<tr>
+<td><code>Math::lerp()</code></td>
+<td>Linear interpolation</td>
+<td><a href="../../src/math/Math.hpp"><code>src/math/Math.hpp</code></a></td>
+</tr>
+<tr>
+<td><code>Math::clamp()</code></td>
+<td>Clamp value</td>
+<td><a href="../../src/math/Math.hpp"><code>src/math/Math.hpp</code></a></td>
+</tr>
+<tr>
+<td><code>Math::isPowerOfTwo()</code></td>
+<td>Power of two check</td>
+<td><a href="../../src/math/Math.hpp"><code>src/math/Math.hpp</code></a></td>
+</tr>
+</tbody></table>
+<p><strong>Documentation:</strong> <a href="../math/vectors.md"><code>docs/math/vectors.md</code></a></p>
+<h2>Quick Start</h2>
+<pre><code class="language-cpp">#include &lt;Caffeine.hpp&gt;
+
+// Using types
+Caffeine::u32 count = 42;
+Caffeine::f32 health = 100.0f;
+
+// Using containers
+Caffeine::Vector&lt;Caffeine::f32&gt; positions;
+positions.pushBack(1.0f);
+positions.pushBack(2.0f);
+
+// Using math
+Caffeine::Vec3 pos(1.0f, 2.0f, 3.0f);
+Caffeine::Mat4 transform = Caffeine::Mat4::translation(pos);
+</code></pre>
+<h2>Cross-Module References</h2>
+<table>
+<thead>
+<tr>
+<th>From</th>
+<th>To</th>
+<th>Reference</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Vector</td>
+<td>Memory</td>
+<td>Uses IAllocator for allocation</td>
+</tr>
+<tr>
+<td>All</td>
+<td>Core</td>
+<td>Uses types (u32, f32, etc.)</td>
+</tr>
+<tr>
+<td>Math</td>
+<td>Core</td>
+<td>Uses types in vector/matrix operations</td>
+</tr>
+<tr>
+<td>Containers</td>
+<td>Core</td>
+<td>Uses types for indices and sizes</td>
+</tr>
+</tbody></table>
+<h2>See Also</h2>
+<ul>
+<li><a href="../MASTER.md">MASTER.md</a> - Complete documentation</li>
+<li><a href="../core/types.md">Core Types</a></li>
+<li><a href="../memory/allocators.md">Memory Allocators</a></li>
+<li><a href="../memory/containers.md">Memory Containers</a></li>
+<li><a href="../math/vectors.md">Math Vectors</a></li>
+<li><a href="../HISTORY.md">HISTORY.md</a> - Development history</li>
+</ul>
+
+</article>

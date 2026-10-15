@@ -1,0 +1,426 @@
+<article class="doc-article" data-slug="docs/assets/caf-format">
+<h1>📄 Formato .caf — Caffeine Asset Format</h1>
+<blockquote>
+<p><strong>Fases:</strong> 3 (fundação) + 4 (Prefabs/Scenes)
+<strong>Namespace:</strong> <code>Caffeine</code>, <code>Caffeine::IO</code>
+<strong>Arquivos:</strong> <code>src/core/io/CafTypes.hpp</code>, <code>src/core/io/BlobLoader.hpp/.cpp</code>, <code>src/core/io/CafWriter.hpp/.cpp</code>, <code>src/core/io/Crc32.hpp</code>
+<strong>Status:</strong> ✅ Implementado
+<strong>RF:</strong> RF3.0, RF4.5</p>
+</blockquote>
+<hr>
+<h2>Visão Geral</h2>
+<p>O <code>.caf</code> (Caffeine Asset Format) é o formato binário nativo da engine. Filosofia: <strong>Zero-parsing, Zero-copy</strong> — o arquivo no disco é um espelho direto da memória RAM/VRAM.</p>
+<p>Não há deserialização: o arquivo é lido como um bloco de bytes e os ponteiros são ajustados. Velocidade limitada apenas pelo SSD.</p>
+<hr>
+<h2>Layout do Arquivo</h2>
+<pre><code>Offset          Tamanho  Descrição
+--------------  -------  -----------
+0               32       CafHeader (magic, version, type, crc32, sizes)
+32              N        Metadata block (struct dependente do AssetType)
+32 + N          M        Payload binário (pixels, PCM, geometry, etc.)
+32 + N + M      4        Footer CRC32 (CRC32 do arquivo inteiro)
+</code></pre>
+<p>O footer de 4 bytes protege contra corrupção silenciosa do arquivo completo. O <code>crc32</code> no header protege apenas o payload.</p>
+<h3>Constantes do Formato</h3>
+<table>
+<thead>
+<tr>
+<th>Constante</th>
+<th>Valor</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>CafHeader::kMagic</code></td>
+<td><code>0xCAFECAFE</code></td>
+</tr>
+<tr>
+<td><code>CafHeader::kVersionMajor</code></td>
+<td><code>1</code></td>
+</tr>
+<tr>
+<td><code>CafHeader::kVersionMinor</code></td>
+<td><code>0</code></td>
+</tr>
+<tr>
+<td><code>CafHeader::kHeaderSize</code></td>
+<td><code>32</code> bytes</td>
+</tr>
+<tr>
+<td><code>CafHeader::kFooterSize</code></td>
+<td><code>4</code> bytes</td>
+</tr>
+<tr>
+<td>Alinhamento geral</td>
+<td><code>16</code> bytes (SIMD)</td>
+</tr>
+<tr>
+<td>Alinhamento Mesh/Shader</td>
+<td><code>32</code> bytes (SIMD + GPU bus)</td>
+</tr>
+<tr>
+<td>Endianness</td>
+<td>Little-endian (x86/x64 nativo)</td>
+</tr>
+</tbody></table>
+<hr>
+<h2><code>CafHeader</code> — 32 bytes</h2>
+<pre><code class="language-cpp">namespace Caffeine {
+
+struct CafHeader {
+    u32       magic;         // offset  0 — 0xCAFECAFE
+    u16       versionMajor;  // offset  4 — breaking changes
+    u16       versionMinor;  // offset  6 — backwards-compatible
+    AssetType type;          // offset  8 — AssetType (u16)
+    u16       flags;         // offset 10 — CafFlags bitmask
+    u32       crc32;         // offset 12 — CRC32 do payload
+    u64       metadataSize;  // offset 16 — bytes do bloco de metadata
+    u64       dataSize;      // offset 24 — bytes do payload
+};                           //            = 32 bytes total ✓
+
+static_assert(sizeof(CafHeader) == 32);
+}
+</code></pre>
+<p><strong>Layout em bytes:</strong></p>
+<pre><code>byte  0- 3   magic          (u32)
+byte  4- 5   versionMajor   (u16)
+byte  6- 7   versionMinor   (u16)
+byte  8- 9   type           (u16, AssetType enum)
+byte 10-11   flags          (u16, CafFlags bitmask)
+byte 12-15   crc32          (u32, CRC32 do payload)
+byte 16-23   metadataSize   (u64)
+byte 24-31   dataSize       (u64)
+</code></pre>
+<hr>
+<h2><code>AssetType</code></h2>
+<pre><code class="language-cpp">enum class AssetType : u16 {
+    Unknown   = 0,
+    Texture,       // RGBA8, BC7, ASTC → SDL_GPUTexture
+    Audio,         // PCM, ADPCM       → SDL_AudioStream
+    Mesh,          // Vertex/Index Buffers (Fase 5)
+    Prefab,        // ECS Entity Template (binário)
+    Scene,         // World State (Fase 4)
+    Shader,        // SPIR-V / bytecode
+    Animation,     // AnimationClip frames
+    Font           // Bitmap/SDF font atlas
+};
+</code></pre>
+<hr>
+<h2><code>CafFlags</code></h2>
+<pre><code class="language-cpp">enum CafFlags : u16 {
+    CAF_FLAG_NONE        = 0x0000,
+    CAF_FLAG_COMPRESSED  = 0x0001,  // payload comprimido
+    CAF_FLAG_ENCRYPTED   = 0x0002,  // payload encriptado
+    CAF_FLAG_SRGB        = 0x0004,  // textura: espaço de cor sRGB
+    CAF_FLAG_MIPCHAIN    = 0x0008,  // textura: mip-chain presente
+    CAF_FLAG_STREAMED    = 0x0010,  // asset deve ser transmitido em streaming
+};
+</code></pre>
+<hr>
+<h2>Structs de Metadata</h2>
+<p>Cada tipo de asset tem um struct de metadata fixo escrito imediatamente após o <code>CafHeader</code> (offset 32).</p>
+<h3><code>TextureMetadata</code> — 24 bytes</h3>
+<pre><code class="language-cpp">struct TextureMetadata {
+    u32 width;       // largura em pixels
+    u32 height;      // altura em pixels
+    u32 format;      // SDL_GPUTextureFormat (0 = RGBA8)
+    u32 mipLevels;   // 1 = sem mips
+    u64 reserved;    // zero
+};
+</code></pre>
+<p><strong>Payload:</strong> pixels brutos (RGBA8 ou comprimido BC7/ASTC).</p>
+<h3><code>AudioMetadata</code> — 16 bytes</h3>
+<pre><code class="language-cpp">struct AudioMetadata {
+    u32 sampleRate;    // 44100, 48000, etc.
+    u16 channels;      // 1 = mono, 2 = stereo
+    u16 bitsPerSample; // 8, 16 ou 32
+    u32 sampleCount;   // total de sample frames
+    u32 reserved;      // zero
+};
+</code></pre>
+<p><strong>Payload:</strong> PCM raw.</p>
+<h3><code>SceneMetadata</code> — 20 bytes</h3>
+<pre><code class="language-cpp">struct SceneMetadata {
+    u32 entityCount;          // total de entidades
+    u32 archetypeCount;       // arquétipos distintos
+    u32 stringTableOffset;    // offset relativo ao início do bloco de metadata
+    u32 assetRefTableOffset;  // offset relativo ao início do bloco de metadata
+    u32 reserved;             // zero
+};
+</code></pre>
+<p>Seguido por <code>archetypeCount × ArchetypeDesc</code>:</p>
+<pre><code class="language-cpp">struct ArchetypeDesc {  // 12 bytes
+    u32 componentMask;  // bitmask dos tipos de componente
+    u32 entityCount;    // entidades neste arquétipo
+    u32 dataOffset;     // offset no payload onde os dados começam
+};
+</code></pre>
+<h3><code>ShaderMetadata</code> — 8 bytes</h3>
+<pre><code class="language-cpp">struct ShaderMetadata {
+    u32 stage;    // 0=vertex, 1=fragment, 2=compute
+    u32 reserved; // zero
+};
+</code></pre>
+<hr>
+<h2><code>Crc32</code> — <code>src/core/io/Crc32.hpp</code></h2>
+<p>IEEE 802.3 CRC32 com lookup table <code>constexpr</code>. Zero dependências externas.</p>
+<pre><code class="language-cpp">namespace Caffeine::IO {
+
+// CRC32 de um bloco de memória
+constexpr u32 crc32(const void* data, usize size);
+
+// CRC32 incremental (streaming)
+constexpr u32 crc32Continue(u32 runningCrc, const void* data, usize size);
+
+} // namespace Caffeine::IO
+</code></pre>
+<hr>
+<h2><code>BlobLoader</code> — <code>src/core/io/BlobLoader.hpp</code></h2>
+<p>Loader de baixo nível. Um único <code>fread</code>, zero seeks, zero cópias extras.</p>
+<pre><code class="language-cpp">namespace Caffeine::IO {
+
+class BlobLoader {
+public:
+    struct LoadResult {
+        const CafHeader* header   = nullptr; // aponta para início do buffer
+        const void*      metadata = nullptr; // aponta para offset 32
+        const void*      payload  = nullptr; // aponta para offset 32 + metadataSize
+        bool             valid    = false;
+    };
+
+    // Carrega e valida o arquivo inteiro. Aloca via allocator.
+    static LoadResult load(const char* path, IAllocator* allocator);
+
+    // Valida magic + version sem carregar o payload.
+    static bool validateHeader(const char* path);
+
+private:
+    static bool verifyCRC32(const void* data, u64 size, u32 expected);
+};
+
+} // namespace Caffeine::IO
+</code></pre>
+<h3>Sequência de Validação</h3>
+<pre><code>BlobLoader::load(path, allocator)
+    │
+    ├── fopen()
+    ├── fread() [single shot — todo o arquivo de uma vez]
+    │
+    ├── magic == 0xCAFECAFE ?            ← rejeita arquivo inválido
+    ├── versionMajor == 1 ?              ← rejeita versão incompatível
+    ├── CRC32(payload) == header.crc32 ? ← rejeita payload corrompido
+    └── CRC32(file[0..end-4]) == footer? ← rejeita arquivo corrompido
+          │
+          ▼
+    LoadResult { header, metadata, payload, valid=true }
+</code></pre>
+<hr>
+<h2><code>CafWriter</code> — <code>src/core/io/CafWriter.hpp</code></h2>
+<p>Escreve um arquivo <code>.caf</code> completo com header, metadata, payload e footer CRC32.</p>
+<pre><code class="language-cpp">namespace Caffeine::IO {
+
+class CafWriter {
+public:
+    struct WriteResult {
+        bool success      = false;
+        u64  bytesWritten = 0;
+    };
+
+    static WriteResult write(
+        const char* path,
+        AssetType   type,
+        u16         flags,
+        const void* metadata,
+        u64         metadataSize,
+        const void* payload,
+        u64         payloadSize);
+};
+
+} // namespace Caffeine::IO
+</code></pre>
+<h3>Sequência de Escrita</h3>
+<pre><code>CafWriter::write(...)
+    │
+    ├── Monta CafHeader:
+    │     magic         = 0xCAFECAFE
+    │     versionMajor  = 1, versionMinor = 0
+    │     type          = type
+    │     flags         = flags
+    │     crc32         = CRC32(payload)
+    │     metadataSize  = metadataSize
+    │     dataSize      = payloadSize
+    │
+    ├── fwrite(header)
+    ├── fwrite(metadata)
+    ├── fwrite(payload)
+    └── fwrite(footer = CRC32(header + metadata + payload))
+          │
+          ▼
+    WriteResult { success=true, bytesWritten=totalSize }
+</code></pre>
+<hr>
+<h2>Fluxo de Carregamento de Asset (Fase 3+)</h2>
+<pre><code>AssetManager::loadAsync&lt;Texture&gt;(&quot;hero.caf&quot;)
+      │
+      ▼  Job System (background thread)
+BlobLoader::validateHeader(&quot;hero.caf&quot;)
+      ├── magic ✓, version ✓
+      │
+      ▼
+LinearAllocator::alloc(totalFileSize, 16)
+      │
+      ▼
+fread(file, buffer, totalFileSize)   ← 1 syscall
+      │
+      ▼
+BlobLoader::load() — valida CRCs
+      │
+      ▼
+AssetResolver::resolveTexture(blob, device)
+      └── SDL_GPUUploadTexture(device, pixels, width, height)
+            │
+            ▼
+      AssetHandle&lt;Texture&gt; { status = Loaded }
+</code></pre>
+<hr>
+<h2>Ferramenta de Criação (Fase 6)</h2>
+<p>Na Fase 6, o <a href="../assets/asset-pipeline.md">Asset Pipeline</a> converterá formatos convencionais:</p>
+<pre><code>PNG  → textures/hero.caf      (CafWriter::write, AssetType::Texture)
+WAV  → audio/jump.caf         (CafWriter::write, AssetType::Audio)
+OBJ  → meshes/player.caf      (CafWriter::write, AssetType::Mesh)
+GLSL → shaders/sprite.caf     (CafWriter::write, AssetType::Shader)
+</code></pre>
+<hr>
+<h2>Testes</h2>
+<p><code>tests/test_caf.cpp</code> — 27 test cases, 53 assertions:</p>
+<table>
+<thead>
+<tr>
+<th>Categoria</th>
+<th>Cobertura</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>CafHeader</code> layout</td>
+<td><code>static_assert</code> tamanho, alinhamento, endianness</td>
+</tr>
+<tr>
+<td><code>CafHeader</code> helpers</td>
+<td><code>payloadAlignment()</code>, <code>totalFileSize()</code></td>
+</tr>
+<tr>
+<td><code>AssetType</code> discriminação</td>
+<td>Todos os 8 tipos</td>
+</tr>
+<tr>
+<td><code>CafFlags</code> bitmask</td>
+<td>Combinações</td>
+</tr>
+<tr>
+<td><code>TextureMetadata</code></td>
+<td>Layout 24 bytes</td>
+</tr>
+<tr>
+<td><code>AudioMetadata</code></td>
+<td>Layout 16 bytes</td>
+</tr>
+<tr>
+<td><code>SceneMetadata</code> + <code>ArchetypeDesc</code></td>
+<td>Layout 20 + 12 bytes</td>
+</tr>
+<tr>
+<td><code>ShaderMetadata</code></td>
+<td>Layout 8 bytes</td>
+</tr>
+<tr>
+<td>CRC32</td>
+<td>Vetores IEEE 802.3, streaming, continue</td>
+</tr>
+<tr>
+<td><code>CafWriter::write</code></td>
+<td>Round-trip completo</td>
+</tr>
+<tr>
+<td><code>BlobLoader::load</code></td>
+<td>Round-trip completo</td>
+</tr>
+<tr>
+<td><code>BlobLoader</code> corrupção</td>
+<td>Header CRC inválido, payload CRC inválido, footer CRC inválido</td>
+</tr>
+</tbody></table>
+<hr>
+<h2>Requisitos de Engenharia</h2>
+<table>
+<thead>
+<tr>
+<th>Categoria</th>
+<th>Requisito</th>
+<th>Status</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Endianness</td>
+<td>Little-endian (x86/x64) — <code>static_assert</code> em compile time</td>
+<td>✅</td>
+</tr>
+<tr>
+<td>Alinhamento</td>
+<td>Geral 16B, Mesh/Shader 32B — <code>payloadAlignment()</code></td>
+<td>✅</td>
+</tr>
+<tr>
+<td>IO Pattern</td>
+<td>Single-shot <code>fread</code> — zero seeks, zero cópias extras</td>
+<td>✅</td>
+</tr>
+<tr>
+<td>Versioning</td>
+<td><code>versionMajor</code>/<code>versionMinor</code> no header — rejeição em load</td>
+<td>✅</td>
+</tr>
+<tr>
+<td>CRC32 payload</td>
+<td><code>header.crc32</code> — detecta corrupção do payload</td>
+<td>✅</td>
+</tr>
+<tr>
+<td>CRC32 footer</td>
+<td>Footer de 4 bytes — detecta corrupção de qualquer byte do arquivo</td>
+<td>✅</td>
+</tr>
+<tr>
+<td>Header size</td>
+<td>32 bytes — 2× alinhamento SIMD — <code>static_assert</code></td>
+<td>✅</td>
+</tr>
+</tbody></table>
+<hr>
+<h2>Dependências</h2>
+<ul>
+<li><strong>Upstream:</strong> <a href="../concurrency/job-system.md">Job System</a>, <a href="../memory/allocators.md">Memory — LinearAllocator</a></li>
+<li><strong>Downstream:</strong> <a href="asset-manager.md">Asset Manager</a>, <a href="../ecs/scene.md">Fase 4 — Scene Serialization</a>, <a href="../assets/mesh-loading.md">Fase 5 — Mesh Loading</a>, <a href="../assets/asset-pipeline.md">Fase 6 — Asset Pipeline</a></li>
+</ul>
+<hr>
+<h2>🔗 Tópicos Relacionados</h2>
+<table>
+<thead>
+<tr>
+<th>Tópico</th>
+<th>Descrição</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><a href="">Assets &amp; Pipeline</a></td>
+<td>.caf como formato nativo de assets</td>
+</tr>
+</tbody></table>
+<h2>Referências</h2>
+<ul>
+<li><a href="../architecture_specs.md"><code>docs/architecture_specs.md</code></a> — §5 Scene Serialization, §7 Asset Manager</li>
+<li><a href="../HISTORY.md"><code>docs/HISTORY.md</code></a> — §4.2 Sistema de Assets — O Formato .caf</li>
+<li><a href="asset-manager.md"><code>assets/asset-manager.md</code></a> — usa <code>BlobLoader</code> internamente</li>
+<li><a href="../assets/asset-pipeline.md"><code>assets/asset-pipeline.md</code></a> — produz arquivos <code>.caf</code></li>
+<li><a href="">Índice de Tópicos Transversais</a></li>
+</ul>
+
+</article>

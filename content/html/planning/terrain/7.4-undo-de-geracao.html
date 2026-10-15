@@ -1,0 +1,170 @@
+<article class="doc-article" data-slug="planning/terrain/7.4-undo-de-geracao">
+<h1>7.4 — Undo de Geração</h1>
+<blockquote>
+<p><strong>Fase:</strong> 10 · <strong>Prioridade:</strong> Média · <strong>Esforço:</strong> Baixo
+<strong>Depende de:</strong> Fase 4 (<code>.cterrain</code>), sistema undo existente no sculpt
+<strong>Bloqueia:</strong> 7.3 (brush seguro), experimentação nos presets</p>
+</blockquote>
+<hr>
+<h2>Objetivo</h2>
+<p>Guardar snapshot do heightmap (e opcionalmente splatmap) antes de operações destrutivas — <strong>Generate Terrain</strong>, <strong>Flatten</strong>, import — permitindo Ctrl+Z.</p>
+<hr>
+<h2>Estado Atual</h2>
+<table>
+<thead>
+<tr>
+<th>Operação</th>
+<th>Undo</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Sculpt (drag)</td>
+<td>✅ <code>beginUndo</code> / <code>endUndo</code> no viewport</td>
+</tr>
+<tr>
+<td>Splat paint</td>
+<td>❌</td>
+</tr>
+<tr>
+<td>Generate Terrain</td>
+<td>❌</td>
+</tr>
+<tr>
+<td>Flatten</td>
+<td>❌</td>
+</tr>
+<tr>
+<td>Alterar resolution</td>
+<td>❌</td>
+</tr>
+</tbody></table>
+<hr>
+<h2>Design</h2>
+<h3>Snapshot leve</h3>
+<pre><code class="language-cpp">struct TerrainSnapshot {
+    u32 resolutionX, resolutionZ;
+    std::vector&lt;f32&gt; heights;
+    std::vector&lt;Vec4&gt; splatWeights;  // opcional
+    u32 dataRevision;
+    u32 splatRevision;
+};
+
+class TerrainUndoStack {
+    static constexpr u32 kMaxSnapshots = 16;
+    std::deque&lt;TerrainSnapshot&gt; m_undo;
+    std::deque&lt;TerrainSnapshot&gt; m_redo;
+
+    void pushBeforeModify(ECS::Entity entity);
+    bool undo(ECS::World&amp; world, ECS::Entity entity);
+    bool redo(ECS::World&amp; world, ECS::Entity entity);
+};
+</code></pre>
+<h3>Quando criar snapshot</h3>
+<table>
+<thead>
+<tr>
+<th>Evento</th>
+<th align="center">Push undo?</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Botão <strong>Generate Terrain</strong></td>
+<td align="center">✅ antes</td>
+</tr>
+<tr>
+<td>Botão <strong>Flatten</strong></td>
+<td align="center">✅ antes</td>
+</tr>
+<tr>
+<td>Import PNG / load <code>.cterrain</code></td>
+<td align="center">✅ antes</td>
+</tr>
+<tr>
+<td>Sculpt stroke start</td>
+<td align="center">✅ (já existe via editor undo)</td>
+</tr>
+<tr>
+<td>Splat stroke start</td>
+<td align="center">✅ (adicionar)</td>
+</tr>
+<tr>
+<td>Slider resolution</td>
+<td align="center">✅ no primeiro change do drag</td>
+</tr>
+</tbody></table>
+<p><strong>Não</strong> criar snapshot em cada frame de brush — só no início do stroke.</p>
+<hr>
+<h2>Integração com Editor Undo</h2>
+<p>Opção recomendada: <strong>undo dedicado ao terreno</strong> por entidade, integrado ao <code>EditorContext::undo</code> global.</p>
+<pre><code class="language-cpp">// EditorContext
+void beginTerrainUndo(ECS::Entity entity);
+void endTerrainUndo(ECS::Entity entity);
+bool undoTerrain(ECS::Entity entity);
+</code></pre>
+<p>Ou extensão do <code>UndoSystem</code> existente com tipo <code>TerrainHeightmapCommand</code>.</p>
+<hr>
+<h2>Memória</h2>
+<table>
+<thead>
+<tr>
+<th>Resolução</th>
+<th>Heights</th>
+<th>Splat</th>
+<th>Total/snapshot</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>65×65</td>
+<td>17 KB</td>
+<td>68 KB</td>
+<td>~85 KB</td>
+</tr>
+<tr>
+<td>257×257</td>
+<td>264 KB</td>
+<td>1 MB</td>
+<td>~1.3 MB</td>
+</tr>
+</tbody></table>
+<p>16 snapshots × 1.3 MB ≈ <strong>21 MB</strong> no pior caso (257²) — aceitável.</p>
+<p>Mitigação: limitar stack a 8 entradas em resoluções &gt; 129.</p>
+<hr>
+<h2>Implementação</h2>
+<h3>Ficheiros</h3>
+<pre><code>src/terrain/TerrainUndo.hpp
+src/terrain/TerrainUndo.cpp
+</code></pre>
+<h3>Fluxo Generate</h3>
+<pre><code class="language-cpp">void TerrainCache::generateTerrain(...) {
+    TerrainUndo::instance().pushSnapshot(entity, entry);
+    TerrainGenerator::generate(...);
+    terrain.dataRevision++;
+    rebuildMesh(...);
+}
+</code></pre>
+<h3>Restore</h3>
+<pre><code class="language-cpp">bool TerrainUndo::undo(Entity e) {
+    auto snap = m_undo.back();
+    entry.heightmap.heights() = snap.heights;
+    entry.splatmap.weights() = snap.splatWeights;
+    terrain.dataRevision = snap.dataRevision;
+    rebuildMesh(...);
+}
+</code></pre>
+<hr>
+<h2>Critérios de Aceitação</h2>
+<ul>
+<li><input disabled="" type="checkbox"> Ctrl+Z restaura heightmap após Generate Terrain</li>
+<li><input disabled="" type="checkbox"> Ctrl+Y redo funciona</li>
+<li><input disabled="" type="checkbox"> Sculpt undo continua a funcionar</li>
+<li><input disabled="" type="checkbox"> Splat paint ganha undo por stroke</li>
+<li><input disabled="" type="checkbox"> Sem leak de snapshots ao remover entidade (<code>removeEntity</code> limpa stack)</li>
+</ul>
+<hr>
+<h2>Notas</h2>
+<ul>
+<li>Não serializar undo stack em <code>.caf</code> — só runtime</li>
+<li>Considerar botão <strong>Revert</strong> no Inspector como atalho visual</li>
+</ul>
+
+</article>

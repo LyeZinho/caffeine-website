@@ -1,0 +1,139 @@
+<article class="doc-article" data-slug="planning/m2-visual-editing-assets/2.4-hot-reload-assets">
+<h1>🔧 Hot-Reload de Assets</h1>
+<blockquote>
+<p><strong>Milestone:</strong> M2 — Visual Editing &amp; Assets
+<strong>Namespace:</strong> <code>Caffeine::Assets</code>
+<strong>Arquivos:</strong> <code>src/assets/HotReloader.hpp</code>, <code>src/assets/HotReloader.cpp</code>
+<strong>Status:</strong> 📅 Planeado
+<strong>RF:</strong> RF6.4</p>
+</blockquote>
+<hr>
+<h2>Visão Geral</h2>
+<p>O Hot-Reload de Assets permite que as alterações feitas em ficheiros externos (como texturas editadas no Photoshop ou shaders escritos em VS Code) sejam refletidas instantaneamente no Caffeine Studio sem necessidade de reiniciar a aplicação. Esta funcionalidade é crucial para a produtividade, permitindo iterações rápidas em aspetos visuais e lógicos do jogo.</p>
+<p>O sistema baseia-se na monitorização de carimbos temporais (timestamps) dos ficheiros e na capacidade do <code>AssetManager</code> de substituir os dados binários na memória da CPU e GPU, mantendo as referências (Handles) existentes válidas para os sistemas que os utilizam.</p>
+<hr>
+<h2>Implementação</h2>
+<p>O Hot-Reload utiliza a infraestrutura existente do <code>AssetManager</code> e expande-a com um ciclo de poll e recarregamento seletivo.</p>
+<h3>Fluxo de Execução</h3>
+<ol>
+<li><strong>Monitorização</strong>: O <code>HotReloader</code> corre um thread de baixa prioridade que verifica <code>pollFileChanges()</code>.</li>
+<li><strong>Notificação</strong>: Ao detetar uma mudança, o Asset Pipeline é acionado para regenerar o ficheiro <code>.caf</code>.</li>
+<li><strong>Substituição</strong>: O <code>AssetManager</code> recarrega o ficheiro binário e atualiza o recurso na GPU (ex: <code>glTexImage2D</code>).</li>
+<li><strong>Feedback</strong>: Uma notificação (Toast) aparece no editor confirmando o sucesso.</li>
+</ol>
+<h3>Código de Exemplo (C++)</h3>
+<pre><code class="language-cpp">namespace Caffeine::Assets {
+
+    class HotReloader {
+    public:
+        void Start(AssetManager* assetManager);
+        void Stop();
+
+        // Chamado no loop principal do Editor
+        void Update() {
+            auto changedAssets = m_AssetManager-&gt;PollFileChanges();
+            for (auto&amp; assetHandle : changedAssets) {
+                ReloadAsset(assetHandle);
+            }
+        }
+
+    private:
+        void ReloadAsset(AssetHandle handle) {
+            AssetMetadata&amp; meta = m_AssetManager-&gt;GetMetadata(handle);
+            
+            // Recarregar conforme o tipo
+            switch (meta.Type) {
+                case AssetType::Texture:
+                    ReloadTexture(handle, meta.ProcessedPath);
+                    break;
+                case AssetType::Shader:
+                    ReloadShader(handle, meta.ProcessedPath);
+                    break;
+            }
+
+            // Notificar UI
+            EditorUI::ShowToast(meta.Name + &quot; reloaded successfully.&quot;);
+        }
+
+        void ReloadTexture(AssetHandle handle, const std::path&amp; path) {
+            // Ler novos dados do disco
+            auto newData = FileSystem::ReadBinary(path);
+            
+            // Obter referência à textura na GPU e atualizar
+            RHI::Texture* gpuTex = m_AssetManager-&gt;GetRawResource&lt;RHI::Texture&gt;(handle);
+            gpuTex-&gt;UpdateData(newData.data(), newData.size());
+        }
+
+        AssetManager* m_AssetManager;
+    };
+}
+</code></pre>
+<h3>Tipos Suportados Iniciais</h3>
+<ul>
+<li><strong>Texturas</strong>: .png, .jpg (via conversão para .caf)</li>
+<li><strong>Shaders</strong>: .hlsl, .glsl</li>
+<li><strong>Materiais</strong>: .mat (JSON)</li>
+</ul>
+<hr>
+<h2>Decisões de Design</h2>
+<table>
+<thead>
+<tr>
+<th>Decisão</th>
+<th>Justificativa</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>In-Place Update</td>
+<td>Atualizar a textura existente na GPU em vez de criar uma nova evita a necessidade de atualizar todos os materiais que a referenciam.</td>
+</tr>
+<tr>
+<td>Toast Notifications</td>
+<td>Notificar o utilizador no canto do ecrã fornece confirmação visual de que a alteração externa foi processada com sucesso.</td>
+</tr>
+<tr>
+<td>Debounce Timer</td>
+<td>Esperar 100ms após a última escrita no ficheiro antes de recarregar evita ler ficheiros parciais enquanto o software de edição (ex: Photoshop) ainda está a guardar.</td>
+</tr>
+</tbody></table>
+<hr>
+<h2>Critério de Aceitação</h2>
+<ul>
+<li><input disabled="" type="checkbox"> Alterar uma textura no disco reflete-se no Viewport em menos de 1 segundo.</li>
+<li><input disabled="" type="checkbox"> Alterar um shader recompila-o e atualiza os materiais que o utilizam.</li>
+<li><input disabled="" type="checkbox"> O editor não bloqueia nem crasha durante o processo de recarregamento.</li>
+<li><input disabled="" type="checkbox"> Uma notificação &quot;Asset X reloaded&quot; aparece no fundo do ecrã.</li>
+<li><input disabled="" type="checkbox"> As instâncias existentes de entidades mantêm os seus componentes e estados após o reload do asset.</li>
+</ul>
+<hr>
+<h2>Dependências</h2>
+<ul>
+<li><strong>Upstream:</strong> <code>Caffeine::Assets::AssetManager</code>, <code>Caffeine::Assets::AssetPipeline</code></li>
+<li><strong>Downstream:</strong> <code>Caffeine::Editor::UI</code> (Toasts)</li>
+</ul>
+<hr>
+<h2>🔗 Tópicos Relacionados</h2>
+<table>
+<thead>
+<tr>
+<th>Tópico</th>
+<th>Descrição</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Asset Pipeline</td>
+<td>Converte os raw assets alterados antes do hot-reload.</td>
+</tr>
+<tr>
+<td>RHI (Rendering)</td>
+<td>Fornece as funções para atualizar buffers na GPU.</td>
+</tr>
+</tbody></table>
+<hr>
+<h2>Referências</h2>
+<ul>
+<li>&quot;Thebe&quot; Engine Hot Reloading system.</li>
+<li>Live coding and hot asset loading in &quot;Handmade Hero&quot;.</li>
+</ul>
+
+</article>

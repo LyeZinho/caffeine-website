@@ -1,0 +1,89 @@
+<article class="doc-article" data-slug="docs/rendering/forward-render-features">
+<h1>Forward render features</h1>
+<blockquote>
+<p><strong>Componente:</strong> <code>ForwardRenderFeaturesComponent</code><br><strong>Resolver:</strong> <code>Render::resolveForwardRenderFeatures</code><br><strong>Lua:</strong> <code>caffeine.forwardrender.*</code><br><strong>GPU:</strong> <code>GpuSceneRenderer</code> (<code>resolveFeaturesFromScene</code> por defeito)</p>
+</blockquote>
+<p>Instancing, IBL, oclusão CPU, reflexos e volumétricos <strong>não</strong> vivem nas preferências do editor. São capacidades da cena — como o stack de pós-processamento — que o renderer resolve a cada frame.</p>
+<h2>Componente ECS</h2>
+<p>Adiciona <strong>Rendering → Forward Render Features</strong> a uma entidade de ambiente (por exemplo <code>RenderEnvironment</code> na cena <code>dense_outdoor.caf</code>).</p>
+<p>Sub-blocos:</p>
+<table>
+<thead>
+<tr>
+<th>Bloco</th>
+<th>Função</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Instancing</td>
+<td><code>drawIndexedInstanced</code>, até 256 por batch (ligado por defeito)</td>
+</tr>
+<tr>
+<td>IBL</td>
+<td>Difuso a partir do céu (<strong>desligado por defeito</strong> — a skybox não ilumina). Especulares (metais) continuam a refletir o céu.</td>
+</tr>
+<tr>
+<td>Occlusion</td>
+<td>Oclusão coarse na CPU (off por defeito)</td>
+</tr>
+<tr>
+<td>Reflections</td>
+<td>Planar, screen-space, probe</td>
+</tr>
+<tr>
+<td>Volumetrics</td>
+<td>Nevoeiro analítico no forward shader</td>
+</tr>
+</tbody></table>
+<p>Sem componente na cena, <code>budgetSafeForwardDefaults()</code> devolve <code>RenderFeatureSettings</code> com:</p>
+<table>
+<thead>
+<tr>
+<th>Capacidade</th>
+<th>Default</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Instancing</td>
+<td>ligado (256/batch)</td>
+</tr>
+<tr>
+<td>IBL difuso</td>
+<td>desligado (skybox = fundo + reflexões; ligar para o céu iluminar)</td>
+</tr>
+<tr>
+<td>Occlusion</td>
+<td>desligado</td>
+</tr>
+<tr>
+<td>Reflections</td>
+<td><strong>Probe</strong> + screen-space trace</td>
+</tr>
+<tr>
+<td>Volumetrics</td>
+<td>desligado</td>
+</tr>
+</tbody></table>
+<p>O componente é gravado no <code>.caf</code> (tipo 45).</p>
+<h2>Lua</h2>
+<pre><code class="language-lua">caffeine.forwardrender.ensure(entityId)
+caffeine.forwardrender.setReflections(entityId, true, 1) -- planar
+caffeine.forwardrender.setVolumetrics(entityId, true, 2) -- medium
+caffeine.forwardrender.setOcclusion(entityId, true)
+</code></pre>
+<h2>C++</h2>
+<pre><code class="language-cpp">auto&amp; fx = world.add&lt;ECS::ForwardRenderFeaturesComponent&gt;(entity);
+fx.reflections.enabled = true;
+fx.reflections.mode = Render::ReflectionMode::Planar;
+
+Render::RenderFeatureSettings settings = Render::resolveForwardRenderFeatures(world);
+</code></pre>
+<p>Para testes ou ferramentas que injetem parâmetros manualmente, <code>GpuSceneRenderOptions::resolveFeaturesFromScene = false</code> e preenche <code>features</code> à mão.</p>
+<h2>Ver também</h2>
+<ul>
+<li><a href="reflections.md"><code>reflections.md</code></a></li>
+<li><a href="volumetric-lighting.md"><code>volumetric-lighting.md</code></a></li>
+<li><a href="post-processing.md"><code>post-processing.md</code></a></li>
+</ul>
+
+</article>

@@ -1,0 +1,178 @@
+<article class="doc-article" data-slug="planning/m1-scene-editor-foundation/1.1-editor-context-undo-redo">
+<h1>🔧 EditorContext &amp; Undo/Redo</h1>
+<blockquote>
+<p><strong>Milestone:</strong> M1 — Scene Editor Foundation
+<strong>Namespace:</strong> <code>Caffeine::Editor</code>
+<strong>Arquivos:</strong> <code>src/editor/EditorContext.hpp</code>, <code>src/editor/EditorContext.cpp</code>
+<strong>Status:</strong> 📅 Planeado
+<strong>RF:</strong> RF6.1</p>
+</blockquote>
+<hr>
+<h2>Visão Geral</h2>
+<p>O <code>EditorContext</code> funciona como o cérebro central do editor, mantendo o estado global da sessão atual. Ele armazena informações críticas como a entidade selecionada, o estado de modificação da cena (dirty flag) e o caminho do ficheiro aberto. Sem este contexto, os painéis individuais não teriam uma forma unificada de comunicar mudanças entre si.</p>
+<p>O sistema de Undo/Redo é integrado diretamente neste contexto para permitir que o utilizador reverta ações destrutivas ou erros de edição. Ele utiliza um sistema de comandos baseado em estados (snapshots) para garantir que a cena possa regressar exatamente ao ponto anterior a qualquer modificação no ECS.</p>
+<hr>
+<h2>Implementação</h2>
+<h3>Estrutura do Comando</h3>
+<p>Cada comando guarda o estado &quot;antes&quot; e &quot;depois&quot; da modificação para permitir a navegação bidirecional no histórico.</p>
+<pre><code class="language-cpp">struct EditorCommand {
+    enum Type { 
+        AddEntity, 
+        RemoveEntity, 
+        AddComponent,
+        RemoveComponent, 
+        SetField, 
+        MoveEntity 
+    };
+
+    Type type;
+    ECS::EntityID targetEntity;
+    std::vector&lt;u8&gt; beforeState; // Serialização do componente/entidade antes
+    std::vector&lt;u8&gt; afterState;  // Serialização depois da mudança
+};
+</code></pre>
+<h3>Gestor de Histórico (UndoStack)</h3>
+<p>Utiliza um buffer circular para evitar alocações constantes e limitar o uso de memória.</p>
+<pre><code class="language-cpp">class UndoStack {
+    static constexpr u32 MAX_UNDO = 256;
+    EditorCommand m_commands[MAX_UNDO];
+    u32 m_head = 0;   // Onde o próximo comando será inserido
+    u32 m_tail = 0;   // O comando mais antigo disponível
+    u32 m_current = 0; // Posição atual para undo/redo
+    u32 m_count = 0;
+
+public:
+    void push(const EditorCommand&amp; cmd) {
+        m_commands[m_head] = cmd;
+        m_head = (m_head + 1) % MAX_UNDO;
+        
+        if (m_count &lt; MAX_UNDO) {
+            m_count++;
+        } else {
+            m_tail = (m_tail + 1) % MAX_UNDO;
+        }
+        m_current = m_head;
+    }
+
+    bool undo(ECS::World&amp; world) {
+        if (m_current == m_tail) return false;
+        m_current = (m_current - 1 + MAX_UNDO) % MAX_UNDO;
+        applyState(world, m_commands[m_current].beforeState);
+        return true;
+    }
+
+    bool redo(ECS::World&amp; world) {
+        if (m_current == m_head) return false;
+        applyState(world, m_commands[m_current].afterState);
+        m_current = (m_current + 1) % MAX_UNDO;
+        return true;
+    }
+
+    void clear() {
+        m_head = m_tail = m_current = m_count = 0;
+    }
+
+private:
+    void applyState(ECS::World&amp; world, const std::vector&lt;u8&gt;&amp; data);
+};
+</code></pre>
+<h3>EditorContext</h3>
+<p>O objeto singleton que orquestra a comunicação entre painéis.</p>
+<pre><code class="language-cpp">class EditorContext {
+public:
+    // Estado da Seleção
+    ECS::EntityID selectedEntity = ECS::INVALID_ENTITY;
+    ECS::EntityID hoveredEntity = ECS::INVALID_ENTITY;
+    ECS::EntityID clipboardEntity = ECS::INVALID_ENTITY;
+
+    // Estado do Gizmo
+    enum class GizmoMode { Translation, Rotation, Scale };
+    GizmoMode currentGizmoMode = GizmoMode::Translation;
+
+    // Estado da Cena
+    std::string currentScenePath = &quot;&quot;;
+    bool isDirty = false;
+
+    // Sistemas
+    UndoStack undoStack;
+
+    void selectEntity(ECS::EntityID id) {
+        selectedEntity = id;
+    }
+
+    void markDirty() {
+        isDirty = true;
+    }
+};
+</code></pre>
+<h3>Fluxo de Dados de Undo</h3>
+<pre><code>[Utilizador Altera Campo] 
+    -&gt; Captura Estado Atual (beforeState)
+    -&gt; Aplica Mudança no ECS
+    -&gt; Captura Novo Estado (afterState)
+    -&gt; EditorContext::undoStack.push(comando)
+    -&gt; EditorContext::markDirty()
+</code></pre>
+<hr>
+<h2>Decisões de Design</h2>
+<table>
+<thead>
+<tr>
+<th>Decisão</th>
+<th>Justificativa</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Buffer Circular no UndoStack</td>
+<td>Evita fragmentação de memória e garante um limite previsível de recursos.</td>
+</tr>
+<tr>
+<td>Snapshots de Estado</td>
+<td>Mais simples de implementar para o ECS do que comandos delta complexos, aproveitando a serialização existente.</td>
+</tr>
+<tr>
+<td>Dirty Flag no Contexto</td>
+<td>Centraliza a lógica de aviso de &quot;Guardar Alterações&quot; antes de fechar a aplicação ou mudar de cena.</td>
+</tr>
+</tbody></table>
+<hr>
+<h2>Critério de Aceitação</h2>
+<ul>
+<li><input disabled="" type="checkbox"> Undo/Redo funciona para a criação de entidades (AddEntity).</li>
+<li><input disabled="" type="checkbox"> Undo/Redo funciona para a remoção de entidades (RemoveEntity).</li>
+<li><input disabled="" type="checkbox"> A Dirty Flag é ativada após qualquer ação no histórico.</li>
+<li><input disabled="" type="checkbox"> Selecionar uma entidade atualiza o <code>selectedEntity</code> globalmente.</li>
+<li><input disabled="" type="checkbox"> O histórico é limpo ao carregar uma nova cena.</li>
+</ul>
+<hr>
+<h2>Dependências</h2>
+<ul>
+<li><strong>Upstream:</strong> <code>docs/ecs/core.md</code>, <code>docs/ecs/scene.md</code></li>
+<li><strong>Downstream:</strong> <code>1.2-hierarchy-panel.md</code>, <code>1.3-inspector-panel.md</code>, <code>1.6-scene-editor-orchestrator.md</code></li>
+</ul>
+<hr>
+<h2>🔗 Tópicos Relacionados</h2>
+<table>
+<thead>
+<tr>
+<th>Tópico</th>
+<th>Descrição</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Serialização ECS</td>
+<td>Como transformar componentes em bytes para o UndoStack.</td>
+</tr>
+<tr>
+<td>Comandos de Editor</td>
+<td>Padrão de desenho Command para isolar ações da UI.</td>
+</tr>
+</tbody></table>
+<hr>
+<h2>Referências</h2>
+<ul>
+<li><a href="../docs/ecs/core.md"><code>docs/ecs/core.md</code></a> — Documentação base do sistema de entidades.</li>
+<li><a href="https://gameprogrammingpatterns.com/undo-redo.html">Game Programming Patterns - Undo/Redo</a> — Referência teórica.</li>
+</ul>
+
+</article>

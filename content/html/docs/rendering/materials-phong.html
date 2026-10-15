@@ -1,0 +1,116 @@
+<article class="doc-article" data-slug="docs/rendering/materials-phong">
+<h1>Materiais Phong (3D)</h1>
+<blockquote>
+<p><strong>Namespace:</strong> <code>Caffeine::Render</code>, <code>Caffeine::ECS</code><br><strong>Shaders:</strong> <code>src/render/shaders/scene_lit.{vert,frag}</code>, <code>terrain_lit.frag</code><br><strong>Renderer:</strong> <code>GpuSceneRenderer</code><br><strong>Status:</strong> ✅ Implementado (meshes + terreno)</p>
+</blockquote>
+<hr>
+<h2>Visão geral</h2>
+<p>Meshes com um <code>.mat</code> usam metallic, roughness, ORM e emissão. Ver <a href="materials-pbr.md"><code>materials-pbr.md</code></a>. O passe GPU avalia:</p>
+<pre><code>final = ambient + Σ (diffuse Lambert + specular GGX) × shadow
+</code></pre>
+<ul>
+<li><strong>Diffuse:</strong> <code>max(dot(N, L), 0) × albedo × lightColor × (1 - metallic)</code></li>
+<li><strong>Specular:</strong> GGX com roughness e metallic</li>
+<li><strong>Normal mapping:</strong> perturbação de <code>N</code> via TBN e textura normal (meshes) ou triplanar (terreno)</li>
+</ul>
+<hr>
+<h2>Componentes ECS</h2>
+<h3>MeshFilterComponent</h3>
+<pre><code class="language-cpp">struct MeshFilterComponent {
+    MeshPrimitive primitive = MeshPrimitive::Cube;
+    std::string   customMeshPath;
+    std::string   customTexturePath;
+    std::string   customNormalPath;   // caminho relativo ao projeto
+    std::string   customMaterialPath;
+    f32           shininess = 32.0f;  // expoente especular
+};
+</code></pre>
+<p><strong>Inspector (Doppio):</strong> Albedo Texture, Normal Map, Shininess (slider 1–128).</p>
+<h3>TerrainComponent</h3>
+<pre><code class="language-cpp">char normalMapPath[256] = {};
+f32  shininess = 16.0f;
+bool castShadows = true;
+bool receiveShadows = true;
+</code></pre>
+<p><strong>Inspector:</strong> Normal Map, Shininess, Albedo Texture (splat layers).</p>
+<hr>
+<h2>Pipeline GPU</h2>
+<pre><code class="language-mermaid">flowchart LR
+    A[Shadow passes] --&gt; B[Opaque pass]
+    B --&gt; C[scene_lit / terrain_lit]
+    C --&gt; D[Framebuffer viewport]
+</code></pre>
+<ol>
+<li><code>renderDirectionalShadows()</code> — até 2 luzes direcionais com <code>castShadows</code>.</li>
+<li><code>renderPointShadows()</code> — até 2 luzes pontuais (cubemap depth).</li>
+<li>Pass principal com UBO de luzes + UBO de sombras + materiais.</li>
+</ol>
+<h3>Samplers (meshes — <code>scene_lit.frag</code>)</h3>
+<table>
+<thead>
+<tr>
+<th>Slot</th>
+<th>Textura</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>0</td>
+<td>Albedo</td>
+</tr>
+<tr>
+<td>1</td>
+<td>Normal map</td>
+</tr>
+<tr>
+<td>2–3</td>
+<td>Shadow maps direcionais</td>
+</tr>
+<tr>
+<td>4–5</td>
+<td>Cubemaps sombra pontual</td>
+</tr>
+</tbody></table>
+<h3>Samplers (terreno — <code>terrain_lit.frag</code>)</h3>
+<table>
+<thead>
+<tr>
+<th>Slot</th>
+<th>Textura</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>0–4</td>
+<td>Splat + camadas</td>
+</tr>
+<tr>
+<td>5</td>
+<td>Normal map triplanar</td>
+</tr>
+<tr>
+<td>6–7</td>
+<td>Shadow maps direcionais</td>
+</tr>
+<tr>
+<td>8–9</td>
+<td>Cubemaps sombra pontual</td>
+</tr>
+</tbody></table>
+<hr>
+<h2>Tangentes</h2>
+<p><code>MeshLoader::computeMeshTangents()</code> calcula tangentes por vértice (MikkTSpace simplificado) após import OBJ/glTF. O vertex shader constrói a matriz TBN:</p>
+<pre><code>TBN = mat3(normalize(T), normalize(B), normalize(N))
+N&#39;  = normalize(TBN * (sample(normalMap) * 2 - 1)))
+</code></pre>
+<hr>
+<h2>Caminho CPU (legado)</h2>
+<p>No editor, quando o viewport 3D <strong>não</strong> usa GPU texturizado (<code>gpuTextured3D == false</code>), o raster CPU ainda pode avaliar iluminação difusa com shadow maps CPU. O caminho shaded default com GPU activo <strong>não</strong> constrói CPU shadows.</p>
+<p>Ver <a href="shadow-mapping.md"><code>shadow-mapping.md</code></a> e <a href="../plans/2026-09-21-rendering-roadmap.md"><code>plans/2026-09-21-rendering-roadmap.md</code></a> P0.</p>
+<hr>
+<h2>Referências</h2>
+<ul>
+<li><a href="../assets/mesh-loading.md"><code>assets/mesh-loading.md</code></a> — tangentes e import</li>
+<li><a href="../terrain/terrain-system.md"><code>terrain/terrain-system.md</code></a> — normal map no terreno</li>
+<li><a href="shadow-mapping.md"><code>shadow-mapping.md</code></a> — passes de sombra GPU</li>
+</ul>
+
+</article>

@@ -1,0 +1,120 @@
+<article class="doc-article" data-slug="docs/scripting/runtime-apis">
+<h1>Lua runtime APIs (core)</h1>
+<blockquote>
+<p><strong>VM:</strong> <code>Script::ScriptEngine</code> (sol2)<br><strong>Systems:</strong> <code>ScriptSystem</code> (play mode)</p>
+</blockquote>
+<p>Bindings are registered in <code>ScriptEngine::init()</code>. Doppio does not duplicate these APIs — editor plugins and game scripts share the same global <code>caffeine</code> table.</p>
+<hr>
+<h2>Lifecycle (<code>ScriptComponent</code>)</h2>
+<table>
+<thead>
+<tr>
+<th>Function</th>
+<th>When</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>onCreate(entityId)</code></td>
+<td>First frame after load</td>
+</tr>
+<tr>
+<td><code>onUpdate(entityId, dt)</code></td>
+<td>Each play-mode frame (scaled; see <code>caffeine.time</code>)</td>
+</tr>
+<tr>
+<td><code>onFixedUpdate(entityId, dt)</code></td>
+<td>Fixed simulation step (default 60 Hz)</td>
+</tr>
+<tr>
+<td><code>onDestroy(entityId)</code></td>
+<td>Entity destroyed</td>
+</tr>
+<tr>
+<td><code>onCollision(entityId, otherId)</code></td>
+<td>2D physics collision</td>
+</tr>
+</tbody></table>
+<p><code>loadScript(path)</code> resolves paths from the project search root (<code>setSearchRoot</code>).<br><code>require(&quot;mod.name&quot;)</code> loads <code>scripts/mod/name.lua</code>.</p>
+<hr>
+<h2>Time (<code>caffeine.time</code>)</h2>
+<p><code>delta</code>, <code>unscaledDelta</code>, <code>time</code>, <code>timeScale</code>, <code>setTimeScale</code>, <code>paused</code>, <code>setPaused</code>, <code>fixedDelta</code>, <code>frame</code>, <code>seed</code>, <code>setSeed</code>.</p>
+<hr>
+<h2>Picking (<code>caffeine.pick</code>)</h2>
+<table>
+<thead>
+<tr>
+<th>API</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>world(x, y)</code></td>
+<td>Entity id at world position (2D AABB)</td>
+</tr>
+<tr>
+<td><code>screen(x, y)</code></td>
+<td>Entity id from screen pixels</td>
+</tr>
+<tr>
+<td><code>atMouse()</code></td>
+<td>Entity id under cursor</td>
+</tr>
+<tr>
+<td><code>screenToWorld(x, y)</code></td>
+<td><code>{ x, y }</code> table</td>
+</tr>
+<tr>
+<td><code>raycast(origin, dir)</code></td>
+<td>Closest entity id along 3D ray</td>
+</tr>
+<tr>
+<td><code>register(fn)</code></td>
+<td>Custom picker; <code>fn(wx, wy)</code> returns custom id or false</td>
+</tr>
+<tr>
+<td><code>unregister(handle)</code></td>
+<td>Remove custom picker</td>
+</tr>
+<tr>
+<td><code>query(wx, wy)</code></td>
+<td><code>{ kind = &quot;entity&quot;|&quot;custom&quot;|&quot;none&quot;, ... }</code></td>
+</tr>
+</tbody></table>
+<p>Play mode sets <code>PlayRenderContext</code> from the active 2D camera / viewport.</p>
+<hr>
+<h2>2D drawing (<code>caffeine.draw2d</code>)</h2>
+<p>Record in <code>onUpdate</code> (buffer cleared each frame). Draw order: world → overlays → UI.</p>
+<p><code>line</code>, <code>circle</code>, <code>rect</code>, <code>poly</code> — color <code>{r,g,b,a}</code>, space <code>&quot;world&quot;</code> or <code>&quot;screen&quot;</code>.</p>
+<p>GPU path without ImGui: <code>Render::Overlay2D::buildRhiMesh</code> / <code>drawRhi</code> (see <a href="../rendering/overlay-2d-rhi.md">overlay-2d-rhi.md</a>).</p>
+<hr>
+<h2>Runtime UI (<code>caffeine.ui</code>)</h2>
+<p><code>setLabel</code>, <code>setProgress</code>, <code>createCanvas</code>, <code>createLabel</code>, <code>createButton</code>, <code>hitTest</code>.</p>
+<hr>
+<h2>Text assets (<code>caffeine.assets</code>)</h2>
+<p><code>loadText(path)</code> — reads project-relative files with cache.</p>
+<hr>
+<h2>Game state helpers (<code>caffeine.gameState</code>)</h2>
+<p><code>push(id)</code>, <code>pop()</code>, <code>top()</code>, <code>pause()</code>, <code>resume()</code> — optional, domain-agnostic.</p>
+<hr>
+<h2>Map surfaces (<code>caffeine.map</code>)</h2>
+<p>Generic logical map layers (<code>MapSurface2DComponent</code>), not tied to real-world geo or HTTP.</p>
+<pre><code class="language-lua">caffeine.map.onChunkRequest(function(payload)
+  -- payload.surfaceEntityId, chunkX, chunkY, worldMinX, worldMinY, chunkSize
+end)
+</code></pre>
+<p>Enable <code>enableChunkRequests</code> on the component in the editor. The engine emits <code>mapChunkRequest</code> when the camera view intersects new chunks.</p>
+<hr>
+<h2>Native modules (<code>caffeine.native</code>)</h2>
+<p>Play-mode libraries in <code>native/*.so</code> (see <a href="native-modules.md">native-modules.md</a>).</p>
+<p><code>load(name)</code>, <code>call(module, function, argsJson?)</code> → result string or error.</p>
+<hr>
+<h2>Post-processing (<code>caffeine.postprocess</code>)</h2>
+<p>See <a href="../rendering/post-processing.md">post-processing.md</a>.</p>
+<hr>
+<h2>Forward render (<code>caffeine.forwardrender</code>)</h2>
+<p>See <a href="../rendering/forward-render-features.md">forward-render-features.md</a>.</p>
+<hr>
+<h2>Materials</h2>
+<p>Runtime materials use <code>MaterialCache</code> and mesh components; <code>.mat</code> editing is in the editor. See <a href="../rendering/materials-pbr.md">materials-pbr.md</a>.</p>
+
+</article>

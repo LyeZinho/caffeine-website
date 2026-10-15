@@ -1,0 +1,172 @@
+<article class="doc-article" data-slug="planning/m4-advanced-tools-polish/4.2-tilemap-editor">
+<h1>🔧 Tilemap Editor</h1>
+<blockquote>
+<p><strong>Milestone:</strong> M4 — Advanced Tools &amp; Polish
+<strong>Namespace:</strong> <code>Caffeine::Editor</code>
+<strong>Arquivos:</strong> <code>src/editor/TilemapEditor.hpp</code>, <code>src/editor/TilemapEditor.cpp</code>
+<strong>Status:</strong> 📅 Planeado
+<strong>RF:</strong> RF6.2</p>
+</blockquote>
+<hr>
+<h2>Visão Geral</h2>
+<p>O Tilemap Editor é uma ferramenta robusta para o desenho de níveis 2D baseados em grelha (grid). Ele permite que os designers utilizem &quot;tilesets&quot; para pintar cenários complexos de forma eficiente. A ferramenta suporta múltiplas camadas para permitir a separação entre elementos de fundo, elementos interativos e dados de colisão.</p>
+<p>Além das ferramentas básicas de pintura, o editor inclui capacidades de &quot;Auto-tiling&quot;, que aplicam automaticamente as regras de vizinhança para escolher o tile correto (ex: cantos, bordas de grama/terra). Isto reduz drasticamente o tempo necessário para criar terrenos orgânicos. A integração com o sistema de assets do Caffeine permite a exportação direta para ficheiros <code>.caf</code> otimizados para o runtime.</p>
+<hr>
+<h2>Implementação</h2>
+<p>O editor de tilemaps gere uma estrutura de dados composta por camadas de células, onde cada célula armazena um índice de tile e flags de configuração.</p>
+<h3>Estrutura de Dados do Tilemap</h3>
+<pre><code class="language-cpp">namespace Caffeine::Editor {
+
+struct TileCell {
+    int tileID = -1;
+    uint32_t flags = 0; // Ex: Inverter X, Inverter Y, Rotação
+};
+
+class TileLayer {
+public:
+    std::string m_name;
+    std::vector&lt;TileCell&gt; m_cells;
+    int m_width, m_height;
+    bool m_isVisible = true;
+    bool m_isLocked = false;
+
+    TileCell&amp; GetCell(int x, int y) { return m_cells[y * m_width + x]; }
+};
+
+class Tilemap {
+public:
+    std::vector&lt;TileLayer&gt; m_layers;
+    Ref&lt;Tileset&gt; m_activeTileset;
+    float m_tileSize = 32.0f;
+
+    void AddLayer(const std::string&amp; name);
+    void RemoveLayer(int index);
+};
+
+class TilemapEditorPanel : public EditorPanel {
+public:
+    TilemapEditorPanel();
+    void OnImGuiRender() override;
+    void OnSceneRender(const SceneView&amp; view);
+
+private:
+    void RenderPalette();
+    void RenderToolbar();
+    void PaintTile(int layerIdx, int x, int y, int tileID);
+    void FloodFill(int layerIdx, int x, int y, int targetID, int replacementID);
+
+    Tilemap m_currentMap;
+    int m_selectedTileID = 0;
+    int m_currentLayer = 0;
+    ToolMode m_currentTool = ToolMode::Brush;
+};
+
+} // namespace Caffeine::Editor
+</code></pre>
+<h3>Algoritmo de Auto-tiling (Pseudo-C++)</h3>
+<pre><code class="language-cpp">void TilemapEditorPanel::ApplyAutoTile(int layerIdx, int x, int y) {
+    auto&amp; layer = m_currentMap.m_layers[layerIdx];
+    
+    // Máscara de 8 bits para vizinhos (3x3 à volta do centro)
+    uint8_t neighborMask = 0;
+    if (HasNeighbor(layer, x, y-1)) neighborMask |= (1 &lt;&lt; 0); // Norte
+    if (HasNeighbor(layer, x+1, y)) neighborMask |= (1 &lt;&lt; 1); // Este
+    if (HasNeighbor(layer, x, y+1)) neighborMask |= (1 &lt;&lt; 2); // Sul
+    if (HasNeighbor(layer, x-1, y)) neighborMask |= (1 &lt;&lt; 3); // Oeste
+    // ... incluir diagonais se necessário
+
+    // Mapear máscara para o ID do tile correto definido nas regras do Tileset
+    int correctTileID = m_currentTileset-&gt;GetRuleMatch(neighborMask);
+    layer.GetCell(x, y).tileID = correctTileID;
+}
+</code></pre>
+<h3>Diagrama de Fluxo de Trabalho (ASCII)</h3>
+<pre><code>┌──────────────────────────────────────────────────────────┐
+│ Palette [Tileset: dungeon_v1]                            │
+├──────────────────────────────────────────────────────────┤
+│ [ 0 ] [ 1 ] [ 2 ] [ 3 ]   Tool: [🎨] [🪣] [🧽] [🧊]        │
+│ [ 4 ] [ 5 ] [ 6 ] [ 7 ]   Layer: [Layer 1 (Coll)] [👁️][🔒] │
+│ [ 8 ] [ 9 ] [ A ] [ B ]          [Layer 2 (Deco)] [👁️][🔓] │
+├──────────────────────────────────────────────────────────┤
+│ Viewport (Grid 32x32)                                    │
+│  ┌───┬───┬───┬───┬───┐                                   │
+│  │ 🧱│ 🧱│ 🧱│ 🧱│ 🧱│                                   │
+│  ├───┼───┼───┼───┼───┤                                   │
+│  │ 🧱│   │   │   │ 🧱│ &lt;--- Desenho ativo                │
+│  ├───┼───┼───┼───┼───┤                                   │
+│  │ 🧱│ 🧱│ 🧱│ 🧱│ 🧱│                                   │
+│  └───┴───┴───┴───┴───┘                                   │
+└──────────────────────────────────────────────────────────┘
+</code></pre>
+<hr>
+<h2>Decisões de Design</h2>
+<table>
+<thead>
+<tr>
+<th>Decisão</th>
+<th>Justificativa</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Armazenamento por Camadas</td>
+<td>Permite profundidade visual e separação lógica (ex: camada de colisão invisível).</td>
+</tr>
+<tr>
+<td>Sistema de Auto-tiling</td>
+<td>Aumenta a produtividade ao automatizar a escolha de tiles de transição.</td>
+</tr>
+<tr>
+<td>Ferramenta Bucket Fill</td>
+<td>Essencial para preencher grandes áreas rapidamente (ex: fundos ou oceanos).</td>
+</tr>
+<tr>
+<td>Grid Snapping Forçado</td>
+<td>Garante que os tiles estão sempre perfeitamente alinhados, evitando erros visuais.</td>
+</tr>
+</tbody></table>
+<hr>
+<h2>Critério de Aceitação</h2>
+<ul>
+<li><input disabled="" type="checkbox"> Seleção de tiles a partir de uma paleta visual gerada a partir de um Tileset.</li>
+<li><input disabled="" type="checkbox"> Ferramentas funcionais: Pincel, Balde de Tinta (Flood Fill) e Borracha.</li>
+<li><input disabled="" type="checkbox"> Suporte para múltiplas camadas com controlos de visibilidade e bloqueio.</li>
+<li><input disabled="" type="checkbox"> Implementação de regras de Auto-tiling que reagem às mudanças nos vizinhos.</li>
+<li><input disabled="" type="checkbox"> Exportação de ficheiros <code>.caf</code> que mantêm a integridade das camadas e IDs.</li>
+</ul>
+<hr>
+<h2>Dependências</h2>
+<ul>
+<li><strong>Upstream:</strong> <code>docs/rendering/rhi.md</code> (para renderização eficiente de instâncias de tiles)</li>
+<li><strong>Downstream:</strong> <code>docs/physics/physics-2d.md</code> (para geração de colisores a partir da camada de colisão)</li>
+</ul>
+<hr>
+<h2>🔗 Tópicos Relacionados</h2>
+<table>
+<thead>
+<tr>
+<th>Tópico</th>
+<th>Descrição</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Tileset Resource</td>
+<td>Definição da imagem de origem e das regras de auto-tiling.</td>
+</tr>
+<tr>
+<td>Scene Viewport</td>
+<td>Interação direta com o rato para pintura de tiles.</td>
+</tr>
+<tr>
+<td>Physics 2D</td>
+<td>Como o editor de tilemap gera malhas de colisão estáticas.</td>
+</tr>
+</tbody></table>
+<hr>
+<h2>Referências</h2>
+<ul>
+<li>Algoritmos de Wang Tiles para geração procedural e auto-tiling.</li>
+<li>Formato de ficheiro TMX (Tiled Map Editor) como referência de estrutura.</li>
+<li>Técnicas de renderização por instancing para tilemaps de larga escala.</li>
+</ul>
+
+</article>
