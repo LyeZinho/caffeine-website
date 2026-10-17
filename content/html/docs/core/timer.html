@@ -5,7 +5,7 @@
 </blockquote>
 <hr>
 <h2>Visão Geral</h2>
-<p>O Timer fornece medições de tempo de alta precisão para o <a href="game-loop.md">Game Loop</a>
+<p>O Timer fornece medições de tempo de alta precisão para o <a href="/docs/docs/core/game-loop">Game Loop</a>
 e para instrumentação manual de performance. A implementação usa
 <code>std::chrono::high_resolution_clock</code> — <strong>não</strong> SDL — com ticks em
 <strong>nanossegundos desde a epoch</strong>.</p>
@@ -206,7 +206,7 @@ ou o acesso deve ser serializado pelo Game Loop.</p>
 <h2>Dependências</h2>
 <ul>
 <li><strong>Upstream:</strong> <code>Caffeine::Core::Types</code> (<a href="../../src/core/Types.hpp"><code>src/core/Types.hpp</code></a>)</li>
-<li><strong>Downstream:</strong> <a href="game-loop.md">Game Loop</a>; Profiler planejado (<a href="../debug/debug-tools.md"><code>../debug/debug-tools.md</code></a>)</li>
+<li><strong>Downstream:</strong> <a href="/docs/docs/core/game-loop">Game Loop</a>; Profiler planejado (<a href="/docs/docs/debug/debug-tools"><code>../debug/debug-tools.md</code></a>)</li>
 <li><strong>Externas:</strong> apenas <code>&lt;chrono&gt;</code> da std</li>
 </ul>
 <hr>
@@ -214,8 +214,8 @@ ou o acesso deve ser serializado pelo Game Loop.</p>
 <ul>
 <li><a href="../../src/core/Timer.hpp"><code>src/core/Timer.hpp</code></a> / <a href="../../src/core/Timer.cpp"><code>src/core/Timer.cpp</code></a></li>
 <li><a href="../../tests/test_timer.cpp"><code>tests/test_timer.cpp</code></a></li>
-<li><a href="../architecture_specs.md"><code>docs/architecture_specs.md</code></a> — §1 Game Loop</li>
-<li><a href="game-loop.md"><code>core/game-loop.md</code></a> — Usa Timer internamente</li>
+<li><a href="/docs/docs/architecture_specs"><code>docs/architecture_specs.md</code></a> — §1 Game Loop</li>
+<li><a href="/docs/docs/core/game-loop"><code>core/game-loop.md</code></a> — Usa Timer internamente</li>
 </ul>
 
 </article>

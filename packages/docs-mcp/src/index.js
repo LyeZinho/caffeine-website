@@ -8,9 +8,13 @@ import { z } from 'zod';
 
 const root = path.join(path.dirname(fileURLToPath(import.meta.url)), '../../..');
 const indexPath = path.join(root, 'content', 'search-index.json');
+const graphPath = path.join(root, 'content', 'link-graph.json');
 const htmlDir = path.join(root, 'content', 'html');
 
 const index = JSON.parse(fs.readFileSync(indexPath, 'utf8'));
+const linkGraph = fs.existsSync(graphPath)
+  ? JSON.parse(fs.readFileSync(graphPath, 'utf8'))
+  : {};
 
 const server = new McpServer({
   name: 'caffeine-docs',
@@ -37,6 +41,21 @@ server.tool(
     return {
       content: [{ type: 'text', text: JSON.stringify(hits, null, 2) }],
     };
+  },
+);
+
+server.tool(
+  'get_related_docs',
+  'Outgoing links, backlinks, and prev/next for a doc slug (cross-references).',
+  {
+    slug: z.string().describe('Slug from search_docs'),
+  },
+  async ({ slug }) => {
+    const node = linkGraph[slug];
+    if (!node) {
+      return { content: [{ type: 'text', text: `No graph entry: ${slug}` }], isError: true };
+    }
+    return { content: [{ type: 'text', text: JSON.stringify(node, null, 2) }] };
   },
 );
 

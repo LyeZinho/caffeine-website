@@ -5,7 +5,7 @@
 </blockquote>
 <hr>
 <h2>Visão geral</h2>
-<p>Meshes com um <code>.mat</code> usam metallic, roughness, ORM e emissão. Ver <a href="materials-pbr.md"><code>materials-pbr.md</code></a>. O passe GPU avalia:</p>
+<p>Meshes com um <code>.mat</code> usam metallic, roughness, ORM e emissão. Ver <a href="/docs/docs/rendering/materials-pbr"><code>materials-pbr.md</code></a>. O passe GPU avalia:</p>
 <pre><code>final = ambient + Σ (diffuse Lambert + specular GGX) × shadow
 </code></pre>
 <ul>
@@ -104,13 +104,13 @@ N&#39;  = normalize(TBN * (sample(normalMap) * 2 - 1)))
 <hr>
 <h2>Caminho CPU (legado)</h2>
 <p>No editor, quando o viewport 3D <strong>não</strong> usa GPU texturizado (<code>gpuTextured3D == false</code>), o raster CPU ainda pode avaliar iluminação difusa com shadow maps CPU. O caminho shaded default com GPU activo <strong>não</strong> constrói CPU shadows.</p>
-<p>Ver <a href="shadow-mapping.md"><code>shadow-mapping.md</code></a> e <a href="../plans/2026-09-21-rendering-roadmap.md"><code>plans/2026-09-21-rendering-roadmap.md</code></a> P0.</p>
+<p>Ver <a href="/docs/docs/rendering/shadow-mapping"><code>shadow-mapping.md</code></a> e <a href="/docs/docs/plans/2026-09-21-rendering-roadmap"><code>plans/2026-09-21-rendering-roadmap.md</code></a> P0.</p>
 <hr>
 <h2>Referências</h2>
 <ul>
-<li><a href="../assets/mesh-loading.md"><code>assets/mesh-loading.md</code></a> — tangentes e import</li>
-<li><a href="../terrain/terrain-system.md"><code>terrain/terrain-system.md</code></a> — normal map no terreno</li>
-<li><a href="shadow-mapping.md"><code>shadow-mapping.md</code></a> — passes de sombra GPU</li>
+<li><a href="/docs/docs/assets/mesh-loading"><code>assets/mesh-loading.md</code></a> — tangentes e import</li>
+<li><a href="/docs/docs/terrain/terrain-system"><code>terrain/terrain-system.md</code></a> — normal map no terreno</li>
+<li><a href="/docs/docs/rendering/shadow-mapping"><code>shadow-mapping.md</code></a> — passes de sombra GPU</li>
 </ul>
 
 </article>

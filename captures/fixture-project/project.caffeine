@@ -1,0 +1,11 @@
+{
+  "project_name": "Capture Fixture",
+  "engine_version": "0.0.1",
+  "paths": {
+    "assets_raw": "assets",
+    "assets_processed": "assets/processed",
+    "scripts": "scripts"
+  },
+  "template_type": "empty",
+  "last_scene": ""
+}

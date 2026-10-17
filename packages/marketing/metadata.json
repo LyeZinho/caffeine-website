@@ -1,0 +1,6 @@
+{
+  "name": "Caffeine & Doppio — Next-Gen Game Engine & IDE",
+  "description": "High-performance ECS game engine with Doppio visual IDE. Documentação rápida, busca preditiva, tutoriais interativos e blog de engenharia sob estética Grunge e Neo-brutalismo.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

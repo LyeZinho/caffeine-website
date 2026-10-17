@@ -85,7 +85,7 @@
 <h2>2D drawing (<code>caffeine.draw2d</code>)</h2>
 <p>Record in <code>onUpdate</code> (buffer cleared each frame). Draw order: world → overlays → UI.</p>
 <p><code>line</code>, <code>circle</code>, <code>rect</code>, <code>poly</code> — color <code>{r,g,b,a}</code>, space <code>&quot;world&quot;</code> or <code>&quot;screen&quot;</code>.</p>
-<p>GPU path without ImGui: <code>Render::Overlay2D::buildRhiMesh</code> / <code>drawRhi</code> (see <a href="../rendering/overlay-2d-rhi.md">overlay-2d-rhi.md</a>).</p>
+<p>GPU path without ImGui: <code>Render::Overlay2D::buildRhiMesh</code> / <code>drawRhi</code> (see <a href="/docs/docs/rendering/overlay-2d-rhi">overlay-2d-rhi.md</a>).</p>
 <hr>
 <h2>Runtime UI (<code>caffeine.ui</code>)</h2>
 <p><code>setLabel</code>, <code>setProgress</code>, <code>createCanvas</code>, <code>createLabel</code>, <code>createButton</code>, <code>hitTest</code>.</p>
@@ -105,16 +105,16 @@ end)
 <p>Enable <code>enableChunkRequests</code> on the component in the editor. The engine emits <code>mapChunkRequest</code> when the camera view intersects new chunks.</p>
 <hr>
 <h2>Native modules (<code>caffeine.native</code>)</h2>
-<p>Play-mode libraries in <code>native/*.so</code> (see <a href="native-modules.md">native-modules.md</a>).</p>
+<p>Play-mode libraries in <code>native/*.so</code> (see <a href="/docs/docs/scripting/native-modules">native-modules.md</a>).</p>
 <p><code>load(name)</code>, <code>call(module, function, argsJson?)</code> → result string or error.</p>
 <hr>
 <h2>Post-processing (<code>caffeine.postprocess</code>)</h2>
-<p>See <a href="../rendering/post-processing.md">post-processing.md</a>.</p>
+<p>See <a href="/docs/docs/rendering/post-processing">post-processing.md</a>.</p>
 <hr>
 <h2>Forward render (<code>caffeine.forwardrender</code>)</h2>
-<p>See <a href="../rendering/forward-render-features.md">forward-render-features.md</a>.</p>
+<p>See <a href="/docs/docs/rendering/forward-render-features">forward-render-features.md</a>.</p>
 <hr>
 <h2>Materials</h2>
-<p>Runtime materials use <code>MaterialCache</code> and mesh components; <code>.mat</code> editing is in the editor. See <a href="../rendering/materials-pbr.md">materials-pbr.md</a>.</p>
+<p>Runtime materials use <code>MaterialCache</code> and mesh components; <code>.mat</code> editing is in the editor. See <a href="/docs/docs/rendering/materials-pbr">materials-pbr.md</a>.</p>
 
 </article>

@@ -6,8 +6,8 @@
 <hr>
 <h2>Visão Geral</h2>
 <p>Carregamento de malhas 3D nos formatos <code>.obj</code> e <code>.gltf</code>, convertendo para o formato interno <code>.caf</code> (Mesh). Shaders HLSL (Windows Direct3D) / GLSL (Linux/macOS OpenGL via SDL_GPU).</p>
-<p><strong>Normal mapping:</strong> após import, <code>computeMeshTangents()</code> preenche <code>Vertex3D::tangent</code> (vec4 com handedness em <code>.w</code>). O editor liga normal maps via <code>MeshFilterComponent::customNormalPath</code> no shader Phong <a href="../rendering/materials-phong.md"><code>materials-phong.md</code></a>.</p>
-<p><strong>Smooth shading:</strong> meshes importadas sem normais recebem <code>computeSmoothNormals()</code> em <code>MeshLoader.cpp</code>. Primitivas GPU procedurais (<code>GpuProceduralMeshes.cpp</code>) usam <strong>normais analíticas</strong> — não chamar <code>computeSmoothNormals()</code> nelas (evita costuras em esfera/torus/cápsula). Ver <a href="../plans/2026-09-22-viewport-rendering-quality-session.md"><code>plans/2026-09-22-viewport-rendering-quality-session.md</code></a>.</p>
+<p><strong>Normal mapping:</strong> após import, <code>computeMeshTangents()</code> preenche <code>Vertex3D::tangent</code> (vec4 com handedness em <code>.w</code>). O editor liga normal maps via <code>MeshFilterComponent::customNormalPath</code> no shader Phong <a href="/docs/docs/rendering/materials-phong"><code>materials-phong.md</code></a>.</p>
+<p><strong>Smooth shading:</strong> meshes importadas sem normais recebem <code>computeSmoothNormals()</code> em <code>MeshLoader.cpp</code>. Primitivas GPU procedurais (<code>GpuProceduralMeshes.cpp</code>) usam <strong>normais analíticas</strong> — não chamar <code>computeSmoothNormals()</code> nelas (evita costuras em esfera/torus/cápsula). Ver <a href="/docs/docs/plans/2026-09-22-viewport-rendering-quality-session"><code>plans/2026-09-22-viewport-rendering-quality-session.md</code></a>.</p>
 <hr>
 <h2>API Implementada</h2>
 <pre><code class="language-cpp">namespace Caffeine::Assets {
@@ -190,8 +190,8 @@ meshSystem.onUpdate(world, 0.016f);
 <hr>
 <h2>Dependências</h2>
 <ul>
-<li><strong>Upstream:</strong> <a href="../assets/asset-manager.md">Asset Manager</a>, <a href="../assets/caf-format.md">Formato .caf</a>, <a href="../rendering/rhi.md">RHI</a></li>
-<li><strong>Downstream:</strong> <a href="skeletal-animation.md">Skeletal Animation</a>, <a href="../assets/asset-pipeline.md">Fase 6 — Asset Pipeline</a></li>
+<li><strong>Upstream:</strong> <a href="/docs/docs/assets/asset-manager">Asset Manager</a>, <a href="/docs/docs/assets/caf-format">Formato .caf</a>, <a href="/docs/docs/rendering/rhi">RHI</a></li>
+<li><strong>Downstream:</strong> <a href="/docs/docs/assets/skeletal-animation">Skeletal Animation</a>, <a href="/docs/docs/assets/asset-pipeline">Fase 6 — Asset Pipeline</a></li>
 </ul>
 <hr>
 <h2>Referências</h2>
@@ -214,10 +214,10 @@ meshSystem.onUpdate(world, 0.016f);
 </tbody></table>
 <h2>Referências</h2>
 <ul>
-<li><a href="../architecture_specs.md"><code>docs/architecture_specs.md</code></a> — §15 Math Library</li>
-<li><a href="../rendering/rhi.md"><code>rendering/rhi.md</code></a> — Buffer/Shader creation</li>
-<li><a href="../rendering/texture-quality-lod.md"><code>rendering/texture-quality-lod.md</code></a> — LOD de texturas no render GPU</li>
-<li><a href="../plans/2026-09-22-viewport-rendering-quality-session.md"><code>plans/2026-09-22-viewport-rendering-quality-session.md</code></a> — costuras de shading em primitivas</li>
+<li><a href="/docs/docs/architecture_specs"><code>docs/architecture_specs.md</code></a> — §15 Math Library</li>
+<li><a href="/docs/docs/rendering/rhi"><code>rendering/rhi.md</code></a> — Buffer/Shader creation</li>
+<li><a href="/docs/docs/rendering/texture-quality-lod"><code>rendering/texture-quality-lod.md</code></a> — LOD de texturas no render GPU</li>
+<li><a href="/docs/docs/plans/2026-09-22-viewport-rendering-quality-session"><code>plans/2026-09-22-viewport-rendering-quality-session.md</code></a> — costuras de shading em primitivas</li>
 </ul>
 
 </article>

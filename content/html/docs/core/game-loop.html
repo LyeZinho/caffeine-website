@@ -11,7 +11,7 @@
 <blockquote>
 <p><strong>Responsabilidade do chamador:</strong> o <code>GameLoop</code> não possui clock próprio e não
 faz polling de input — ele recebe <code>deltaTime</code> pronto via <code>tick(dt)</code>. Medir o
-tempo real (ex: com <a href="timer.md"><code>Timer</code></a>) e bombear <code>SDL_PollEvent</code> é tarefa do
+tempo real (ex: com <a href="/docs/docs/core/timer"><code>Timer</code></a>) e bombear <code>SDL_PollEvent</code> é tarefa do
 código que chama <code>tick()</code>, normalmente o <code>main</code> da aplicação.</p>
 </blockquote>
 <hr>
@@ -166,11 +166,23 @@ loop.setCallbacks(&amp;game);
 </code></pre>
 <hr>
 <h2>Estados do Loop</h2>
-<pre><code> Init ──► Running ◄──► Paused
-                │
-                ▼
-             Shutdown
-</code></pre>
+<figure class="doc-diagram">
+<svg viewBox="0 0 720 150" role="img" aria-label="Estados do game loop">
+  <rect x="16" y="36" width="140" height="72" fill="#1c1714" stroke="#e63920"/>
+  <rect x="196" y="36" width="150" height="72" fill="#1c1714" stroke="#d9822b"/>
+  <rect x="386" y="36" width="140" height="72" fill="#1c1714" stroke="#a89b91"/>
+  <rect x="566" y="36" width="140" height="72" fill="#1c1714" stroke="#6b5f56"/>
+  <text x="86" y="78" text-anchor="middle" fill="#f8f5f1" font-size="14" font-family="sans-serif">Init</text>
+  <text x="271" y="78" text-anchor="middle" fill="#f8f5f1" font-size="14" font-family="sans-serif">Running</text>
+  <text x="456" y="78" text-anchor="middle" fill="#f8f5f1" font-size="14" font-family="sans-serif">Paused</text>
+  <text x="636" y="78" text-anchor="middle" fill="#f8f5f1" font-size="14" font-family="sans-serif">Shutdown</text>
+  <path d="M156 72 H196" stroke="#e63920" stroke-width="2"/>
+  <path d="M346 62 H386" stroke="#d9822b" stroke-width="2"/>
+  <path d="M386 86 H346" stroke="#a89b91" stroke-width="2"/>
+  <path d="M271 108 V132 H636 V108" fill="none" stroke="#6b5f56" stroke-width="2"/>
+</svg>
+<figcaption>Init segue para Running. pause e resume ligam Running e Paused. Shutdown fecha o ciclo.</figcaption>
+</figure>
 <table>
 <thead>
 <tr>
@@ -236,16 +248,16 @@ loop.setCallbacks(&amp;game);
 <hr>
 <h2>Dependências</h2>
 <ul>
-<li><strong>Upstream:</strong> <a href="timer.md">Timer</a> (chamador mede <code>dt</code>), tipos de <a href="../../src/core/Types.hpp"><code>src/core/Types.hpp</code></a></li>
-<li><strong>Downstream:</strong> ECS World (<a href="../ecs/core.md"><code>../ecs/core.md</code></a>), Renderer, Input (<a href="../input/input-system.md"><code>../input/input-system.md</code></a>) — todos via callbacks, sem acoplamento</li>
+<li><strong>Upstream:</strong> <a href="/docs/docs/core/timer">Timer</a> (chamador mede <code>dt</code>), tipos de <a href="../../src/core/Types.hpp"><code>src/core/Types.hpp</code></a></li>
+<li><strong>Downstream:</strong> ECS World (<a href="/docs/docs/ecs/core"><code>../ecs/core.md</code></a>), Renderer, Input (<a href="/docs/docs/input/input-system"><code>../input/input-system.md</code></a>) — todos via callbacks, sem acoplamento</li>
 </ul>
 <hr>
 <h2>Referências</h2>
 <ul>
 <li><a href="../../src/core/GameLoop.hpp"><code>src/core/GameLoop.hpp</code></a> / <a href="../../src/core/GameLoop.cpp"><code>src/core/GameLoop.cpp</code></a></li>
 <li><a href="../../tests/test_gameloop.cpp"><code>tests/test_gameloop.cpp</code></a></li>
-<li><a href="../architecture_specs.md"><code>docs/architecture_specs.md</code></a> — §1 Game Loop</li>
-<li><a href="timer.md"><code>core/timer.md</code></a> — Mede o <code>dt</code> alimentado ao loop</li>
+<li><a href="/docs/docs/architecture_specs"><code>docs/architecture_specs.md</code></a> — §1 Game Loop</li>
+<li><a href="/docs/docs/core/timer"><code>core/timer.md</code></a> — Mede o <code>dt</code> alimentado ao loop</li>
 <li><a href="https://gameprogrammingpatterns.com/game-loop.html">Game Programming Patterns — Game Loop</a></li>
 </ul>
 

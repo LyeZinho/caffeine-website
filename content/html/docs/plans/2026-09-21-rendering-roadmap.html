@@ -98,7 +98,7 @@
 </tr>
 </tbody></table>
 <p><strong>Métrica de sucesso:</strong> viewport 3D sem <code>MeshCpuRasterizer</code> em modo shaded; FPS estável ±5% ao orbitar câmara.</p>
-<p><strong>Doc detalhada:</strong> <a href="../rendering/rhi.md"><code>rendering/rhi.md</code></a> (atualizar após P0)</p>
+<p><strong>Doc detalhada:</strong> <a href="/docs/docs/rendering/rhi"><code>rendering/rhi.md</code></a> (atualizar após P0)</p>
 <hr>
 <h2>P1 — Texturas e materiais</h2>
 <p><strong>Meta:</strong> cache GPU global, mips, sem reload por frame.</p>
@@ -142,7 +142,7 @@
 </tr>
 </tbody></table>
 <p><strong>Métrica:</strong> 0 <code>stbi_load</code> durante render loop; memória GPU estável após warm-up.</p>
-<p><strong>Doc:</strong> <a href="../assets/asset-manager.md"><code>assets/asset-manager.md</code></a>, <a href="../rendering/texture-quality-lod.md"><code>rendering/texture-quality-lod.md</code></a>, <a href="../rendering/materials-pbr.md"><code>rendering/materials-pbr.md</code></a></p>
+<p><strong>Doc:</strong> <a href="/docs/docs/assets/asset-manager"><code>assets/asset-manager.md</code></a>, <a href="/docs/docs/rendering/texture-quality-lod"><code>rendering/texture-quality-lod.md</code></a>, <a href="/docs/docs/rendering/materials-pbr"><code>rendering/materials-pbr.md</code></a></p>
 <hr>
 <h2>P2 — Polígonos, meshes e LOD</h2>
 <p><strong>Meta:</strong> cenas com 500k–2M triângulos visíveis com culling agressivo.</p>
@@ -181,7 +181,7 @@
 </tr>
 </tbody></table>
 <p><strong>Métrica:</strong> draw calls &lt; 200 para cena de referência; triângulos visíveis escalam com LOD.</p>
-<p><strong>Doc:</strong> <a href="../rendering/mesh-lod.md"><code>rendering/mesh-lod.md</code></a></p>
+<p><strong>Doc:</strong> <a href="/docs/docs/rendering/mesh-lod"><code>rendering/mesh-lod.md</code></a></p>
 <hr>
 <h2>P3 — Iluminação</h2>
 <p><strong>Meta:</strong> PBR forward+ (Cook-Torrance) com múltiplas luzes.</p>
@@ -220,7 +220,7 @@
 </tr>
 </tbody></table>
 <p><strong>Métrica:</strong> esfera de referência + terreno com resposta física plausível; sem banding em gradientes.</p>
-<p><strong>Doc:</strong> atualizar <a href="../rendering/camera-3d.md"><code>rendering/camera-3d.md</code></a></p>
+<p><strong>Doc:</strong> atualizar <a href="/docs/docs/rendering/camera-3d"><code>rendering/camera-3d.md</code></a></p>
 <hr>
 <h2>P4 — Shadow mapping (GPU)</h2>
 <p><strong>Meta:</strong> sombras direcionais + spot estáveis; point opcional (cubemap).</p>
@@ -268,9 +268,9 @@
 <td><code>GpuPointShadowMap.*</code></td>
 </tr>
 </tbody></table>
-<p><strong>Infra ligada:</strong> <code>GpuDirectionalShadowMap</code>, <code>GpuPointShadowMap</code>, <code>shadow_depth.*</code> — ver <a href="../rendering/shadow-mapping.md"><code>rendering/shadow-mapping.md</code></a></p>
+<p><strong>Infra ligada:</strong> <code>GpuDirectionalShadowMap</code>, <code>GpuPointShadowMap</code>, <code>shadow_depth.*</code> — ver <a href="/docs/docs/rendering/shadow-mapping"><code>rendering/shadow-mapping.md</code></a></p>
 <p><strong>Métrica:</strong> sombras sem acne/ peter-panning visível; custo &lt; 3 ms @ 1080p.</p>
-<p><strong>Doc:</strong> <a href="../rendering/shadow-mapping.md"><code>rendering/shadow-mapping.md</code></a>, <a href="../rendering/materials-phong.md"><code>rendering/materials-phong.md</code></a></p>
+<p><strong>Doc:</strong> <a href="/docs/docs/rendering/shadow-mapping"><code>rendering/shadow-mapping.md</code></a>, <a href="/docs/docs/rendering/materials-phong"><code>rendering/materials-phong.md</code></a></p>
 <hr>
 <h2>P5 — Reflexos em tempo real</h2>
 <p><strong>Meta:</strong> reflexos convincentes sem custo proibitivo.</p>
@@ -381,43 +381,43 @@
 </tr>
 </thead>
 <tbody><tr>
-<td><a href="../rendering/rhi.md"><code>rendering/rhi.md</code></a></td>
+<td><a href="/docs/docs/rendering/rhi"><code>rendering/rhi.md</code></a></td>
 <td>Abstração SDL_GPU</td>
 </tr>
 <tr>
-<td><a href="../rendering/batch-renderer.md"><code>rendering/batch-renderer.md</code></a></td>
+<td><a href="/docs/docs/rendering/batch-renderer"><code>rendering/batch-renderer.md</code></a></td>
 <td>Sprites 2D (não 3D)</td>
 </tr>
 <tr>
-<td><a href="../terrain/terrain-system.md"><code>terrain/terrain-system.md</code></a></td>
+<td><a href="/docs/docs/terrain/terrain-system"><code>terrain/terrain-system.md</code></a></td>
 <td>Terreno LOD/chunks</td>
 </tr>
 <tr>
-<td><a href="2026-05-23-3d-mesh-enhancements.md"><code>plans/2026-05-23-3d-mesh-enhancements.md</code></a></td>
+<td><a href="/docs/docs/plans/2026-05-23-3d-mesh-enhancements"><code>plans/2026-05-23-3d-mesh-enhancements.md</code></a></td>
 <td>Plano anterior meshes</td>
 </tr>
 <tr>
-<td><a href="2026-09-22-viewport-rendering-quality-session.md"><code>plans/2026-09-22-viewport-rendering-quality-session.md</code></a></td>
+<td><a href="/docs/docs/plans/2026-09-22-viewport-rendering-quality-session"><code>plans/2026-09-22-viewport-rendering-quality-session.md</code></a></td>
 <td>Sessão viewport: HiDPI, wireframe GPU, LOD texturas</td>
 </tr>
 <tr>
-<td><a href="../rendering/texture-quality-lod.md"><code>rendering/texture-quality-lod.md</code></a></td>
+<td><a href="/docs/docs/rendering/texture-quality-lod"><code>rendering/texture-quality-lod.md</code></a></td>
 <td>LOD de texturas por distância</td>
 </tr>
 <tr>
-<td><a href="../editor/scene-viewport.md"><code>editor/scene-viewport.md</code></a></td>
+<td><a href="/docs/docs/editor/scene-viewport"><code>editor/scene-viewport.md</code></a></td>
 <td>Pipeline do Scene Viewport 3D</td>
 </tr>
 <tr>
-<td><a href="../rendering/mesh-lod.md"><code>rendering/mesh-lod.md</code></a></td>
+<td><a href="/docs/docs/rendering/mesh-lod"><code>rendering/mesh-lod.md</code></a></td>
 <td>LOD de meshes por clustering</td>
 </tr>
 <tr>
-<td><a href="../rendering/reflections.md"><code>rendering/reflections.md</code></a></td>
+<td><a href="/docs/docs/rendering/reflections"><code>rendering/reflections.md</code></a></td>
 <td>Planar, screen-space e probe</td>
 </tr>
 <tr>
-<td><a href="../rendering/volumetric-lighting.md"><code>rendering/volumetric-lighting.md</code></a></td>
+<td><a href="/docs/docs/rendering/volumetric-lighting"><code>rendering/volumetric-lighting.md</code></a></td>
 <td>Nevoeiro analítico</td>
 </tr>
 </tbody></table>

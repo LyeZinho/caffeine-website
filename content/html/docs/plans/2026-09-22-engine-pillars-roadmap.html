@@ -5,9 +5,9 @@
 </blockquote>
 <p>Este documento complementa:</p>
 <ul>
-<li><a href="2026-09-21-rendering-roadmap.md"><code>2026-09-21-rendering-roadmap.md</code></a> — detalhe técnico de rendering 3D</li>
-<li><a href="../HISTORY.md"><code>../HISTORY.md</code></a> — fases históricas de desenvolvimento</li>
-<li><a href="../../planning/caffeine-studio-ide.md"><code>../../planning/caffeine-studio-ide.md</code></a> — milestones do Doppio (IDE)</li>
+<li><a href="/docs/docs/plans/2026-09-21-rendering-roadmap"><code>2026-09-21-rendering-roadmap.md</code></a> — detalhe técnico de rendering 3D</li>
+<li><a href="/docs/docs/HISTORY"><code>../HISTORY.md</code></a> — fases históricas de desenvolvimento</li>
+<li><a href="/docs/planning/caffeine-studio-ide"><code>../../planning/caffeine-studio-ide.md</code></a> — milestones do Doppio (IDE)</li>
 </ul>
 <hr>
 <h2>Prioridades</h2>
@@ -97,7 +97,7 @@
 </tbody></table>
 <p><strong>Dependências:</strong> RHI, mesh loading, materiais, <code>Camera3DComponent</code>.</p>
 <p><strong>Relação com PBR:</strong> Phong é o <strong>degrau imediato</strong> (P0 rendering). O deferred PBR (P1) evolui sobre a mesma infraestrutura de G-buffer, shadow maps e materiais — não substitui o trabalho de câmaras, sombras e normal mapping.</p>
-<p><strong>Docs:</strong> <a href="../rendering/materials-phong.md"><code>rendering/materials-phong.md</code></a>, <a href="../rendering/shadow-mapping.md"><code>rendering/shadow-mapping.md</code></a>, <a href="../rendering/texture-quality-lod.md"><code>rendering/texture-quality-lod.md</code></a>, <a href="../editor/scene-viewport.md"><code>editor/scene-viewport.md</code></a>, <a href="../performance/editor-viewport-performance.md"><code>performance/editor-viewport-performance.md</code></a>, <a href="2026-09-21-rendering-roadmap.md"><code>2026-09-21-rendering-roadmap.md</code></a>, <a href="2026-09-22-phong-gpu-handles-session.md"><code>2026-09-22-phong-gpu-handles-session.md</code></a>, <a href="2026-09-22-viewport-rendering-quality-session.md"><code>2026-09-22-viewport-rendering-quality-session.md</code></a></p>
+<p><strong>Docs:</strong> <a href="/docs/docs/rendering/materials-phong"><code>rendering/materials-phong.md</code></a>, <a href="/docs/docs/rendering/shadow-mapping"><code>rendering/shadow-mapping.md</code></a>, <a href="/docs/docs/rendering/texture-quality-lod"><code>rendering/texture-quality-lod.md</code></a>, <a href="/docs/docs/editor/scene-viewport"><code>editor/scene-viewport.md</code></a>, <a href="/docs/docs/performance/editor-viewport-performance"><code>performance/editor-viewport-performance.md</code></a>, <a href="/docs/docs/plans/2026-09-21-rendering-roadmap"><code>2026-09-21-rendering-roadmap.md</code></a>, <a href="/docs/docs/plans/2026-09-22-phong-gpu-handles-session"><code>2026-09-22-phong-gpu-handles-session.md</code></a>, <a href="/docs/docs/plans/2026-09-22-viewport-rendering-quality-session"><code>2026-09-22-viewport-rendering-quality-session.md</code></a></p>
 <hr>
 <h3>2. Sistema de eventos (timers + tipos customizados)</h3>
 <p><strong>Estado:</strong> 🟡 Parcial — <code>EventBus</code> tipado + <code>TimerScheduler</code> (<code>scheduleOnce</code> / <code>scheduleRepeating</code> no fixed timestep). Tipos custom runtime e thread-safety doc ainda limitados.</p>
@@ -131,7 +131,7 @@
 </tr>
 </tbody></table>
 <p><strong>Dependências:</strong> Game loop, <code>EventBus</code>.</p>
-<p><strong>Docs:</strong> <a href="../core/events.md"><code>core/events.md</code></a>, <a href="../core/timer.md"><code>core/timer.md</code></a></p>
+<p><strong>Docs:</strong> <a href="/docs/docs/core/events"><code>core/events.md</code></a>, <a href="/docs/docs/core/timer"><code>core/timer.md</code></a></p>
 <hr>
 <h3>3. Física rigid body (Bullet3)</h3>
 <p><strong>Estado:</strong> 🟡 Em curso (2026-10-01) — <code>btDiscreteDynamicsWorld</code> com box, sphere e capsule; <code>RigidBody3D</code> + <code>Collider3D</code> (POD, serializados); sync no play mode do Doppio; gravidade e fixed step 1/60. Falta: heightfield/mesh de terreno, convex mesh, debug draw, joints, teste cross-platform de determinismo.</p>
@@ -165,7 +165,7 @@
 </tr>
 </tbody></table>
 <p><strong>Dependências:</strong> ECS, math, terreno collision mesh (<code>TerrainCollisionMeshBuilder</code>).</p>
-<p><strong>Docs:</strong> <a href="../physics/physics-3d.md"><code>physics/physics-3d.md</code></a>, <a href="../physics/physics-2d.md"><code>physics/physics-2d.md</code></a></p>
+<p><strong>Docs:</strong> <a href="/docs/docs/physics/physics-3d"><code>physics/physics-3d.md</code></a>, <a href="/docs/docs/physics/physics-2d"><code>physics/physics-2d.md</code></a></p>
 <p><strong>Nota:</strong> Bullet3 escolhido explicitamente como backend; abstração <code>IPhysicsWorld3D</code> para não acoplar ECS ao Bullet em todo o código.</p>
 <hr>
 <h3>4. Áudio 3D (OpenAL)</h3>
@@ -200,7 +200,7 @@
 </tr>
 </tbody></table>
 <p><strong>Dependências:</strong> Asset manager, ECS, game loop.</p>
-<p><strong>Docs:</strong> <a href="../audio/audio-system.md"><code>audio/audio-system.md</code></a></p>
+<p><strong>Docs:</strong> <a href="/docs/docs/audio/audio-system"><code>audio/audio-system.md</code></a></p>
 <hr>
 <h3>5. ECS próprio, integrado em runtime e editor</h3>
 <p><strong>Estado:</strong> 🟢 Avançado — <code>World</code> archetype-based, editor Doppio, runtime <code>caffeine-runtime</code>, serialização de cena.</p>
@@ -234,7 +234,7 @@
 </tr>
 </tbody></table>
 <p><strong>Dependências:</strong> Memory, scene serializer.</p>
-<p><strong>Docs:</strong> <a href="../ecs/README.md"><code>ecs/README.md</code></a>, <a href="../ecs/scene.md"><code>ecs/scene.md</code></a></p>
+<p><strong>Docs:</strong> <a href="/docs/docs/ecs/README"><code>ecs/README.md</code></a>, <a href="/docs/docs/ecs/scene"><code>ecs/scene.md</code></a></p>
 <hr>
 <h3>6. Gestão de recursos com handles e reference counting</h3>
 <p><strong>Estado:</strong> 🟡 Parcial — generation counter, refcount RAII (<code>AssetHandle</code>), LRU, invalidation callbacks; <code>GpuTextureCache</code> GPU com mips. Falta: async decode→upload N+1, <code>.caf</code> checksum header.</p>
@@ -268,7 +268,7 @@
 </tr>
 </tbody></table>
 <p><strong>Dependências:</strong> Job system, file I/O, formatos <code>.caf</code>.</p>
-<p><strong>Docs:</strong> <a href="../assets/asset-manager.md"><code>assets/asset-manager.md</code></a></p>
+<p><strong>Docs:</strong> <a href="/docs/docs/assets/asset-manager"><code>assets/asset-manager.md</code></a></p>
 <hr>
 <h2>P1 — Production</h2>
 <h3>7. Networking + serialização custom de objetos</h3>
@@ -332,7 +332,7 @@
 </tr>
 </tbody></table>
 <p><strong>Dependências:</strong> P0 rendering (sombras, normal maps, pipeline GPU único).</p>
-<p><strong>Docs:</strong> <a href="2026-09-21-rendering-roadmap.md"><code>2026-09-21-rendering-roadmap.md</code></a> fases P3–P6.</p>
+<p><strong>Docs:</strong> <a href="/docs/docs/plans/2026-09-21-rendering-roadmap"><code>2026-09-21-rendering-roadmap.md</code></a> fases P3–P6.</p>
 <hr>
 <h3>9. Subsistema de animação</h3>
 <p><strong>Estado:</strong> 🟡 Parcial — animation 2D, skeletal stubs, timeline no editor.</p>
@@ -366,7 +366,7 @@
 </tr>
 </tbody></table>
 <p><strong>Dependências:</strong> ECS, mesh loading, rendering.</p>
-<p><strong>Docs:</strong> <a href="../animation/skeletal-animation.md"><code>animation/skeletal-animation.md</code></a></p>
+<p><strong>Docs:</strong> <a href="/docs/docs/animation/skeletal-animation"><code>animation/skeletal-animation.md</code></a></p>
 <hr>
 <h3>10. Scene management + serialização de tipos de utilizador</h3>
 <p><strong>Estado:</strong> 🟡 Parcial — <code>SceneSerializer</code>, blobs por componente; tipos user-defined limitados.</p>
@@ -400,7 +400,7 @@
 </tr>
 </tbody></table>
 <p><strong>Dependências:</strong> ECS, asset handles, editor.</p>
-<p><strong>Docs:</strong> <a href="../ecs/scene.md"><code>ecs/scene.md</code></a></p>
+<p><strong>Docs:</strong> <a href="/docs/docs/ecs/scene"><code>ecs/scene.md</code></a></p>
 <hr>
 <h2>P2 — Future</h2>
 <h3>11. Scripting via C# ou Python</h3>
@@ -427,7 +427,7 @@
 </tbody></table>
 <p><strong>Critério de aceitação (quando iniciar):</strong> VM/embed estável, hot-reload, bindings ECS gerados ou reflection, sandbox documentado.</p>
 <p><strong>Nota:</strong> Lua permanece suportado; C#/Python seria <strong>camada adicional</strong>, não substituição imediata.</p>
-<p><strong>Docs:</strong> <a href="../scripting/scripting.md"><code>scripting/scripting.md</code></a></p>
+<p><strong>Docs:</strong> <a href="/docs/docs/scripting/scripting"><code>scripting/scripting.md</code></a></p>
 <hr>
 <h2>P3 — Maybe</h2>
 <h3>12. Suporte a dispositivos Android</h3>
@@ -557,7 +557,7 @@
 <ul>
 <li><strong>Antes de implementar</strong> um subsistema: abrir o pilar correspondente e verificar critérios de aceitação.</li>
 <li><strong>Ao fechar uma feature:</strong> atualizar coluna “Estado” neste ficheiro e linkar doc técnica em <code>docs/&lt;módulo&gt;/</code>.</li>
-<li><strong>Rendering:</strong> detalhe fase-a-fase continua em <a href="2026-09-21-rendering-roadmap.md"><code>2026-09-21-rendering-roadmap.md</code></a>; este doc define <em>o quê</em>; aquele define <em>como</em>.</li>
+<li><strong>Rendering:</strong> detalhe fase-a-fase continua em <a href="/docs/docs/plans/2026-09-21-rendering-roadmap"><code>2026-09-21-rendering-roadmap.md</code></a>; este doc define <em>o quê</em>; aquele define <em>como</em>.</li>
 </ul>
 <hr>
 <h2>Critérios quantitativos de “production-ready”</h2>
@@ -948,7 +948,7 @@
 <ul>
 <li>Terrain, procedural tools, post-process e git UI movidos para plugins <code>.so</code></li>
 <li><code>PluginServiceRegistry</code> genérico — core não hardcoda feature services</li>
-<li>Ver <a href="../editor/plugin-sdk.md"><code>docs/editor/plugin-sdk.md</code></a></li>
+<li>Ver <a href="/docs/docs/editor/plugin-sdk"><code>docs/editor/plugin-sdk.md</code></a></li>
 </ul>
 <p><strong>Impacto nos pilares:</strong> o pilar 10 (Scene + tipos user) e o pilar 5 (ECS reflection) beneficiam diretamente desta arquitetura — plugins registam drawers e serializers sem recompilar o editor.</p>
 <hr>

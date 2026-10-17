@@ -6,7 +6,7 @@
 <hr>
 <h2>Visão Geral</h2>
 <p>O RHI é a camada de abstração sobre <code>SDL_GPU</code>. A engine <strong>nunca</strong> chama funções SDL_GPU diretamente — todas as chamadas passam pelo RHI, que gerencia command buffers, swapchains e render targets.</p>
-<p><strong>Por que RHI?</strong><br>Separa a lógica de renderização da API gráfica subjacente. Hoje SDL_GPU; amanhã Vulkan diretamente ou WebGPU — sem alterar o <a href="batch-renderer.md">Batch Renderer</a> nem os shaders do jogo.</p>
+<p><strong>Por que RHI?</strong><br>Separa a lógica de renderização da API gráfica subjacente. Hoje SDL_GPU; amanhã Vulkan diretamente ou WebGPU — sem alterar o <a href="/docs/docs/rendering/batch-renderer">Batch Renderer</a> nem os shaders do jogo.</p>
 <hr>
 <h2>API Planejada</h2>
 <pre><code class="language-cpp">namespace Caffeine::RHI {
@@ -245,8 +245,8 @@ device.endFrame(cmd);
 <hr>
 <h2>Dependências</h2>
 <ul>
-<li><strong>Upstream:</strong> <code>SDL3::SDL_GPU</code>, <a href="../math/vectors.md">Fase 1 — Math</a></li>
-<li><strong>Downstream:</strong> <a href="batch-renderer.md">Batch Renderer</a>, <a href="../debug/debug-tools.md">Debug Tools</a> (DebugDraw), <a href="../ui/game-ui.md">Fase 4 — UI</a></li>
+<li><strong>Upstream:</strong> <code>SDL3::SDL_GPU</code>, <a href="/docs/docs/math/vectors">Fase 1 — Math</a></li>
+<li><strong>Downstream:</strong> <a href="/docs/docs/rendering/batch-renderer">Batch Renderer</a>, <a href="/docs/docs/debug/debug-tools">Debug Tools</a> (DebugDraw), <a href="/docs/docs/ui/game-ui">Fase 4 — UI</a></li>
 </ul>
 <hr>
 <h2>🔗 Tópicos Relacionados</h2>
@@ -264,8 +264,8 @@ device.endFrame(cmd);
 </tbody></table>
 <h2>Referências</h2>
 <ul>
-<li><a href="../architecture_specs.md"><code>docs/architecture_specs.md</code></a> — §8 RHI</li>
-<li><a href="batch-renderer.md"><code>docs/fase3/batch-renderer.md</code></a> — usa RHI internamente</li>
+<li><a href="/docs/docs/architecture_specs"><code>docs/architecture_specs.md</code></a> — §8 RHI</li>
+<li><a href="/docs/docs/rendering/batch-renderer"><code>docs/fase3/batch-renderer.md</code></a> — usa RHI internamente</li>
 <li><a href="https://wiki.libsdl.org/SDL3/CategoryGPU">SDL_GPU API Reference</a></li>
 <li><a href="">Índice de Tópicos Transversais</a></li>
 </ul>

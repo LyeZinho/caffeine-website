@@ -1,7 +1,7 @@
 <article class="doc-article" data-slug="docs/terrain/terrain-system">
 <h1>🏔️ Terrain System</h1>
 <blockquote>
-<p><strong>Namespace:</strong> <code>Caffeine::Terrain</code>, <code>Caffeine::ECS::TerrainComponent</code><br><strong>Arquivos:</strong> <code>src/terrain/*</code>, <code>src/ecs/TerrainComponents.hpp</code><br><strong>Status:</strong> ✅ Implementado (runtime + editor sculpt/paint)<br><strong>Geração procedural:</strong> plugin — ver <a href="terrain-plugin.md"><code>terrain-plugin.md</code></a></p>
+<p><strong>Namespace:</strong> <code>Caffeine::Terrain</code>, <code>Caffeine::ECS::TerrainComponent</code><br><strong>Arquivos:</strong> <code>src/terrain/*</code>, <code>src/ecs/TerrainComponents.hpp</code><br><strong>Status:</strong> ✅ Implementado (runtime + editor sculpt/paint)<br><strong>Geração procedural:</strong> plugin — ver <a href="/docs/docs/terrain/terrain-plugin"><code>terrain-plugin.md</code></a></p>
 </blockquote>
 <hr>
 <h2>Visão Geral</h2>
@@ -102,7 +102,7 @@ TerrainCache::initializeEntity / syncEntity
 <li>Sombras direcionais (slots 6–7) e pontuais cubemap (slots 8–9).</li>
 <li><code>castShadows</code> / <code>receiveShadows</code> respeitados em <code>GpuSceneRenderer::gatherMeshDraws</code>.</li>
 </ul>
-<p>Ver <a href="../rendering/materials-phong.md"><code>rendering/materials-phong.md</code></a> e <a href="../rendering/shadow-mapping.md"><code>rendering/shadow-mapping.md</code></a>.</p>
+<p>Ver <a href="/docs/docs/rendering/materials-phong"><code>rendering/materials-phong.md</code></a> e <a href="/docs/docs/rendering/shadow-mapping"><code>rendering/shadow-mapping.md</code></a>.</p>
 <hr>
 <h2>Serialização</h2>
 <p><code>SceneSerializer</code> grava <code>TerrainComponent</code> no blob de cena (versão <strong>10</strong>). Versão 9 adicionou <code>collisionSampleStep</code> e <code>buildCollisionMesh</code>; versão 10 acrescenta <code>normalMapPath</code> e <code>shininess</code>. Campos de geração legados (v2–v8) são lidos e descartados para compatibilidade. Dados de height/splat pesados vivem em <code>.cterrain</code> referenciado por <code>terrainDataPath</code>.</p>

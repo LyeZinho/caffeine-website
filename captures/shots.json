@@ -1,0 +1,16 @@
+[
+  {
+    "id": "doppio-startup",
+    "args": [],
+    "delay": 2.5,
+    "doc": "docs/editor/scene-editor",
+    "note": "Startup dialog. No --project, so Doppio stays on the project picker."
+  },
+  {
+    "id": "doppio-scene",
+    "args": ["--project", "caffeine-website/captures/fixture-project"],
+    "delay": 4,
+    "doc": "docs/editor/scene-viewport",
+    "note": "Scene editor opened from the capture fixture project."
+  }
+]

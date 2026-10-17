@@ -1,7 +1,7 @@
 <article class="doc-article" data-slug="docs/architecture_specs">
 <h1>🏗️ Architecture Specifications</h1>
 <blockquote>
-<p>⚠️ <strong>Status:</strong> Versão 1.0 — Completo para as Fases 1-6.<br>⚠️ Para contexto completo, consulte <a href="../docs/MASTER.md"><code>docs/MASTER.md</code></a> §3.</p>
+<p>⚠️ <strong>Status:</strong> Versão 1.0 — Completo para as Fases 1-6.<br>⚠️ Para contexto completo, consulte <a href="/docs/docs/MASTER"><code>docs/MASTER.md</code></a> §3.</p>
 </blockquote>
 <p>Este documento contém as <strong>especificações técnicas detalhadas</strong> de cada subsistema da Caffeine Engine. Baseado em pesquisa de padrões de engines como <a href="https://github.com/SanderMertens/flecs">flecs</a>, <a href="https://github.com/skypjack/entt">EnTT</a>, e integrações com SDL3.</p>
 <hr>
@@ -200,19 +200,28 @@
 <p>O Game Loop é o coração da engine — o loop que roda do início ao fim do jogo, em cada frame. A Caffeine implementa o padrão <strong>Fixed Timestep com Acumulador</strong>, que desvincula a lógica de física (que precisa de tempo consistente) da renderização (que pode variar).</p>
 <p>Inspirado em <a href="https://gameprogrammingpatterns.com/game-loop.html">Game Programming Patterns — Decoupling Systems</a>.</p>
 <h3>1.2 Estados do Loop</h3>
-<pre><code>┌──────────────────────────────────────────────────────────┐
-│                   GAME LOOP STATES                       │
-├─────────────┬──────────────┬──────────────┬─────────────┤
-│    INIT     │   RUNNING    │    PAUSED    │  SHUTDOWN   │
-│             │              │              │             │
-│ - Carregar   │ - Processar  │ - Pausar     │ - Cleanup   │
-│   recursos   │   eventos    │   lógica     │   recursos  │
-│ - Criar      │ - Update     │ - Manter     │ - Flush     │
-│   mundo      │   ECS        │   render     │   logs      │
-│ - Inicializ. │ - Renderizar │ - aceitar    │ - Exit      │
-│   subsistemas│ - Interpolar │   resume     │   code      │
-└─────────────┴──────────────┴──────────────┴─────────────┘
-</code></pre>
+<figure class="doc-diagram">
+<svg viewBox="0 0 720 150" role="img" aria-label="Estados do game loop">
+  <rect x="16" y="36" width="140" height="72" fill="#1c1714" stroke="#e63920" stroke-width="2"/>
+  <rect x="196" y="36" width="150" height="72" fill="#1c1714" stroke="#d9822b" stroke-width="2"/>
+  <rect x="386" y="36" width="140" height="72" fill="#1c1714" stroke="#a89b91" stroke-width="2"/>
+  <rect x="566" y="36" width="140" height="72" fill="#1c1714" stroke="#6b5f56" stroke-width="2"/>
+  <text x="86" y="68" text-anchor="middle" fill="#f8f5f1" font-size="14" font-family="sans-serif">Init</text>
+  <text x="86" y="88" text-anchor="middle" fill="#a89b91" font-size="11" font-family="sans-serif">carregar</text>
+  <text x="271" y="68" text-anchor="middle" fill="#f8f5f1" font-size="14" font-family="sans-serif">Running</text>
+  <text x="271" y="88" text-anchor="middle" fill="#a89b91" font-size="11" font-family="sans-serif">update + render</text>
+  <text x="456" y="68" text-anchor="middle" fill="#f8f5f1" font-size="14" font-family="sans-serif">Paused</text>
+  <text x="456" y="88" text-anchor="middle" fill="#a89b91" font-size="11" font-family="sans-serif">só render</text>
+  <text x="636" y="68" text-anchor="middle" fill="#f8f5f1" font-size="14" font-family="sans-serif">Shutdown</text>
+  <text x="636" y="88" text-anchor="middle" fill="#a89b91" font-size="11" font-family="sans-serif">terminal</text>
+  <path d="M156 72 H196" stroke="#e63920" stroke-width="2" marker-end="url(#arrow)"/>
+  <path d="M346 60 H386" stroke="#d9822b" stroke-width="2"/>
+  <path d="M386 84 H346" stroke="#a89b91" stroke-width="2"/>
+  <path d="M271 108 V128 H636 V108" fill="none" stroke="#6b5f56" stroke-width="2"/>
+  <defs><marker id="arrow" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto"><path d="M0 0 L6 3 L0 6 Z" fill="#e63920"/></marker></defs>
+</svg>
+<figcaption>Init passa a Running. Running e Paused trocam com pause/resume. Shutdown é terminal.</figcaption>
+</figure>
 <h3>1.3 Interface Pública</h3>
 <pre><code class="language-cpp">namespace Caffeine::Core {
 

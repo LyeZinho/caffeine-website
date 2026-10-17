@@ -5,7 +5,7 @@
 </blockquote>
 <hr>
 <h2>Visão Geral</h2>
-<p>O Asset Manager carrega, faz cache e fornece assets (texturas, áudio, shaders) de forma transparente ao jogo. Suporta <strong>async loading</strong> via <a href="../concurrency/job-system.md">Job System</a> e <strong>hot-reload</strong> em builds debug.</p>
+<p>O Asset Manager carrega, faz cache e fornece assets (texturas, áudio, shaders) de forma transparente ao jogo. Suporta <strong>async loading</strong> via <a href="/docs/docs/concurrency/job-system">Job System</a> e <strong>hot-reload</strong> em builds debug.</p>
 <p><strong>Filosofia:</strong> O código do jogo pede um asset pelo caminho; o Asset Manager retorna um <code>AssetHandle&lt;T&gt;</code>. O jogo nunca vê raw bytes — só <code>AssetHandle&lt;Texture&gt;</code>.</p>
 <p><strong>Carregamento zero-copy:</strong> Os assets são carregados via <code>BlobLoader</code> que faz uma única <code>fread()</code> para um <code>LinearAllocator</code>. As structs <code>Texture</code>, <code>AudioClip</code> e <code>ShaderBlob</code> são <em>views</em> sobre esse buffer — sem cópia, sem deserialização.</p>
 <hr>
@@ -330,19 +330,19 @@ const Texture* atlas = uiAtlas.get();  // pronto imediatamente
 </tr>
 </thead>
 <tbody><tr>
-<td><a href="../concurrency/job-system.md"><code>Caffeine::Threading::JobSystem</code></a></td>
+<td><a href="/docs/docs/concurrency/job-system"><code>Caffeine::Threading::JobSystem</code></a></td>
 <td>Background jobs para async loading</td>
 </tr>
 <tr>
-<td><a href="caf-format.md"><code>Caffeine::IO::BlobLoader</code></a></td>
+<td><a href="/docs/docs/assets/caf-format"><code>Caffeine::IO::BlobLoader</code></a></td>
 <td>Leitura zero-copy de arquivos .caf</td>
 </tr>
 <tr>
-<td><a href="caf-format.md"><code>Caffeine::IO::CafTypes</code></a></td>
+<td><a href="/docs/docs/assets/caf-format"><code>Caffeine::IO::CafTypes</code></a></td>
 <td>CafHeader, TextureMetadata, AudioMetadata, ShaderMetadata</td>
 </tr>
 <tr>
-<td><a href="../memory/allocators.md"><code>Caffeine::LinearAllocator</code></a></td>
+<td><a href="/docs/docs/memory/allocators"><code>Caffeine::LinearAllocator</code></a></td>
 <td>Alocação linear para o buffer do asset</td>
 </tr>
 <tr>
@@ -436,9 +436,9 @@ const Texture* atlas = uiAtlas.get();  // pronto imediatamente
 </tbody></table>
 <h2>Referências</h2>
 <ul>
-<li><a href="../architecture_specs.md"><code>docs/architecture_specs.md</code></a> — §7 Asset Manager</li>
-<li><a href="caf-format.md"><code>assets/caf-format.md</code></a> — Formato binário .caf</li>
-<li><a href="../concurrency/job-system.md"><code>concurrency/job-system.md</code></a> — Background jobs para loading</li>
+<li><a href="/docs/docs/architecture_specs"><code>docs/architecture_specs.md</code></a> — §7 Asset Manager</li>
+<li><a href="/docs/docs/assets/caf-format"><code>assets/caf-format.md</code></a> — Formato binário .caf</li>
+<li><a href="/docs/docs/concurrency/job-system"><code>concurrency/job-system.md</code></a> — Background jobs para loading</li>
 <li><a href="">Índice de Tópicos Transversais</a></li>
 <li><a href="https://github.com/devscafecommunity/caffeine/issues/26">Issue #26</a> — Asset Manager task</li>
 </ul>

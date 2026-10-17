@@ -672,12 +672,6 @@
     "path": "BUILD_GUIDE.md"
   },
   {
-    "slug": "engine/CAFFEINE_STATUS_REPORT",
-    "title": "Caffeine Engine - Current Status & Implementation Roadmap",
-    "source": "engine",
-    "path": "CAFFEINE_STATUS_REPORT.md"
-  },
-  {
     "slug": "engine/CHANGELOG",
     "title": "Changelog",
     "source": "engine",
@@ -688,6 +682,12 @@
     "title": "ProjectStartupDialog + File Picker Implementation - Session Summary",
     "source": "engine",
     "path": "SESSION_SUMMARY.md"
+  },
+  {
+    "slug": "planning/.planning/CAFFEINE_STATUS_REPORT",
+    "title": "Caffeine Engine - Current Status & Implementation Roadmap",
+    "source": "planning",
+    "path": ".planning/CAFFEINE_STATUS_REPORT.md"
   },
   {
     "slug": "planning/caffeine-studio-ide",

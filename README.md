@@ -2,7 +2,8 @@
 
 Documentation monorepo for **Caffeine Engine**:
 
-- `packages/docs-site` — SvelteKit site (HTML docs, no Markdown in the engine repo)
+- `packages/marketing` — Site público (landing, tutoriais, blog) — **abrir em `:3000`**
+- `packages/docs-site` — SvelteKit (`/docs`, HTML migrado, PDF/TeX)
 - `packages/docs-mcp` — MCP server for agents (`search_docs`, `get_doc`)
 - `tex/` — LaTeX sources for PDF books
 - `content/html/` — generated HTML from legacy Markdown (run `npm run migrate:md`)
@@ -11,8 +12,9 @@ Documentation monorepo for **Caffeine Engine**:
 
 ```bash
 npm install
+npm run sync:engine  # copy Markdown from parent engine repo into import/
 npm run migrate:md   # after updating import/ sources
-npm run dev
+npm run dev          # marketing :3000 + docs :5173 (proxy /docs)
 ```
 
 ## MCP (Cursor / agents)

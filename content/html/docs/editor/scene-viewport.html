@@ -1,7 +1,7 @@
 <article class="doc-article" data-slug="docs/editor/scene-viewport">
 <h1>Scene Viewport — Renderização 3D</h1>
 <blockquote>
-<p><strong>Namespace:</strong> <code>Caffeine::Editor::SceneViewport</code><br><strong>Ficheiro:</strong> <code>src/editor/SceneViewport.cpp</code><br><strong>Status:</strong> ✅ Implementado (GPU-first em 3D)<br><strong>Performance:</strong> ~10 → ~100 FPS no editor (ver <a href="../performance/editor-viewport-performance.md">performance</a>)</p>
+<p><strong>Namespace:</strong> <code>Caffeine::Editor::SceneViewport</code><br><strong>Ficheiro:</strong> <code>src/editor/SceneViewport.cpp</code><br><strong>Status:</strong> ✅ Implementado (GPU-first em 3D)<br><strong>Performance:</strong> ~10 → ~100 FPS no editor (ver <a href="/docs/docs/performance/editor-viewport-performance">performance</a>)</p>
 </blockquote>
 <hr>
 <h2>Visão geral</h2>
@@ -28,7 +28,7 @@
 </tr>
 </tbody></table>
 <p>Alternar: botão <strong>Textured / Wireframe</strong> na barra do viewport.</p>
-<p><strong>Importante:</strong> com GPU activo (<code>gpuOwnsSceneMeshes</code>), o CPU <strong>não</strong> rasteriza meshes nem terreno no mesmo frame. Ver <a href="../performance/editor-viewport-performance.md">performance do viewport</a>.</p>
+<p><strong>Importante:</strong> com GPU activo (<code>gpuOwnsSceneMeshes</code>), o CPU <strong>não</strong> rasteriza meshes nem terreno no mesmo frame. Ver <a href="/docs/docs/performance/editor-viewport-performance">performance do viewport</a>.</p>
 <hr>
 <h2>Pipeline por frame (3D)</h2>
 <pre><code>1. resizeCanvasIfNeeded(imguiFramebufferSize(viewportSize, 3840))
@@ -145,7 +145,7 @@ resizeCanvasIfNeeded((u32)fb.x, (u32)fb.y);
 </tr>
 </tbody></table>
 <blockquote>
-<p><strong>Nota:</strong> <code>enableShadows=false</code> desliga apenas os <strong>passes</strong> de sombra. Os samplers continuam ligados — ver <a href="../rendering/shadow-mapping.md#editor-vs-runtime">shadow-mapping.md</a>.</p>
+<p><strong>Nota:</strong> <code>enableShadows=false</code> desliga apenas os <strong>passes</strong> de sombra. Os samplers continuam ligados — ver <a href="/docs/docs/rendering/shadow-mapping#editor-vs-runtime">shadow-mapping.md</a>.</p>
 </blockquote>
 <hr>
 <h2>Anti-aliasing de overlays</h2>
@@ -169,7 +169,7 @@ drawList-&gt;Flags |= ImDrawListFlags_AntiAliasedFill;
 <li>Move speed / Orbit sensitivity</li>
 <li>Show grid</li>
 <li><strong>Render scale</strong> (resolução interna HDR)</li>
-<li><strong>Texture quality</strong> (raio, falloff, mínimo) — ver <a href="../rendering/texture-quality-lod.md"><code>texture-quality-lod.md</code></a></li>
+<li><strong>Texture quality</strong> (raio, falloff, mínimo) — ver <a href="/docs/docs/rendering/texture-quality-lod"><code>texture-quality-lod.md</code></a></li>
 </ul>
 <p>Campos em <code>EditorContext</code> sincronizados via <code>SettingsPanel::applyPreferencesToContext()</code>.</p>
 <hr>
@@ -227,13 +227,13 @@ drawList-&gt;Flags |= ImDrawListFlags_AntiAliasedFill;
 <hr>
 <h2>Ver também</h2>
 <ul>
-<li><a href="../performance/editor-viewport-performance.md"><strong>Performance — Editor Viewport</strong></a></li>
-<li><a href="../plans/2026-09-22-viewport-rendering-quality-session.md">Sessão 2026-09-22 — Viewport &amp; Quality</a></li>
-<li><a href="../rendering/texture-quality-lod.md">Texture Quality LOD</a></li>
-<li><a href="../rendering/materials-pbr.md">Materials PBR</a></li>
-<li><a href="../rendering/post-processing.md">Post-processing</a></li>
-<li><a href="material-editor.md">Material Editor</a></li>
-<li><a href="../rendering/shadow-mapping.md">Shadow Mapping</a></li>
+<li><a href="/docs/docs/performance/editor-viewport-performance"><strong>Performance — Editor Viewport</strong></a></li>
+<li><a href="/docs/docs/plans/2026-09-22-viewport-rendering-quality-session">Sessão 2026-09-22 — Viewport &amp; Quality</a></li>
+<li><a href="/docs/docs/rendering/texture-quality-lod">Texture Quality LOD</a></li>
+<li><a href="/docs/docs/rendering/materials-pbr">Materials PBR</a></li>
+<li><a href="/docs/docs/rendering/post-processing">Post-processing</a></li>
+<li><a href="/docs/docs/editor/material-editor">Material Editor</a></li>
+<li><a href="/docs/docs/rendering/shadow-mapping">Shadow Mapping</a></li>
 </ul>
 
 </article>
