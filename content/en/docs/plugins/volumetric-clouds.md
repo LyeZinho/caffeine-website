@@ -54,8 +54,16 @@ cmake --build doppio-plugins/build --target volumetric_clouds_plugin
 cp doppio-plugins/build/plugins/volumetric_clouds_plugin.so build/plugins/
 ```
 
-Enable **VC&M** in **Plugins → Plugin Manager**, then open
-**View → Volumetric Clouds & Mist**.
+Enable **VC&M** in **Plugins → Plugin Manager**, then use
+**Plugins → Create Volumetric Clouds & Mist** (creates the component, enables it and
+opens the panel) or **View → Volumetric Clouds & Mist**.
+
+## Quick Search
+
+Press **Ctrl+P**, type `clouds`, and run **Add Volumetric Clouds**. If nothing is
+selected, VC&M creates and selects an entity, adds the component with a usable
+Cumulus profile and enables the layer. Run **Plugins → Create Volumetric Clouds &
+Mist** to do the same and open the panel.
 
 ## Usage
 
