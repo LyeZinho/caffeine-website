@@ -55,7 +55,7 @@ cp doppio-plugins/build/plugins/volumetric_clouds_plugin.so build/plugins/
 ```
 
 Ative **VC&M** em **Plugins → Plugin Manager** e abra
-**Effects → Volumetric Clouds & Mist**.
+**View → Volumetric Clouds & Mist**.
 
 ## Utilização
 
