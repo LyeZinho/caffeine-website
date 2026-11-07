@@ -1,6 +1,6 @@
 # Plugin SDK
 
-Doppio is a **lean IDE**. Feature plugins ship separately and load at runtime from `plugins/`.
+Doppio é uma **IDE lean**. Os plugins de funcionalidades são compilados a partir do repositório separado [doppio-plugins](https://github.com/devscafecommunity/doppio-plugins) (submódulo da engine) e carregados em runtime a partir de um diretório `plugins/`.
 
 ## Architecture
 
@@ -22,23 +22,23 @@ Doppio is a **lean IDE**. Feature plugins ship separately and load at runtime fr
 1. **Plugins own their logic** — bridges, panels, services live in `.so` files, not in `doppio` sources.
 2. **Core owns ECS + runtime** — `PostProcessComponent`, `TerrainComponent`, procedural systems are engine data/runtime; editor UI for them is plugin territory.
 3. **Service registry is generic** — plugins call `registerService` in `OnLoad`; Doppio never hardcodes feature services.
-4. **Optional bundling** — CMake `CAFFEINE_BUNDLE_DEFAULT_PLUGINS=OFF` (default): Doppio ships without copying plugins. Turn `ON` for dev convenience.
+4. **Sem build de plugins na árvore** — o CMake da engine nunca compila nem copia plugins de funcionalidades. São compilados a partir de `doppio-plugins` contra o SDK público.
+5. **Carregamento opt-in** — nada é pré-carregado no arranque. As bibliotecas descobertas ficam desativadas até o utilizador as ativar em **Plugins → Plugin Manager**; a escolha é guardada em `~/.config/caffeine/plugins.cfg`.
 
 ## Install plugins
 
 ```bash
-# Build plugins (from build dir)
-cmake --build . --target terrain_plugin post_processing_plugin procedural_tools_plugin git_plugin
+# Compilar o repositório de plugins contra esta engine
+cmake -S doppio-plugins -B doppio-plugins/build \
+  -DCAFFEINE_ROOT=/caminho/para/caffeine \
+  -DIMGUI_DIR=/caminho/para/caffeine/build/_deps/imgui-src
+cmake --build doppio-plugins/build -j
 
-# Copy into Doppio plugins folder
-cp build/plugins/*.so build/doppio/plugins/
+# Copiar para um diretório descoberto (projeto, build ou utilizador)
+cp doppio-plugins/build/plugins/*.so build/plugins/
 ```
 
-Or enable bundling at configure time:
-
-```bash
-cmake -DCAFFEINE_BUNDLE_DEFAULT_PLUGINS=ON ..
-```
+Depois abra **Plugins → Plugin Manager** e ative apenas os plugins necessários.
 
 ## Plugin catalog (reference)
 
@@ -49,6 +49,7 @@ cmake -DCAFFEINE_BUNDLE_DEFAULT_PLUGINS=ON ..
 | `procedural_tools_plugin` | Modular procedural streaming tools |
 | `post_processing_plugin` | Post-process effect stack UI |
 | `git_plugin` | Optional Git project management |
+| `ai_development_plugin` | NPC navigation and behaviour authoring |
 
 ## Host API
 

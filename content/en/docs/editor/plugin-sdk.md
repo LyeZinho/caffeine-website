@@ -1,6 +1,8 @@
 # Plugin SDK
 
-Doppio is a **lean IDE**. Feature plugins ship separately and load at runtime from `plugins/` .
+Doppio is a **lean IDE**. Feature plugins are built from the separate
+[doppio-plugins](https://github.com/devscafecommunity/doppio-plugins) repository
+(an engine submodule) and load at runtime from a `plugins/` directory.
 
 ## Architecture
 
@@ -22,23 +24,23 @@ Doppio is a **lean IDE**. Feature plugins ship separately and load at runtime fr
 1. **Plugins own their logic** — bridges, panels, services live in `.so` files, not in `doppio` sources.
 2. **Core owns ECS + runtime** — `PostProcessComponent` , `TerrainComponent` , procedural systems are engine data/runtime; editor UI for them is plugin territory.
 3. **Service registry is generic** — call plugins `registerService` in `OnLoad` ; Doppio never hardcodes feature services.
-4. **Optional bundling** — CMake `CAFFEINE_BUNDLE_DEFAULT_PLUGINS=OFF` (default): Doppio ships without copying plugins. Turn `ON` for dev convenience.
+4. **No in-tree plugin builds** — the engine CMake never builds or copies feature plugins. Build them from `doppio-plugins` against the public SDK.
+5. **Opt-in loading** — nothing is preloaded at startup. Discovered libraries stay disabled until the user enables them in **Plugins → Plugin Manager**; the choice is stored in `~/.config/caffeine/plugins.cfg`.
 
 ## Install plugins
 
 ```bash
-# Build plugins (from build dir)
-cmake --build . --target terrain_plugin post_processing_plugin procedural_tools_plugin git_plugin
+# Build the plugin repository against this engine checkout
+cmake -S doppio-plugins -B doppio-plugins/build \
+  -DCAFFEINE_ROOT=/path/to/caffeine \
+  -DIMGUI_DIR=/path/to/caffeine/build/_deps/imgui-src
+cmake --build doppio-plugins/build -j
 
-# Copy into Doppio plugins folder
-cp build/plugins/*.so build/doppio/plugins/
+# Copy into a discovered directory (project, build or user)
+cp doppio-plugins/build/plugins/*.so build/plugins/
 ```
 
-Or enable bundling at configure time:
-
-```bash
-cmake -DCAFFEINE_BUNDLE_DEFAULT_PLUGINS=ON ..
-```
+Then open **Plugins → Plugin Manager** and enable only the plugins you need.
 
 ## Plugin catalog (reference)
 
@@ -49,6 +51,7 @@ cmake -DCAFFEINE_BUNDLE_DEFAULT_PLUGINS=ON ..
 | `procedural_tools_plugin` | Modular procedural streaming tools |
 | `post_processing_plugin` | Post-process effect stack UI |
 | `git_plugin` | Optional Git project management |
+| `ai_development_plugin` | NPC navigation and behaviour authoring |
 
 ## Host API
 

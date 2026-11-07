@@ -2,15 +2,22 @@
   {
     "id": "doppio-startup",
     "args": [],
-    "delay": 2.5,
-    "doc": "docs/editor/scene-editor",
+    "delay": 3.0,
+    "doc": "getting-started/quick-start",
     "note": "Startup dialog. No --project, so Doppio stays on the project picker."
   },
   {
-    "id": "doppio-scene",
+    "id": "doppio-editor",
     "args": ["--project", "caffeine-website/captures/fixture-project"],
-    "delay": 4,
-    "doc": "docs/editor/scene-viewport",
-    "note": "Scene editor opened from the capture fixture project."
+    "delay": 5,
+    "doc": "editor/scene-editor",
+    "note": "Doppio editor opened from the capture fixture project."
+  },
+  {
+    "id": "doppio-scene",
+    "args": ["--scene", "assets/benchmarks/dense_outdoor.caf"],
+    "delay": 7,
+    "doc": "editor/scene-viewport",
+    "note": "3D scene viewport with the default editor layout."
   }
 ]

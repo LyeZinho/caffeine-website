@@ -6,6 +6,15 @@
 
 ## Documentation Index
 
+### Getting started
+
+| Document | Description |
+|----------|-------------|
+| **Getting started** | [`getting-started/README.md`](getting-started/README.md) | Clone, build and run Doppio |
+| **Build guide** | [`getting-started/build-guide.md`](getting-started/build-guide.md) | `caffeine-build` wrapper for every platform |
+| **UI gallery** | [`editor/ui-gallery.md`](editor/ui-gallery.md) | Screenshots of the editor, viewport and docking |
+| **Plugin Manager** | [`editor/plugin-manager.md`](editor/plugin-manager.md) | Build, install and enable plugins explicitly |
+
 ### Arquitectura
 
 | Documento | Description |
@@ -16,6 +25,8 @@
 
 | Documento | Description |
 |-----------|-----------|
+| **Editor milestones** | [`plans/milestones/README.md`](plans/milestones/README.md) | M1–M4 editor program and terrain track |
+| **Session archive** | [`plans/archive/README.md`](plans/archive/README.md) | Historical implementation sessions |
 | **Engine Pillars** | [`plans/2026-09-22-engine-pillars-roadmap.md`](plans/2026-09-22-engine-pillars-roadmap.md) | Fundamental Pillars: Phong 3D, Bullet3, OpenAL, ECS, handles, networking, PBR, animation, scripting, Android |
 | **Rendering Roadmap** | [`plans/2026-09-21-rendering-roadmap.md`](plans/2026-09-21-rendering-roadmap.md) | Plan P0–P6: Single GPU, textures, LOD, PBR, shadows, reflexes, volumetric |
 | **Sessão 2026-09-22 (Phong)** | [`plans/2026-09-22-phong-gpu-handles-session.md`](plans/2026-09-22-phong-gpu-handles-session.md) | Changelog: Phong GPU, sombras, handles, normal maps, inspector |
@@ -101,6 +112,8 @@
 | Module | Documentation | Description |
 |--------|-------------|-----------|
 | **Plugin SDK** | [`editor/plugin-sdk.md`](editor/plugin-sdk.md) | Doppio lean + dynamic plugins, services, UI |
+| **Plugin Manager** | [`editor/plugin-manager.md`](editor/plugin-manager.md) | Opt-in loading, enable list, troubleshooting |
+| **UI gallery** | [`editor/ui-gallery.md`](editor/ui-gallery.md) | Screenshots and workspace layout |
 | **Git Plugin** | [`editor/git-plugin.md`](editor/git-plugin.md) | Optional management panel Project Git |
 
 ### Terrain
@@ -110,6 +123,16 @@
 | **Terrain System** | [`terrain/terrain-system.md`](terrain/terrain-system.md) | Heightmap, mesh, LOD, collision, sculpt/paint, `.cterrain` |
 | **Terrain Generator Plugin** | [`terrain/terrain-plugin.md`](terrain/terrain-plugin.md) | Procedural generation via ultra-realistic algorithm (Node.js) |
 | **Procedural Tools Plugin** | [`terrain/procedural-tools-plugin.md`](terrain/procedural-tools-plugin.md) | Streaming procedure (exploitation, backrooms, race) + Moon |
+
+### Plugins
+
+| Document | Description |
+|----------|-------------|
+| **Plugin catalog** | [`plugins/README.md`](plugins/README.md) | Official plugins and quick build |
+| **Getting started** | [`plugins/getting-started.md`](plugins/getting-started.md) | Hello template and install |
+| **Installing plugins** | [`plugins/installing-plugins.md`](plugins/installing-plugins.md) | Discovery paths and enable list |
+| **Writing a plugin** | [`plugins/writing-a-plugin.md`](plugins/writing-a-plugin.md) | C ABI, lifecycle, host API |
+| **Service registry** | [`plugins/service-registry.md`](plugins/service-registry.md) | Cross-plugin services |
 
 ### Physics
 

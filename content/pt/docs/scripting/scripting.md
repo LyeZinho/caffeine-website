@@ -5,6 +5,8 @@
 > **Status:** 📅 Planejado (TBD)  
 > **RFs:** RF6.6 (scripting hot-reload), RF4.7 (bindings iniciais)
 
+Lua (`.lua`) mantém-se. Scripts Dryad (`.dyd`) e o canvas de nodes estão no plano [Dryad e scripts por nodes](../plans/2026-10-19-dryad-node-scripts.md).
+
 ---
 
 ## Visão Geral

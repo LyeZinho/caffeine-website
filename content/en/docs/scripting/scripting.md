@@ -5,6 +5,8 @@
 > ** Status:** 
 > **RFs:** RF6.6 (scripting hot-reload), RF4.7 (bindings iniciais)
 
+Lua (`.lua`) stays. Dryad scripts (`.dyd`) and the node canvas are specified in [Dryad and node scripts](../plans/2026-10-19-dryad-node-scripts.md).
+
 ---
 
 ## Overview
