@@ -66,6 +66,31 @@ The pass reuses the engine's post-process stack:
 Photon runs **before TAA**, so the temporal resolve cleans the stochastic ray
 pattern. Start at Balanced for editing and High/Cinematic for captures.
 
+
+## Baked ambient occlusion (no RTX)
+
+The **Baked ambient occlusion** section in the Photon panel precomputes static AO
+into the selected mesh material:
+
+1. Select a static mesh entity (or use **Bake scene**).
+2. Choose resolution (256/512/1024), rays, max distance and bias.
+3. Press **Bake selected mesh**.
+
+The baker:
+
+- gathers every static mesh triangle as an occluder,
+- rasterises the target mesh in UV space,
+- casts cosine-weighted rays against a CPU BVH,
+- writes an **ORM PNG** with AO in R (roughness/metallic preserved in G/B),
+- updates the material's `orm_map` and `ao_strength`.
+
+The runtime shader already samples ORM.R as ambient occlusion, so the result is
+applied with **no ray-tracing hardware** and no screen-space noise. Re-bake after
+changing static geometry.
+
+> Baked AO is for static meshes. Moving objects should keep using the screen-space
+> Photon pass. Meshes with overlapping UVs average their faces; use unique UVs for
+> per-face AO.
 ## Limitations
 
 - No world-anchored radiance probe field: off-screen light falls back to a constant

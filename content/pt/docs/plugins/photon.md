@@ -65,6 +65,31 @@ O passe reutiliza o post-process stack da engine:
 O Photon corre **antes do TAA**, por isso o resolve temporal limpa o padrão
 estocástico. Comece em Balanced para edição e use High/Cinematic para capturas.
 
+
+## Oclusão de ambiente pré-processada (sem RTX)
+
+A secção **Baked ambient occlusion** do painel Photon pré-calcula AO estática para o
+material do mesh selecionado:
+
+1. Selecione uma entidade com mesh estática (ou use **Bake scene**).
+2. Escolha resolução (256/512/1024), raios, distância máxima e bias.
+3. Prima **Bake selected mesh**.
+
+O baker:
+
+- recolhe todos os triângulos estáticos da cena como oclusores,
+- rasteriza o mesh alvo em espaço UV,
+- lança raios com peso cosseno contra um BVH CPU,
+- escreve um **PNG ORM** com AO no R (roughness/metallic preservados em G/B),
+- atualiza `orm_map` e `ao_strength` do material.
+
+O shader da engine já usa ORM.R como oclusão de ambiente, por isso o resultado é
+aplicado **sem hardware de ray tracing** e sem ruído de screen-space. Refaça o bake
+depois de alterar geometria estática.
+
+> O AO pré-processado é para meshes estáticas. Objetos em movimento devem continuar
+> a usar o passe screen-space do Photon. Meshes com UVs sobrepostas fazem média das
+> faces; use UVs únicas para AO por face.
 ## Limitações
 
 - Sem campo de probes world-anchored: a luz fora do ecrã usa um fallback constante
