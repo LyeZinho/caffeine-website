@@ -8,6 +8,8 @@ which is pinned as an engine submodule.
 Doppio does not build or preload them. Install the libraries in a plugin directory
 and enable the ones you need from **Plugins → Plugin Manager**.
 
+![Arquitetura de plugins do Doppio](../images/diagrams/plugin-architecture.svg)
+
 ## Catalog
 
 | Plugin | Binary | What it adds |

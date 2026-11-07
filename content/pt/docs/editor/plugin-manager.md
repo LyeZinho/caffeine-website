@@ -5,6 +5,8 @@ editor não compila, copia nem pré-carrega plugins de terreno, procedural, Git,
 pós-processamento ou IA. Expõe apenas o host de plugins (`PluginManager` +
 `PluginServiceRegistry`).
 
+![Arquitetura de plugins do Doppio](../images/diagrams/plugin-architecture.svg)
+
 ## Onde vivem os plugins
 
 O código-fonte dos plugins é mantido no repositório separado

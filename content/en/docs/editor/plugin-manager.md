@@ -4,6 +4,8 @@ Doppio ships **without** bundled feature plugins. The editor core does not build
 copy or preload terrain, procedural, Git, post-processing or AI plugins. It only
 provides the plugin host (`PluginManager` + `PluginServiceRegistry`).
 
+![Doppio plugin architecture](../images/diagrams/plugin-architecture.svg)
+
 ## Where plugins live
 
 Plugin sources are maintained in the separate

@@ -10,6 +10,8 @@ projects; **Empty** starts with a blank scene.
 
 ## Editor layout
 
+![Default Doppio workspace regions](../images/diagrams/workspace-layout.svg)
+
 ![Doppio editor with hierarchy, viewport, inspector and asset browser](../images/captures/doppio-editor.png)
 
 The default workspace is docked in four regions:

@@ -11,6 +11,8 @@ projetos 2D ou 3D; **Empty** começa com uma cena vazia.
 
 ## Layout do editor
 
+![Regiões do workspace por omissão](../images/diagrams/workspace-layout.svg)
+
 ![Editor do Doppio com hierarchy, viewport, inspector e asset browser](../images/captures/doppio-editor.png)
 
 O workspace por omissão está dividido em quatro regiões:
