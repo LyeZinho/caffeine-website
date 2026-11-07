@@ -111,4 +111,4 @@ Engine-coupled plugins must be rebuilt when Caffeine internals change. Prefer se
 
 - [Caffeine Plugin SDK](https://github.com/caffeine-engine/caffeine/blob/main/docs/editor/plugin-sdk.md) (upstream)
 - [Installing plugins](installing-plugins.md)
-- [Hello template](../templates/hello-plugin/)
+- [Hello template](https://github.com/devscafecommunity/doppio-plugins/tree/main/templates/hello-plugin)

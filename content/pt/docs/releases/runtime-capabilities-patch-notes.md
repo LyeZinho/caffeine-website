@@ -2,7 +2,7 @@
 
 **Date:** 2026-10-14  
 **Scope:** Caffeine engine core + scripting (Doppio consumes the same APIs)  
-**RFC:** [planning/engine-runtime-capabilities-rfc.md](../../planning/engine-runtime-capabilities-rfc.md)
+**RFC:** [planning/engine-runtime-capabilities-rfc.md](../plans/milestones/engine-runtime-capabilities-rfc.md)
 
 This document is intended for **all engine users** (internal teams and third-party projects). It summarizes what landed in two implementation phases and how to adopt it safely.
 

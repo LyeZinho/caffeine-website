@@ -70,5 +70,5 @@ m_host->invokeService(m_host->editorContext, "terrain.generateUltra",
 
 | Service prefix | Owner |
 |----------------|-------|
-| `terrain.*` | [terrain-generator](../plugins/terrain-generator/) |
-| `procedural.*` | [procedural-tools](../plugins/procedural-tools/) |
+| `terrain.*` | [terrain-generator](https://github.com/devscafecommunity/doppio-plugins/tree/main/plugins/terrain-generator) |
+| `procedural.*` | [procedural-tools](https://github.com/devscafecommunity/doppio-plugins/tree/main/plugins/procedural-tools) |
