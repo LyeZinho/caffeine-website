@@ -137,6 +137,7 @@
 | **Writing a plugin** | [`plugins/writing-a-plugin.md`](plugins/writing-a-plugin.md) | C ABI, lifecycle, host API |
 | **Service registry** | [`plugins/service-registry.md`](plugins/service-registry.md) | Cross-plugin services |
 | **Compatibility** | [`plugins/compatibility.md`](plugins/compatibility.md) | ABI, build flags and platform matrix |
+| **VC&M** | [`plugins/volumetric-clouds.md`](plugins/volumetric-clouds.md) | Volumetric clouds and mist plugin |
 
 ### Physics
 

@@ -137,6 +137,7 @@
 | **Escrever um plugin** | [`plugins/writing-a-plugin.md`](plugins/writing-a-plugin.md) | C ABI, ciclo de vida, host API |
 | **Service registry** | [`plugins/service-registry.md`](plugins/service-registry.md) | Serviços entre plugins |
 | **Compatibilidade** | [`plugins/compatibility.md`](plugins/compatibility.md) | ABI, flags de build e matriz de plataformas |
+| **VC&M** | [`plugins/volumetric-clouds.md`](plugins/volumetric-clouds.md) | Plugin de nuvens e nevoa volumétricas |
 
 ### Physics
 

@@ -20,6 +20,7 @@ and enable the ones you need from **Plugins → Plugin Manager**.
 | Post Processing | `post_processing_plugin` | Post-process stack UI and camera helpers |
 | Git | `git_plugin` | Project Git status, history and commit actions |
 | AI Development | `ai_development_plugin` | Nav volumes, nav agents and behaviour templates |
+| VC&M | `volumetric_clouds_plugin` | Procedural volumetric clouds and ground mist |
 
 ## Pages
 
@@ -31,6 +32,7 @@ and enable the ones you need from **Plugins → Plugin Manager**.
 | [Service registry](service-registry.md) | Cross-plugin services such as terrain and procedural |
 | [Plugin Manager](../editor/plugin-manager.md) | Opt-in loading and troubleshooting |
 | [Compatibility](compatibility.md) | ABI, build flags and platform matrix |
+| [VC&M](volumetric-clouds.md) | Volumetric clouds and mist plugin |
 
 ## Quick build
 
