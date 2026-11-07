@@ -19,16 +19,16 @@ engine como submódulo:
 ./scripts/submodules.sh
 ```
 
-Compile-os contra o SDK da engine:
+O build normal da engine compila **todos** os plugins e escreve as bibliotecas em
+`build/plugins/`:
 
 ```bash
-cmake -S doppio-plugins -B doppio-plugins/build \
-  -DCAFFEINE_ROOT=/caminho/para/caffeine \
-  -DIMGUI_DIR=/caminho/para/caffeine/build/_deps/imgui-src
-cmake --build doppio-plugins/build
+cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
+cmake --build build -j
 ```
 
-Os artefactos ficam em `doppio-plugins/build/plugins/*.so`.
+Não há um segundo passo de build. `CAFFEINE_BUILD_DOPPIO_PLUGINS=OFF` é a única
+forma de os saltar, para builds mínimos/headless.
 
 ## Instalação
 

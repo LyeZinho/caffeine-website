@@ -18,16 +18,16 @@ added to the engine as a git submodule:
 ./scripts/submodules.sh
 ```
 
-Build them against the engine SDK:
+The normal engine build compiles **every** plugin and writes the libraries to
+`build/plugins/`:
 
 ```bash
-cmake -S doppio-plugins -B doppio-plugins/build \
-  -DCAFFEINE_ROOT=/path/to/caffeine \
-  -DIMGUI_DIR=/path/to/caffeine/build/_deps/imgui-src
-cmake --build doppio-plugins/build
+cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
+cmake --build build -j
 ```
 
-Artifacts land in `doppio-plugins/build/plugins/*.so`.
+There is no second build step. `CAFFEINE_BUILD_DOPPIO_PLUGINS=OFF` is the only way
+to skip plugin compilation, for minimal/headless builds.
 
 ## Install
 
