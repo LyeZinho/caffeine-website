@@ -75,6 +75,11 @@ material do mesh selecionado:
 2. Escolha resolução (256/512/1024), raios, distância máxima e bias.
 3. Prima **Bake selected mesh**.
 
+O baker usa **compute na GPU** quando o render device expõe compute (o caminho normal
+do Doppio/runtime) e recorre ao BVH CPU caso contrário. A CPU só rasteriza UVs e
+constrói a lista de triângulos; os testes de raio pesados correm na GPU. Cenas com
+mais de 8192 triângulos usam o caminho CPU.
+
 O baker:
 
 - recolhe todos os triângulos estáticos da cena como oclusores,

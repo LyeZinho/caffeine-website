@@ -76,6 +76,11 @@ into the selected mesh material:
 2. Choose resolution (256/512/1024), rays, max distance and bias.
 3. Press **Bake selected mesh**.
 
+The baker uses **GPU compute** when the render device exposes compute (the normal
+Doppio/runtime path), and falls back to the CPU BVH otherwise. The CPU only
+rasterises UVs and builds the triangle list; the expensive ray tests run on the GPU.
+Scenes above 8192 triangles fall back to the CPU path.
+
 The baker:
 
 - gathers every static mesh triangle as an occluder,
