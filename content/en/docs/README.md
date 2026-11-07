@@ -138,6 +138,7 @@
 | **Service registry** | [`plugins/service-registry.md`](plugins/service-registry.md) | Cross-plugin services |
 | **Compatibility** | [`plugins/compatibility.md`](plugins/compatibility.md) | ABI, build flags and platform matrix |
 | **VC&M** | [`plugins/volumetric-clouds.md`](plugins/volumetric-clouds.md) | Volumetric clouds and mist plugin |
+| **Photon** | [`plugins/photon.md`](plugins/photon.md) | Hybrid radiance-cascade global illumination |
 
 ### Physics
 

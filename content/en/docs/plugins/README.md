@@ -21,6 +21,7 @@ and enable the ones you need from **Plugins → Plugin Manager**.
 | Git | `git_plugin` | Project Git status, history and commit actions |
 | AI Development | `ai_development_plugin` | Nav volumes, nav agents and behaviour templates |
 | VC&M | `volumetric_clouds_plugin` | Procedural volumetric clouds and ground mist |
+| Photon | `photon_plugin` | Hybrid radiance-cascade global illumination |
 
 ## Pages
 
@@ -33,6 +34,7 @@ and enable the ones you need from **Plugins → Plugin Manager**.
 | [Plugin Manager](../editor/plugin-manager.md) | Opt-in loading and troubleshooting |
 | [Compatibility](compatibility.md) | ABI, build flags and platform matrix |
 | [VC&M](volumetric-clouds.md) | Volumetric clouds and mist plugin |
+| [Photon](photon.md) | Hybrid radiance-cascade GI |
 
 ## Quick build
 

@@ -138,6 +138,7 @@
 | **Service registry** | [`plugins/service-registry.md`](plugins/service-registry.md) | Serviços entre plugins |
 | **Compatibilidade** | [`plugins/compatibility.md`](plugins/compatibility.md) | ABI, flags de build e matriz de plataformas |
 | **VC&M** | [`plugins/volumetric-clouds.md`](plugins/volumetric-clouds.md) | Plugin de nuvens e nevoa volumétricas |
+| **Photon** | [`plugins/photon.md`](plugins/photon.md) | Iluminação global híbrida por radiance cascades |
 
 ### Physics
 
