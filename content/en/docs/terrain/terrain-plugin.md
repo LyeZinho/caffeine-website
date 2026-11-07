@@ -69,11 +69,11 @@ Implementation: `TerrainBridge` exposed via service `terrain.generateUltra` ( `P
 
 | Ficheiro | Description |
 |----------|-----------|
-| `apps/plugins/terrain_plugin/main.cpp` | UI ImGui do plugin |
-| `apps/plugins/terrain_plugin/TerrainBridge.cpp` | Spawn Node + import (no Doppio core) |
+| `doppio-plugins/plugins/terrain-generator/src/main.cpp` | UI ImGui do plugin |
+| `doppio-plugins/plugins/terrain-generator/src/TerrainBridge.cpp` | Spawn Node + import (no Doppio core) |
 | `src/terrain/TerrainHeightmapImporter.cpp` | Parse `.txt` → heightmap |
 
-Build: `terrain_plugin` is copied to `doppio/plugins/` no POST_BUILD do editor.
+Build: `terrain_plugin` is built from `doppio-plugins`, installed in a `plugins/` directory, and enabled in the Plugin Manager.
 
 ---
 

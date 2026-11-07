@@ -1,6 +1,6 @@
 # Caffeine Unified Ecosystem — Complete Workflow
 
-This document describes the complete pipeline for creating, packing, and loading assets using the Caffeine unified ecosystem across all four projects: doppio (IDE), caf-pack (asset packer), Caffeine Engine, and the game runtime.
+This document describes the complete pipeline for creating, packing, and loading assets using the Caffeine unified ecosystem entre Doppio (IDE), caf-pack (asset packer), a Caffeine Engine e o runtime do jogo.
 
 ## Full Pipeline Example
 
@@ -8,13 +8,13 @@ This document describes the complete pipeline for creating, packing, and loading
 
 Prepare source assets in standard formats:
 
-**Texture:**
-- Use Convoy to create or edit texture
-- Export as PNG file to `raw_assets/` directory
+**Textura:**
+- Crie ou edite a textura em qualquer editor de imagem
+- Exporte como PNG para `raw_assets/`
 
-**Audio:**
-- Use WaveShaper to create or edit sound
-- Export as WAV file to `raw_assets/` directory
+**Áudio:**
+- Crie ou edite o som em qualquer editor de áudio
+- Exporte como WAV para `raw_assets/`
 
 **Mesh:**
 - Create or export OBJ file from 3D tool (Blender, Maya, etc.)
@@ -116,23 +116,20 @@ Open your game project in doppio to visualize and manage assets:
    - See mesh statistics (vertex count, bounds)
    - Drag-and-drop PNG/WAV files into Asset Browser → auto-packed into game.cap
 
-## Tool Integration Examples
+## Integração de ferramentas externas
 
-### WaveShaper Export to Asset Pack
+Convoy e WaveShaper são **projetos legados e já não estão incluídos no repositório
+Caffeine**. Qualquer ferramenta externa pode participar no pipeline chamando o CLI
+`caf-pack` ou ligando `caf-pack-lib`:
 
-1. Open WaveShaper project
-2. "File → Export to CAP"
-3. Select game project directory
-4. Audio processed and saved to game.cap
-5. Header file regenerated with new asset IDs
+```bash
+caf-pack --input <dir-export-temporario> --output <projeto>/game.cap \
+         --gen-ids include/game_assets.hpp
+```
 
-### Convoy Export to Asset Pack
-
-1. Open Convoy texture/mesh editor
-2. "File → Export Texture to CAP" or "File → Export Mesh to CAP"
-3. Select game project directory
-4. Assets processed and saved to game.cap
-5. Header file regenerated with new asset IDs
+O packer trata PNG, WAV e OBJ de forma uniforme, pelo que a ferramenta de origem não
+importa. Para uma ação nativa "Export to CAP", invoque o mesmo CLI ou ligue a
+biblioteca.
 
 ### Drag-Drop Import in doppio
 
@@ -178,25 +175,24 @@ Open your game project in doppio to visualize and manage assets:
 2. **Memory-Ready**: All assets aligned for direct CPU/GPU access
 3. **Hash-Based IDs**: Fast O(1) asset lookup by hash instead of string comparison
 4. **Async Loading**: Load large assets without blocking game loop
-5. **Integrated Tools**: All four projects (Convoy, WaveShaper, caf-pack, doppio) share same asset format
+5. **Formato partilhado**: Doppio, caf-pack e o runtime usam o mesmo formato; ferramentas externas entram via CLI ou biblioteca
 6. **Compression**: Optional zstd compression reduces file size without runtime overhead
 
 ## Compilation & Build
 
-Build all four projects with single command:
+Compile a engine, o Doppio e o caf-pack com um comando:
 
 ```bash
 cd /path/to/caffeine
-mkdir build && cd build
-cmake ..
-make -j4
+cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
+cmake --build build -j
 ```
 
-This produces:
-- `libcaffeine-core.a` — Engine library with AssetLoader
-- `libcaf-pack-lib.a` — Asset packer library
-- `caf-pack` — CLI tool for asset processing
-- `doppio` — IDE with Asset Browser and live preview
+Isto produz:
+- `libcaffeine-core.a` — Engine library com AssetLoader
+- `libcaf-pack-lib.a` — Biblioteca do packer (quando `caf-pack` está inicializado)
+- `caf-pack` — CLI de processamento de assets
+- `doppio` — IDE com Asset Browser e preview live
 
 ## Testing the Pipeline
 

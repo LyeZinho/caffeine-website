@@ -1,4 +1,6 @@
 # Caffeine Unified Ecosystem — Three-Phase Design
+
+> **Historical note:** Convoy and WaveShaper are no longer part of the Caffeine repository. The references below describe the original plan.
 **Date:** 2026-05-17
 ** Status:** Approved
 **Scope:** doppio Editor Integration + Advanced caf-pack + Tool Integration

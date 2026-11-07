@@ -10,9 +10,9 @@
 
 O **Cafpack** é o "fio condutor" do ecossistema Caffeine Studio (estilo Adobe Creative Suite):
 
-- `Convoy (arte)      ──┐`
-- `WaveShaper (áudio) ──┼──► Cafpack ──► .caf / .cap ──► Doppio / Runtime`
-- `Ferramentas futuras──┘         ▲`
+- `Ferramentas de arte externas  ──┐`
+- `Ferramentas de áudio externas ──┼──► Cafpack ──► .caf / .cap ──► Doppio / Runtime`
+- `Doppio / CI ────────────────────┘         ▲`
 - `única fonte de verdade para leitura/escrita de dados`
 
 
@@ -24,8 +24,8 @@ O **Cafpack** é o "fio condutor" do ecossistema Caffeine Studio (estilo Adobe C
 
 | App | Responsabilidade | API Cafpack |
 |-----|------------------|-------------|
-| **Convoy** | Editar texturas/meshes | Export → `.caf` ou append a `.cap` |
-| **WaveShaper** | Editar áudio | Export → `.caf Audio` |
+| **Ferramentas de arte externas** | Editar texturas/meshes (opcional) | CLI `caf-pack` ou `caf-pack-lib` |
+| **Ferramentas de áudio externas** | Editar áudio (opcional) | CLI `caf-pack` ou `caf-pack-lib` |
 | **Doppio** | IDE / preview / pack projeto | `Packer`, `Reader`, `HeaderGenerator` |
 | **Runtime** | Carregar jogo | `Reader::loadCap` (zero parsing) |
 | **caf-pack CLI** | CI / batch | `caf-pack --input raw --output game.cap` |
@@ -92,15 +92,15 @@ Documentação detalhada do pack: [`caf-pack/README.md`](../../caf-pack/README.m
 ./scripts/export-to-cap.sh raw_assets/ game.cap include/game_assets.hpp
 ```
 
-Convoy e WaveShaper devem invocar o mesmo script ou linkar `caf-pack-lib` directamente.
+Ferramentas externas devem invocar o mesmo script ou ligar `caf-pack-lib` diretamente.
 
 ---
 
 ## Integração CMake (monorepo)
 
 ```bash
-git submodule update --init --recursive caf-pack Convoy WaveShaper
-cmake -B build -DCAFFEINE_BUILD_CONVOY=ON -DCAFFEINE_BUILD_WAVESHAPER=ON
+git submodule update --init caf-pack
+cmake -B build -DCMAKE_BUILD_TYPE=Release
 cmake --build build
 ```
 
@@ -109,10 +109,8 @@ cmake --build build
 | `caf-pack-lib` | Submodule caf-pack |
 | `caf-pack` | CLI |
 | `doppio` | IDE (liga `caf-pack-lib`, `CF_HAS_CAF_PACK=1`) |
-| `convoy` | Submodule Convoy |
-| `waveshaper` | Submodule WaveShaper |
 
-Desligar ferramentas: `-DCAFFEINE_BUILD_CONVOY=OFF` / `WAVESHAPER=OFF`.
+Convoy e WaveShaper já não são submódulos nem targets CMake neste repositório.
 
 ---
 
@@ -124,7 +122,7 @@ Desligar ferramentas: `-DCAFFEINE_BUILD_CONVOY=OFF` / `WAVESHAPER=OFF`.
 | **1** | `Reader`, `Registry`, CapLoader via Reader | ✅ |
 | **2** | Unificar `CafTypes` engine ↔ caf-pack | 📅 |
 | **3** | MeshLoader/AssetManager sem bypass PNG/OBJ | 📅 |
-| **4** | Convoy/WaveShaper export nativo → Cafpack | 📅 |
+| **4** | Export de ferramentas externas → Cafpack (opcional) | 📅 |
 | **5** | Deprecar `tools/caf-encode` | 📅 |
 
 ---
@@ -134,7 +132,7 @@ Desligar ferramentas: `-DCAFFEINE_BUILD_CONVOY=OFF` / `WAVESHAPER=OFF`.
 1. **Um tipo, um sítio** — schema + processor + reader no caf-pack
 2. **Sem bypass** — loaders da engine leem `.caf`/`.cap`, não PNG cru em runtime
 3. **Projeto unificado** — um `.cap` por jogo, partilhado por todas as apps
-4. **Mesmo CMake root** — suite compila junta na raiz do monorepo
+4. **Repo único** — a engine compila Doppio e caf-pack; ferramentas externas ficam fora do monorepo
 
 ---
 

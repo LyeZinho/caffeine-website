@@ -1,5 +1,7 @@
 # Caffeine Ecosystem Three-Phase Implementation Plan
 
+> **Historical note:** Convoy and WaveShaper are no longer part of the Caffeine repository. The references below describe the original plan.
+
 > **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
 
 **Goal:** Implement doppio editor integration (CAP browsing + texture/audio previews + drag-drop), advanced caf-pack features (mesh processor + compression + asset ID header), and tool integration (async loading infrastructure) for a complete unified ecosystem.

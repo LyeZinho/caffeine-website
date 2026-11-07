@@ -1,5 +1,7 @@
 # Unified Caffeine Ecosystem Build & caf-pack Implementation
 
+> **Historical note:** Convoy and WaveShaper are no longer part of the Caffeine repository. The references below describe the original plan.
+
 > **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
 
 **Goal:** Create unified build system orchestrating caffeine, caf-pack, Convoy, and WaveShaper with integrated data pipeline.

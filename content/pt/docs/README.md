@@ -19,7 +19,7 @@
 
 | Documento | Descrição |
 |-----------|-----------|
-| **Cafpack** | [`architecture/cafpack.md`](architecture/cafpack.md) | Camada unificada de assets — suite Adobe-style (Doppio, Convoy, WaveShaper) |
+| **Cafpack** | [`architecture/cafpack.md`](architecture/cafpack.md) | Camada unificada de assets — Doppio, caf-pack e runtime |
 
 ### Roadmap & Planos
 
@@ -114,6 +114,8 @@
 | **Plugin SDK** | [`editor/plugin-sdk.md`](editor/plugin-sdk.md) | Doppio lean + plugins dinâmicos, serviços, UI |
 | **Plugin Manager** | [`editor/plugin-manager.md`](editor/plugin-manager.md) | Carregamento opt-in, lista de ativação, troubleshooting |
 | **Galeria da UI** | [`editor/ui-gallery.md`](editor/ui-gallery.md) | Screenshots e layout do workspace |
+| **Workspace e tema** | [`editor/workspace-and-theme.md`](editor/workspace-and-theme.md) | UIKit, `theme.json`, `workspace.json`, panel registry |
+| **Toolbar do viewport** | [`editor/viewport-toolbar.md`](editor/viewport-toolbar.md) | Toolbar de ícones, projeção e vista isométrica |
 | **Git Plugin** | [`editor/git-plugin.md`](editor/git-plugin.md) | Painel opcional de gestão Git do projeto |
 
 ### Terrain
