@@ -30,6 +30,7 @@ and enable the ones you need from **Plugins → Plugin Manager**.
 | [Writing a plugin](writing-a-plugin.md) | C ABI, `IPlugin` lifecycle, host API |
 | [Service registry](service-registry.md) | Cross-plugin services such as terrain and procedural |
 | [Plugin Manager](../editor/plugin-manager.md) | Opt-in loading and troubleshooting |
+| [Compatibility](compatibility.md) | ABI, build flags and platform matrix |
 
 ## Quick build
 

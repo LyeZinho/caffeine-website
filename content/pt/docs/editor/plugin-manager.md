@@ -7,6 +7,8 @@ pós-processamento ou IA. Expõe apenas o host de plugins (`PluginManager` +
 
 ![Arquitetura de plugins do Doppio](../images/diagrams/plugin-architecture.svg)
 
+![Ciclo de vida dos plugins](../images/diagrams/plugin-lifecycle.svg)
+
 ## Onde vivem os plugins
 
 O código-fonte dos plugins é mantido no repositório separado

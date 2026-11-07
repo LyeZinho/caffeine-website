@@ -116,6 +116,7 @@
 | **Galeria da UI** | [`editor/ui-gallery.md`](editor/ui-gallery.md) | Screenshots e layout do workspace |
 | **Workspace e tema** | [`editor/workspace-and-theme.md`](editor/workspace-and-theme.md) | UIKit, `theme.json`, `workspace.json`, panel registry |
 | **Toolbar do viewport** | [`editor/viewport-toolbar.md`](editor/viewport-toolbar.md) | Toolbar de ícones, projeção e vista isométrica |
+| **Migração de plugins** | [`editor/plugin-migration.md`](editor/plugin-migration.md) | Mover um plugin para `doppio-plugins` e o loader opt-in |
 | **Git Plugin** | [`editor/git-plugin.md`](editor/git-plugin.md) | Painel opcional de gestão Git do projeto |
 
 ### Terrain
@@ -135,6 +136,7 @@
 | **Instalar plugins** | [`plugins/installing-plugins.md`](plugins/installing-plugins.md) | Diretórios e lista de ativação |
 | **Escrever um plugin** | [`plugins/writing-a-plugin.md`](plugins/writing-a-plugin.md) | C ABI, ciclo de vida, host API |
 | **Service registry** | [`plugins/service-registry.md`](plugins/service-registry.md) | Serviços entre plugins |
+| **Compatibilidade** | [`plugins/compatibility.md`](plugins/compatibility.md) | ABI, flags de build e matriz de plataformas |
 
 ### Physics
 

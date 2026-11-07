@@ -6,6 +6,8 @@ provides the plugin host (`PluginManager` + `PluginServiceRegistry`).
 
 ![Doppio plugin architecture](../images/diagrams/plugin-architecture.svg)
 
+![Plugin lifecycle](../images/diagrams/plugin-lifecycle.svg)
+
 ## Where plugins live
 
 Plugin sources are maintained in the separate

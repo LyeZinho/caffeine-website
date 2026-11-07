@@ -116,6 +116,7 @@
 | **UI gallery** | [`editor/ui-gallery.md`](editor/ui-gallery.md) | Screenshots and workspace layout |
 | **Workspace & theme** | [`editor/workspace-and-theme.md`](editor/workspace-and-theme.md) | UIKit, `theme.json`, `workspace.json`, panel registry |
 | **Viewport toolbar** | [`editor/viewport-toolbar.md`](editor/viewport-toolbar.md) | Icon toolbar, projection and isometric view |
+| **Plugin migration** | [`editor/plugin-migration.md`](editor/plugin-migration.md) | Move a plugin to `doppio-plugins` and the opt-in loader |
 | **Git Plugin** | [`editor/git-plugin.md`](editor/git-plugin.md) | Optional management panel Project Git |
 
 ### Terrain
@@ -135,6 +136,7 @@
 | **Installing plugins** | [`plugins/installing-plugins.md`](plugins/installing-plugins.md) | Discovery paths and enable list |
 | **Writing a plugin** | [`plugins/writing-a-plugin.md`](plugins/writing-a-plugin.md) | C ABI, lifecycle, host API |
 | **Service registry** | [`plugins/service-registry.md`](plugins/service-registry.md) | Cross-plugin services |
+| **Compatibility** | [`plugins/compatibility.md`](plugins/compatibility.md) | ABI, build flags and platform matrix |
 
 ### Physics
 
