@@ -3,7 +3,7 @@
 **Data:** 2026-10-19  
 **Namespace:** `Caffeine::Script`  
 **Linguagem:** [Dryad](https://github.com/devscafecommunity) em `source/` (repositório próprio, extensão `.dyd`)  
-**Estado:** host, emissor, canvas no Doppio e round-trip a partir de `// @node` no `.dyd`
+**Estado:** host, entidades 3D, hot reload, emissor, canvas no Doppio com attach/run e round-trip a partir de `// @node` no `.dyd`
 
 O grafo de nodes **não é** um segundo runtime. O jogo executa Dryad. O canvas só descreve como esse texto foi montado.
 
@@ -40,7 +40,7 @@ A Dryad mantém-se uma linguagem geral. Nada de Caffeine, Doppio, ECS, nodes ou 
 | Onde | O quê |
 |------|--------|
 | Repositório Dryad (`source/`) | Interpretador, `run_source`, `call_global`, correções de build. Padrões da própria linguagem: intrinsics genéricos, stdlib em Dryad, testes primeiro. |
-| Engine Caffeine | `DryadHost`, hooks `onCreate` / `onUpdate` / `onFixedUpdate`, `caffeine_set_position` / `caffeine_get_position_*`, `Caffeine::Script::Nodes::NodeEmitter`, despacho por extensão, canvas e JSON. |
+| Engine Caffeine | `DryadHost`, hooks `onCreate` / `onUpdate` / `onFixedUpdate`, `caffeine_set_position` / `caffeine_translate` / `caffeine_get_position_*` / `caffeine_log`, `Caffeine::Script::Nodes::NodeEmitter`, despacho por extensão, canvas e JSON. |
 
 Limitações atuais da Dryad, tratadas no emissor e não com atalhos no host:
 
@@ -65,7 +65,11 @@ function onUpdate(entity, dt) {
 
 `onCreate` e `onFixedUpdate` seguem a mesma forma `(entity, dt)`. Função em falta é no-op, como no Lua.
 
-`caffeine_set_position` é uma função nativa registada pelo host com `define_native`. Não faz parte da Dryad. A rede do interpretador fica desligada (`set_network_allowed(false)`).
+`caffeine_set_position` e `caffeine_translate` são funções nativas registadas pelo host com `define_native`. Não fazem parte da Dryad. A rede do interpretador fica desligada (`set_network_allowed(false)`).
+
+Entidades 3D guardam a transformação em `ECS::Position3D`, não em `ECS::Transform`. As funções de posição leem e escrevem `Position3D` quando existe (com fallback para `Transform` em entidades 2D), por isso o grafo move o mesmo componente que o renderer 3D desenha.
+
+`DryadHost::setSearchRoot` resolve caminhos relativos ao projeto, como `scripts/player.dyd`. O `ScriptSystem` recebe a raiz do projeto quando o play começa. `reloadIfChanged` recompila o script quando a data de modificação muda e volta a correr `onCreate`, por isso gravar o canvas durante o play tem efeito imediato.
 
 Na Dryad, commit `1e0eef2`:
 
@@ -77,9 +81,9 @@ Na Dryad, commit `1e0eef2`:
 
 ### 1. Host mínimo — feito
 
-`src/script/DryadHost.hpp` carrega o `.dyd` e chama os hooks. O `ScriptSystem` separa `.lua` de `.dyd`. Teste: `onUpdate` escreve a `Transform` da entidade.
+`src/script/DryadHost.hpp` carrega o `.dyd` e chama os hooks. O `ScriptSystem` separa `.lua` de `.dyd`. Testes: `onUpdate` escreve `Transform` em entidades 2D e `Position3D` em entidades 3D.
 
-Ainda falta: bindings de input, hot-reload de `.dyd`.
+Resolução de caminhos e hot reload estão feitos. Ainda falta: bindings de input.
 
 ### 2. Emissor, sem UI — feito
 
@@ -91,7 +95,9 @@ Catálogo (as ligações usam `nodeId.pin`):
 |------|--------------|----------------|
 | `OnUpdate` | `out` | — |
 | `SetPosition` | `in`, `out` | `x`, `y`, `z` (default `0` se não ligado) |
+| `Translate` | `in`, `out` | `x`, `y`, `z` → `caffeine_translate` (movimento relativo) |
 | `GetPosition` | — | `x`, `y`, `z` → `caffeine_get_position_*` |
+| `DeltaTime` | — | `value` → `dt` |
 | `Constant` | — | `value` (`valueKind` `number` ou `bool` no JSON) |
 | `Branch` | `in`, `then`, `else`, `out` | `condition` |
 
@@ -100,6 +106,13 @@ O `.dyd` gerado é Dryad legível com marcadores `// @node <id>`; ramos usam `if
 ### 3. Canvas no Doppio — feito
 
 O `DryadNodeScriptPanel` (menu **Dryad Node Script**, ou abrir um `.dyd` no Asset Browser) edita o `.node.json` lado a lado e chama `NodeEmitter::writeSiblingFiles` quando ligações mudam, nodes se movem, constantes mudam, ou ao carregar em **Save**. O play mode continua a executar só o `.dyd` via `DryadHost`.
+
+A toolbar do painel acrescenta o catálogo de nodes e tem dois controlos de runtime:
+
+- **Attach to selected** adiciona/atualiza um `ScriptComponent` com o caminho `.dyd` relativo ao projeto.
+- **Run once** chama `onCreate` e um `onUpdate` na entidade selecionada, sem entrar em play mode.
+
+Quando o node `OnUpdate` não tem ligação de exec de saída, o painel avisa e oferece **Add motion example**, que constrói `OnUpdate → Translate` com `DeltaTime` ligado a `y`. Arrastar um `.dyd` para uma entidade na Hierarchy anexa o script e abre o editor de nodes. O campo Script do Inspector também aceita `.dyd`.
 
 Esboço do JSON:
 
@@ -114,7 +127,7 @@ Esboço do JSON:
 
 ### 4. Round-trip — feito
 
-`NodeRoundTrip::importFromDyd` reconstrói a topologia do grafo a partir de `.dyd` no formato do emissor (marcadores em `OnUpdate`, `Branch`, `SetPosition`; nós de dados inferidos das expressões). Ao abrir um script no `DryadNodeScriptPanel`, o `.dyd` com marcadores tem prioridade e as posições `x`/`y` vêm do `.node.json` quando o `id` coincide. **Sync from .dyd** força atualização.
+`NodeRoundTrip::importFromDyd` reconstrói a topologia do grafo a partir de `.dyd` no formato do emissor (marcadores em `OnUpdate`, `Branch`, `SetPosition`, `Translate`; nós de dados inferidos das expressões, incluindo `dt`). Ao abrir um script no `DryadNodeScriptPanel`, o `.dyd` com marcadores tem prioridade e as posições `x`/`y` vêm do `.node.json` quando o `id` coincide. **Sync from .dyd** força atualização.
 
 | `.dyd` | Comportamento do canvas |
 |--------|-------------------------|

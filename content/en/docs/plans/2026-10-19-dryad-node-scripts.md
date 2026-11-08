@@ -3,7 +3,7 @@
 **Date:** 2026-10-19  
 **Namespace:** `Caffeine::Script`  
 **Language:** Dryad, in the separate `source/` repository, file extension `.dyd`  
-**Status:** host, emitter, Doppio canvas, and `.dyd` round-trip (when `// @node` markers are present)
+**Status:** host, 3D entities, hot reload, emitter, Doppio canvas with attach/run, and `.dyd` round-trip (when `// @node` markers are present)
 
 The node graph is not a second runtime. The game runs Dryad. The canvas only records how that text was built.
 
@@ -65,7 +65,11 @@ function onUpdate(entity, dt) {
 
 `onCreate` and `onFixedUpdate` use the same `(entity, dt)` shape. A missing function is a no-op, matching Lua.
 
-`caffeine_set_position` is a host native registered with `define_native`. It is not part of Dryad. The interpreter's network access stays off (`set_network_allowed(false)`).
+`caffeine_set_position` and `caffeine_translate` are host natives registered with `define_native`. They are not part of Dryad. The interpreter's network access stays off (`set_network_allowed(false)`).
+
+3D entities store their transform in `ECS::Position3D`, not `ECS::Transform`. The position natives read and write `Position3D` when present (falling back to `Transform` for 2D entities), so a graph moves the same component the 3D renderer draws.
+
+`DryadHost::setSearchRoot` resolves project-relative paths such as `scripts/player.dyd`. `ScriptSystem` receives the project root when play starts. `reloadIfChanged` recompiles the script when its modification time changes and re-runs `onCreate`, so saving the canvas while playing takes effect immediately.
 
 Dryad commit `1e0eef2`:
 
@@ -77,9 +81,9 @@ Dryad commit `1e0eef2`:
 
 ### 1. Minimal host — done
 
-`src/script/DryadHost.hpp` loads the `.dyd` and calls the hooks. `ScriptSystem` splits `.lua` from `.dyd`. Test: `onUpdate` writes the entity `Transform`.
+`src/script/DryadHost.hpp` loads the `.dyd` and calls the hooks. `ScriptSystem` splits `.lua` from `.dyd`. Tests: `onUpdate` writes `Transform` on 2D entities and `Position3D` on 3D entities.
 
-Still open: input bindings, `.dyd` hot-reload.
+Path resolution and hot reload are done. Still open: input bindings.
 
 ### 2. Emitter, no UI — done
 
@@ -91,7 +95,9 @@ Catalog (pin names in edges use `nodeId.pin`):
 |------|-----------|-----------|
 | `OnUpdate` | `out` | — |
 | `SetPosition` | `in`, `out` | `x`, `y`, `z` (default `0` if unwired) |
+| `Translate` | `in`, `out` | `x`, `y`, `z` → `caffeine_translate` (relative motion) |
 | `GetPosition` | — | `x`, `y`, `z` → `caffeine_get_position_*` |
+| `DeltaTime` | — | `value` → `dt` |
 | `Constant` | — | `value` (`valueKind` `number` or `bool` in JSON) |
 | `Branch` | `in`, `then`, `else`, `out` | `condition` |
 
@@ -114,7 +120,7 @@ JSON sketch:
 
 ### 4. Round-trip — done
 
-`NodeRoundTrip::importFromDyd` rebuilds graph topology from emitter-shaped `.dyd` (markers on `OnUpdate`, `Branch`, `SetPosition`; data nodes are inferred from expressions). Opening a script in `DryadNodeScriptPanel` prefers the `.dyd` when markers exist and keeps canvas `x`/`y` from `.node.json` for matching ids. **Sync from .dyd** forces a refresh.
+`NodeRoundTrip::importFromDyd` rebuilds graph topology from emitter-shaped `.dyd` (markers on `OnUpdate`, `Branch`, `SetPosition`, `Translate`; data nodes are inferred from expressions, including `dt`). Opening a script in `DryadNodeScriptPanel` prefers the `.dyd` when markers exist and keeps canvas `x`/`y` from `.node.json` for matching ids. **Sync from .dyd** forces a refresh.
 
 | `.dyd` | Canvas behaviour |
 |--------|------------------|
