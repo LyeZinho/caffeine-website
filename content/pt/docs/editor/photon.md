@@ -1,8 +1,8 @@
-# Photon — GI híbrido por radiance cascades
+# Photon — GI híbrido nativo por radiance cascades
 
-O Photon é o plugin de **iluminação global** do Doppio: um sistema de GI em tempo
-real para cenas sem hardware de ray tracing. É uma alternativa ao estilo Lumen para
-GPUs que só expõem pipelines gráficos normais.
+O Photon é um **sistema nativo do Doppio e do runtime**: é compilado nos binários do
+editor e do runtime, não é carregado como plugin. Fornece iluminação global em tempo
+real sem hardware de ray tracing.
 
 ![Iluminação indireta do Photon no runtime](../images/captures/photon-gi.png)
 
@@ -18,8 +18,8 @@ GPUs que só expõem pipelines gráficos normais.
 | Passe de reflexos glossy | Ainda não |
 | Denoiser temporal | Fornecido pelo TAA da engine: o Photon corre antes dele |
 
-A especificação completa é o alvo. Este plugin é a primeira fatia funcional do near
-field e está marcado como v0.1 onde difere do design de referência.
+A especificação completa é o alvo. Esta fatia nativa está marcada como v0.1 onde
+difere do design de referência.
 
 ## Presets
 
@@ -46,45 +46,32 @@ field e está marcado como v0.1 onde difere do design de referência.
 ## Utilização
 
 1. Abra uma cena com Camera 3D e geometria.
-2. Ative **Photon** em **Plugins → Plugin Manager**.
-3. Use **Plugins → Create Photon GI** ou **View → Photon Global Illumination**.
+2. Abra **View → Photon Global Illumination**, ou execute **Photon GI** na command
+   palette.
+3. Prima **Create Photon GI** se a cena ainda não tiver o componente.
 4. Escolha um preset e ajuste radius/thickness à escala da cena.
 5. Use **Debug → GI only** para inspecionar o resultado das cascatas.
 
-O componente é `ECS::PhotonGIComponent`; o Inspector tem um drawer completo mesmo
-sem o plugin.
-
-## Performance
-
-O passe reutiliza o post-process stack da engine:
-
-- Low: 4 raios × 2 passos por intervalo
-- Medium: 8 raios × 2 passos
-- High: 12 raios × 3 passos
-
-O Photon corre **antes do TAA**, por isso o resolve temporal limpa o padrão
-estocástico. Comece em Balanced para edição e use High/Cinematic para capturas.
-
+O componente é `ECS::PhotonGIComponent`; o Inspector também tem um drawer completo.
 
 ## Oclusão de ambiente pré-processada (sem RTX)
 
-A secção **Baked ambient occlusion** do painel Photon pré-calcula AO estática para o
-material do mesh selecionado:
+A secção nativa **Baked ambient occlusion** pré-calcula AO estática para o material
+do mesh selecionado:
 
 1. Selecione uma entidade com mesh estática (ou use **Bake scene**).
 2. Escolha resolução (256/512/1024), raios, distância máxima e bias.
 3. Prima **Bake selected mesh**.
 
-O baker usa **compute na GPU** quando o render device expõe compute (o caminho normal
-do Doppio/runtime) e recorre ao BVH CPU caso contrário. A CPU só rasteriza UVs e
-constrói a lista de triângulos; os testes de raio pesados correm na GPU. Cenas com
-mais de 8192 triângulos usam o caminho CPU.
+O baker usa **compute na GPU** quando o render device expõe compute e recorre ao BVH
+CPU caso contrário. A CPU só rasteriza UVs e constrói a lista de triângulos; os testes
+de raio pesados correm na GPU. Cenas com mais de 8192 triângulos usam o caminho CPU.
 
 O baker:
 
 - recolhe todos os triângulos estáticos da cena como oclusores,
 - rasteriza o mesh alvo em espaço UV,
-- lança raios com peso cosseno contra um BVH CPU,
+- lança raios com peso cosseno,
 - escreve um **PNG ORM** com AO no R (roughness/metallic preservados em G/B),
 - atualiza `orm_map` e `ao_strength` do material.
 
@@ -95,6 +82,16 @@ depois de alterar geometria estática.
 > O AO pré-processado é para meshes estáticas. Objetos em movimento devem continuar
 > a usar o passe screen-space do Photon. Meshes com UVs sobrepostas fazem média das
 > faces; use UVs únicas para AO por face.
+
+## Performance
+
+- Low: 4 raios × 2 passos por intervalo
+- Medium: 8 raios × 2 passos
+- High: 12 raios × 3 passos
+
+O Photon corre **antes do TAA**, por isso o resolve temporal limpa o padrão
+estocástico. Comece em Balanced para edição e use High/Cinematic para capturas.
+
 ## Limitações
 
 - Sem campo de probes world-anchored: a luz fora do ecrã usa um fallback constante
@@ -106,6 +103,6 @@ depois de alterar geometria estática.
 
 ## Relacionado
 
-- [Catálogo de plugins](README.md)
-- [Plugin Manager](../editor/plugin-manager.md)
-- [Scene viewport](../editor/scene-viewport.md)
+- [Scene viewport](scene-viewport.md)
+- [Workspace e tema](workspace-and-theme.md)
+- [Catálogo de plugins](../plugins/README.md)

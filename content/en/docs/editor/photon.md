@@ -1,8 +1,8 @@
-# Photon — hybrid radiance-cascade GI
+# Photon — native hybrid radiance-cascade GI
 
-Photon is Doppio's **global illumination** plugin: a real-time GI system for scenes
-with no hardware ray tracing. It is an alternative to Lumen-style GI for GPUs that
-only expose ordinary graphics pipelines.
+Photon is a **native Doppio and runtime system**: it is compiled into the editor and
+runtime binaries, not loaded as a plugin. It provides real-time global illumination
+without hardware ray tracing.
 
 ![Photon indirect lighting in the runtime](../images/captures/photon-gi.png)
 
@@ -18,9 +18,8 @@ only expose ordinary graphics pipelines.
 | Glossy reflection pass | Not yet |
 | Temporal denoiser | Provided by the engine's TAA: Photon runs before it |
 
-The full specification is the design target. This plugin is the first functional
-near-field slice and is intentionally labelled v0.1 wherever it differs from the
-reference design.
+The full specification is the design target. This native slice is intentionally
+labelled v0.1 wherever it differs from the reference design.
 
 ## Presets
 
@@ -47,45 +46,33 @@ reference design.
 ## Use it
 
 1. Open a scene with a Camera 3D and geometry.
-2. Enable **Photon** in **Plugins → Plugin Manager**.
-3. Use **Plugins → Create Photon GI** or **View → Photon Global Illumination**.
-4. Pick a preset, then tune radius/thickness for the scene scale.
+2. Open **View → Photon Global Illumination**, or run **Photon GI** in the command
+   palette.
+3. Press **Create Photon GI** if the scene has no component yet.
+4. Pick a preset and tune radius/thickness for the scene scale.
 5. Switch **Debug → GI only** to inspect the cascade result.
 
-The component is `ECS::PhotonGIComponent`; the Inspector has a full drawer even
-without the plugin.
-
-## Performance
-
-The pass reuses the engine's post-process stack:
-
-- Low: 4 rays × 2 steps per interval
-- Medium: 8 rays × 2 steps
-- High: 12 rays × 3 steps
-
-Photon runs **before TAA**, so the temporal resolve cleans the stochastic ray
-pattern. Start at Balanced for editing and High/Cinematic for captures.
-
+The component is `ECS::PhotonGIComponent`; the Inspector has a full drawer as well.
 
 ## Baked ambient occlusion (no RTX)
 
-The **Baked ambient occlusion** section in the Photon panel precomputes static AO
-into the selected mesh material:
+The native **Baked ambient occlusion** section precomputes static AO into the
+selected mesh material:
 
 1. Select a static mesh entity (or use **Bake scene**).
 2. Choose resolution (256/512/1024), rays, max distance and bias.
 3. Press **Bake selected mesh**.
 
-The baker uses **GPU compute** when the render device exposes compute (the normal
-Doppio/runtime path), and falls back to the CPU BVH otherwise. The CPU only
-rasterises UVs and builds the triangle list; the expensive ray tests run on the GPU.
-Scenes above 8192 triangles fall back to the CPU path.
+The baker uses **GPU compute** when the render device exposes compute, and falls
+back to the CPU BVH otherwise. The CPU only rasterises UVs and builds the triangle
+list; the expensive ray tests run on the GPU. Scenes above 8192 triangles use the
+CPU path.
 
 The baker:
 
 - gathers every static mesh triangle as an occluder,
 - rasterises the target mesh in UV space,
-- casts cosine-weighted rays against a CPU BVH,
+- casts cosine-weighted rays,
 - writes an **ORM PNG** with AO in R (roughness/metallic preserved in G/B),
 - updates the material's `orm_map` and `ao_strength`.
 
@@ -96,6 +83,16 @@ changing static geometry.
 > Baked AO is for static meshes. Moving objects should keep using the screen-space
 > Photon pass. Meshes with overlapping UVs average their faces; use unique UVs for
 > per-face AO.
+
+## Performance
+
+- Low: 4 rays × 2 steps per interval
+- Medium: 8 rays × 2 steps
+- High: 12 rays × 3 steps
+
+Photon runs **before TAA**, so the temporal resolve cleans the stochastic ray
+pattern. Start at Balanced for editing and High/Cinematic for captures.
+
 ## Limitations
 
 - No world-anchored radiance probe field: off-screen light falls back to a constant
@@ -107,6 +104,6 @@ changing static geometry.
 
 ## Related
 
-- [Plugin catalog](README.md)
-- [Plugin Manager](../editor/plugin-manager.md)
-- [Scene viewport](../editor/scene-viewport.md)
+- [Scene viewport](scene-viewport.md)
+- [Workspace and theme](workspace-and-theme.md)
+- [Plugin catalog](../plugins/README.md)

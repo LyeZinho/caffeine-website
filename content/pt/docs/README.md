@@ -116,6 +116,7 @@
 | **Galeria da UI** | [`editor/ui-gallery.md`](editor/ui-gallery.md) | Screenshots e layout do workspace |
 | **Workspace e tema** | [`editor/workspace-and-theme.md`](editor/workspace-and-theme.md) | UIKit, `theme.json`, `workspace.json`, panel registry |
 | **Toolbar do viewport** | [`editor/viewport-toolbar.md`](editor/viewport-toolbar.md) | Toolbar de ícones, projeção e vista isométrica |
+| **Photon GI** | [`editor/photon.md`](editor/photon.md) | GI híbrido nativo por radiance cascades e AO baked |
 | **Migração de plugins** | [`editor/plugin-migration.md`](editor/plugin-migration.md) | Mover um plugin para `doppio-plugins` e o loader opt-in |
 | **Git Plugin** | [`editor/git-plugin.md`](editor/git-plugin.md) | Painel opcional de gestão Git do projeto |
 
@@ -138,7 +139,6 @@
 | **Service registry** | [`plugins/service-registry.md`](plugins/service-registry.md) | Serviços entre plugins |
 | **Compatibilidade** | [`plugins/compatibility.md`](plugins/compatibility.md) | ABI, flags de build e matriz de plataformas |
 | **VC&M** | [`plugins/volumetric-clouds.md`](plugins/volumetric-clouds.md) | Plugin de nuvens e nevoa volumétricas |
-| **Photon** | [`plugins/photon.md`](plugins/photon.md) | Iluminação global híbrida por radiance cascades |
 
 ### Physics
 
