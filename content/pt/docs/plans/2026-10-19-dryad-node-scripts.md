@@ -97,6 +97,9 @@ Catálogo (as ligações usam `nodeId.pin`):
 | `SetPosition` | `in`, `out` | `x`, `y`, `z` (editável inline, default `0`) |
 | `Translate` | `in`, `out` | `x`, `y`, `z` → `caffeine_translate` (editável inline) |
 | `GetPosition` | — | `x`, `y`, `z` → `caffeine_get_position_*` |
+| `SetScale` | `in`, `out` | `x`, `y`, `z` → `caffeine_set_scale` (editável inline) |
+| `GetScale` | — | `x`, `y`, `z` → `caffeine_get_scale_*` |
+| `Log` | `in`, `out` | mensagem → `caffeine_log` |
 | `DeltaTime` | — | `value` → `dt` |
 | `Constant` | — | `value` (`valueKind` `number` ou `bool` no JSON) |
 | `Branch` | `in`, `then`, `else`, `out` | `condition` |
@@ -107,15 +110,32 @@ O `.dyd` gerado é Dryad legível com marcadores `// @node <id>`; ramos usam `if
 
 O `DryadNodeScriptPanel` (menu **Dryad Node Script**, ou abrir um `.dyd` no Asset Browser) edita o `.node.json` lado a lado e chama `NodeEmitter::writeSiblingFiles` quando ligações mudam, nodes se movem, constantes mudam, ou ao carregar em **Save**. O play mode continua a executar só o `.dyd` via `DryadHost`.
 
+### Paleta Dryad Nodes
+
+**Dryad Nodes** é um painel nativo do Doppio, na lateral esquerda e aberto por
+padrão. Tem uma searchbar e uma tree agrupada por categorias (`Language / Values`,
+`Language / Flow`, `Engine / Events`, `Engine / Transform`, `Engine / Time`,
+`Engine / Debug`). Arrasta um node da paleta para o canvas Dryad; o drop é a
+única interação entre os dois painéis.
+
+A paleta é gerada a partir de `NodeCatalog`, partilhado com o menu contextual do
+canvas. Adicionar um node novo passa por uma entrada no catálogo mais o suporte
+no emissor e no runtime.
+
 ### Controlos do canvas
 
-- **+ Add node** ou **clique direito** abre o catálogo de nodes.
+- **+ Add node** ou **clique direito** abre o mesmo catálogo de nodes.
+- **Roda do rato** faz zoom no grafo; **- / % / +** na toolbar definem o zoom e repõem em 100%.
 - **Delete** (ou a tecla `Del`) remove os nodes e ligações selecionados.
 - **Home** centra o grafo; **Arrange** dispõe-no pela ordem de execução.
 - **Arrastar com o botão do meio** faz pan e o mini-mapa mostra o grafo inteiro.
 - Inputs sem ligação têm campos inline, por isso um `SetPosition` já não precisa de nodes Constant.
 - Os nodes têm largura fixa e uma cor por tipo; ligações azuis são exec e âmbar são dados.
 - Um `.node.json` cujo `.dyd` emitido coincide com o ficheiro é usado no reload, preservando posições, valores inline e nodes órfãos. Um `.dyd` editado à mão continua a ganhar.
+
+A superfície do canvas vive no componente reutilizável `caffeine/ui/NodeCanvas`
+(tema, zoom, mini-mapa, chrome dos nodes e drop targets). Outras ferramentas do
+Doppio podem usar o mesmo componente sem depender do Dryad.
 
 A toolbar do painel tem dois controlos de runtime:
 

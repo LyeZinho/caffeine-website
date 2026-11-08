@@ -97,6 +97,9 @@ Catalog (pin names in edges use `nodeId.pin`):
 | `SetPosition` | `in`, `out` | `x`, `y`, `z` (inline editable, default `0`) |
 | `Translate` | `in`, `out` | `x`, `y`, `z` → `caffeine_translate` (inline editable) |
 | `GetPosition` | — | `x`, `y`, `z` → `caffeine_get_position_*` |
+| `SetScale` | `in`, `out` | `x`, `y`, `z` → `caffeine_set_scale` (inline editable) |
+| `GetScale` | — | `x`, `y`, `z` → `caffeine_get_scale_*` |
+| `Log` | `in`, `out` | message → `caffeine_log` |
 | `DeltaTime` | — | `value` → `dt` |
 | `Constant` | — | `value` (`valueKind` `number` or `bool` in JSON) |
 | `Branch` | `in`, `then`, `else`, `out` | `condition` |
@@ -107,6 +110,10 @@ Generated `.dyd` is ordinary Dryad with `// @node <id>` markers; branches use `i
 
 `DryadNodeScriptPanel` (`Window → Dryad Node Script`, or open a `.dyd` from the Asset Browser) edits the sibling `.node.json` in memory and calls `NodeEmitter::writeSiblingFiles` when links change, nodes move, constants change, or you press **Save**. Play mode still runs only the `.dyd` via `DryadHost`.
 
+The canvas surface itself lives in the reusable `caffeine/ui/NodeCanvas` component
+(theme, zoom, mini-map, node chrome and drop targets). Other Doppio tools can
+embed the same component without depending on Dryad.
+
 The panel toolbar has the node catalog and two runtime controls:
 
 - **Attach to selected** adds/updates a `ScriptComponent` with a project-relative `.dyd` path.
@@ -114,9 +121,22 @@ The panel toolbar has the node catalog and two runtime controls:
 
 When the `OnUpdate` node has no outgoing exec link the panel says so and offers **Add motion example**, which builds `OnUpdate → Translate` with `DeltaTime` wired into `y`. Dragging a `.dyd` onto an entity in the Hierarchy attaches it and opens the node editor. The Inspector Script field also accepts `.dyd` drops.
 
+### Dryad Nodes palette
+
+**Dryad Nodes** is a native Doppio panel, docked on the left and open by default.
+It has a search box and a tree grouped by category (`Language / Values`,
+`Language / Flow`, `Engine / Events`, `Engine / Transform`, `Engine / Time`,
+`Engine / Debug`). Drag a node from the palette onto the Dryad canvas; the drop
+is the only interaction between the two panels.
+
+The palette is generated from `NodeCatalog`, which is shared with the canvas
+context menu. Adding a new node means adding one catalog entry plus its emitter
+and runtime support.
+
 ### Canvas controls
 
-- **+ Add node** or **right-click** opens the node catalog.
+- **+ Add node** or **right-click** opens the same node catalog.
+- **Wheel** zooms around the graph; **- / % / +** in the toolbar set the zoom and reset it to 100%.
 - **Delete** (or the `Del` key) removes the selected nodes and links.
 - **Home** centers the graph; **Arrange** lays it out in exec-flow order.
 - **Middle-drag** pans, and the mini-map shows the whole graph.
