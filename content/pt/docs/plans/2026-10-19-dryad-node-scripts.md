@@ -94,8 +94,8 @@ Catálogo (as ligações usam `nodeId.pin`):
 | Tipo | Pins de exec | Pins de dados |
 |------|--------------|----------------|
 | `OnUpdate` | `out` | — |
-| `SetPosition` | `in`, `out` | `x`, `y`, `z` (default `0` se não ligado) |
-| `Translate` | `in`, `out` | `x`, `y`, `z` → `caffeine_translate` (movimento relativo) |
+| `SetPosition` | `in`, `out` | `x`, `y`, `z` (editável inline, default `0`) |
+| `Translate` | `in`, `out` | `x`, `y`, `z` → `caffeine_translate` (editável inline) |
 | `GetPosition` | — | `x`, `y`, `z` → `caffeine_get_position_*` |
 | `DeltaTime` | — | `value` → `dt` |
 | `Constant` | — | `value` (`valueKind` `number` ou `bool` no JSON) |
@@ -107,7 +107,17 @@ O `.dyd` gerado é Dryad legível com marcadores `// @node <id>`; ramos usam `if
 
 O `DryadNodeScriptPanel` (menu **Dryad Node Script**, ou abrir um `.dyd` no Asset Browser) edita o `.node.json` lado a lado e chama `NodeEmitter::writeSiblingFiles` quando ligações mudam, nodes se movem, constantes mudam, ou ao carregar em **Save**. O play mode continua a executar só o `.dyd` via `DryadHost`.
 
-A toolbar do painel acrescenta o catálogo de nodes e tem dois controlos de runtime:
+### Controlos do canvas
+
+- **+ Add node** ou **clique direito** abre o catálogo de nodes.
+- **Delete** (ou a tecla `Del`) remove os nodes e ligações selecionados.
+- **Home** centra o grafo; **Arrange** dispõe-no pela ordem de execução.
+- **Arrastar com o botão do meio** faz pan e o mini-mapa mostra o grafo inteiro.
+- Inputs sem ligação têm campos inline, por isso um `SetPosition` já não precisa de nodes Constant.
+- Os nodes têm largura fixa e uma cor por tipo; ligações azuis são exec e âmbar são dados.
+- Um `.node.json` cujo `.dyd` emitido coincide com o ficheiro é usado no reload, preservando posições, valores inline e nodes órfãos. Um `.dyd` editado à mão continua a ganhar.
+
+A toolbar do painel tem dois controlos de runtime:
 
 - **Attach to selected** adiciona/atualiza um `ScriptComponent` com o caminho `.dyd` relativo ao projeto.
 - **Run once** chama `onCreate` e um `onUpdate` na entidade selecionada, sem entrar em play mode.
@@ -127,7 +137,7 @@ Esboço do JSON:
 
 ### 4. Round-trip — feito
 
-`NodeRoundTrip::importFromDyd` reconstrói a topologia do grafo a partir de `.dyd` no formato do emissor (marcadores em `OnUpdate`, `Branch`, `SetPosition`, `Translate`; nós de dados inferidos das expressões, incluindo `dt`). Ao abrir um script no `DryadNodeScriptPanel`, o `.dyd` com marcadores tem prioridade e as posições `x`/`y` vêm do `.node.json` quando o `id` coincide. **Sync from .dyd** força atualização.
+`NodeRoundTrip::importFromDyd` reconstrói a topologia do grafo a partir de `.dyd` no formato do emissor (marcadores em `OnUpdate`, `Branch`, `SetPosition`, `Translate`; nós de dados inferidos das expressões, incluindo `dt`). Ao abrir um script no `DryadNodeScriptPanel`, primeiro verifica se o `.node.json` emite exatamente o `.dyd` atual; se sim usa o grafo do JSON (posições, valores inline e nós órfãos sobrevivem). Caso contrário o `.dyd` ganha e o `x`/`y` vem do JSON para ids coincidentes. **Sync from .dyd** força sempre a atualização.
 
 | `.dyd` | Comportamento do canvas |
 |--------|-------------------------|

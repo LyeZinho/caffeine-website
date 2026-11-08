@@ -94,8 +94,8 @@ Catalog (pin names in edges use `nodeId.pin`):
 | Type | Exec pins | Data pins |
 |------|-----------|-----------|
 | `OnUpdate` | `out` | — |
-| `SetPosition` | `in`, `out` | `x`, `y`, `z` (default `0` if unwired) |
-| `Translate` | `in`, `out` | `x`, `y`, `z` → `caffeine_translate` (relative motion) |
+| `SetPosition` | `in`, `out` | `x`, `y`, `z` (inline editable, default `0`) |
+| `Translate` | `in`, `out` | `x`, `y`, `z` → `caffeine_translate` (inline editable) |
 | `GetPosition` | — | `x`, `y`, `z` → `caffeine_get_position_*` |
 | `DeltaTime` | — | `value` → `dt` |
 | `Constant` | — | `value` (`valueKind` `number` or `bool` in JSON) |
@@ -106,6 +106,23 @@ Generated `.dyd` is ordinary Dryad with `// @node <id>` markers; branches use `i
 ### 3. Doppio canvas — done
 
 `DryadNodeScriptPanel` (`Window → Dryad Node Script`, or open a `.dyd` from the Asset Browser) edits the sibling `.node.json` in memory and calls `NodeEmitter::writeSiblingFiles` when links change, nodes move, constants change, or you press **Save**. Play mode still runs only the `.dyd` via `DryadHost`.
+
+The panel toolbar has the node catalog and two runtime controls:
+
+- **Attach to selected** adds/updates a `ScriptComponent` with a project-relative `.dyd` path.
+- **Run once** calls `onCreate` and one `onUpdate` on the selected entity, without starting play mode.
+
+When the `OnUpdate` node has no outgoing exec link the panel says so and offers **Add motion example**, which builds `OnUpdate → Translate` with `DeltaTime` wired into `y`. Dragging a `.dyd` onto an entity in the Hierarchy attaches it and opens the node editor. The Inspector Script field also accepts `.dyd` drops.
+
+### Canvas controls
+
+- **+ Add node** or **right-click** opens the node catalog.
+- **Delete** (or the `Del` key) removes the selected nodes and links.
+- **Home** centers the graph; **Arrange** lays it out in exec-flow order.
+- **Middle-drag** pans, and the mini-map shows the whole graph.
+- Inputs without a wire have inline fields, so a `SetPosition` needs no Constant nodes.
+- Nodes have fixed width and a colour per kind; links are blue for exec and amber for data.
+- A `.node.json` whose emitted script matches the `.dyd` is trusted on reload, preserving positions, inline values and orphan nodes. A hand-edited `.dyd` still wins.
 
 JSON sketch:
 
@@ -120,7 +137,7 @@ JSON sketch:
 
 ### 4. Round-trip — done
 
-`NodeRoundTrip::importFromDyd` rebuilds graph topology from emitter-shaped `.dyd` (markers on `OnUpdate`, `Branch`, `SetPosition`, `Translate`; data nodes are inferred from expressions, including `dt`). Opening a script in `DryadNodeScriptPanel` prefers the `.dyd` when markers exist and keeps canvas `x`/`y` from `.node.json` for matching ids. **Sync from .dyd** forces a refresh.
+`NodeRoundTrip::importFromDyd` rebuilds graph topology from emitter-shaped `.dyd` (markers on `OnUpdate`, `Branch`, `SetPosition`, `Translate`; data nodes are inferred from expressions, including `dt`). Opening a script in `DryadNodeScriptPanel` first checks whether the `.node.json` emits exactly the current `.dyd`; if so it uses the JSON graph (positions, inline values and orphan nodes survive). Otherwise the `.dyd` wins and `x`/`y` come from the JSON for matching ids. **Sync from .dyd** always forces a refresh.
 
 | `.dyd` | Canvas behaviour |
 |--------|------------------|
