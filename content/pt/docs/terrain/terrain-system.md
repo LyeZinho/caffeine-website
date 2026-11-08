@@ -11,12 +11,14 @@
 
 O terreno na Caffeine é um **heightfield editável**: dados em `TerrainHeightmap`, renderização via `TerrainMeshBuilder` + LOD por chunks, pintura de splat em `TerrainSplatmap`. A engine **não** embute mais geração procedural no core — isso ficou no plugin **Terrain Generator**, que usa o algoritmo em `assets/general-ultra-realistic-terrain-algorithm`.
 
-**Separação de responsabilidades:**
+**Separação de responsabilidades:** o Terrain Editor, as ferramentas de
+escultura/pintura e a I/O de `.cterrain` são nativos da engine. Apenas a geração
+procedural vive num plugin.
 
 | Camada | Responsabilidade |
 |--------|------------------|
 | **Core** | Heightmap, mesh, LOD, colisão coarse, sculpt/paint, `.cterrain` |
-| **Terrain Editor** | Ferramentas de escultura, splat e export de dados |
+| **Terrain Editor (nativo)** | Escultura, splat paint, undo e import/export `.cterrain` |
 | **Terrain Generator (plugin)** | Presets, Node.js, import de heightmap |
 
 ---
@@ -81,9 +83,41 @@ O heightmap interno guarda valores **normalizados** `[0, 1]`. Na mesh, `y = samp
 | Painel | Função |
 |--------|--------|
 | **Inspector → Terrain** | Resolução, tamanho, LOD, splat, colisão, Normal Map, Shininess |
-| **Terrain Editor** | Sculpt (raise/lower/smooth/flatten/noise), splat paint, export `.cterrain` |
+| **Terrain Editor (nativo)** | Sculpt (raise/lower/smooth/flatten/noise), splat paint, import/export `.cterrain` |
 
-Geração procedural: painel **Terrain Generator** (plugin).
+### Terrain Editor nativo
+
+![Terrain Editor sobre chão natural](../images/captures/terrain-native.png)
+
+
+Abra em **View → Terrain Editor**, na command palette (**Terrain Editor**) ou no
+botão **Open Terrain Editor** da Toolbox com uma entidade Terrain selecionada.
+
+| Ferramenta | Comportamento |
+|------------|---------------|
+| **Raise / Lower** | Adiciona ou remove altura com falloff suave |
+| **Smooth** | Faz a média da vizinhança local |
+| **Flatten** | Achata para a altura do primeiro clique do traço |
+| **Noise** | Adiciona detalhe determinístico |
+| **Splat paint** | Pinta pesos Grass, Rock, Sand ou Dirt |
+| **Reset default textures** | Restaura os caminhos por omissão e a camada Grass |
+| **Separador Data** | Edita o caminho `.cterrain` e importa/exporta o ficheiro |
+
+Traços rápidos são interpolados entre frames em vez de aplicar apenas um carimbo
+por frame. Os snapshots de undo/redo incluem heightmap e splatmap, por isso
+**Ctrl+Z** restaura a edição em vez de achatar o terreno.
+
+Terrenos novos começam com a camada **Grass** e texturas de chão naturais 1k
+de `assets/hdr-assets-texture` (dirt/rock/moss, rochas, terra e lama). A cor
+**Tint** do Inspector multiplica o albedo amostrado.
+
+Cenas antigas guardavam um terreno não pintado na camada **Light**. Ao carregar
+esse `.cterrain`, o splat uniforme Light é migrado para Grass e os caminhos
+Kenney originais não alterados são substituídos pelo conjunto natural
+automaticamente.
+
+Geração procedural: painel **Terrain Generator** (plugin). O plugin não é dono
+da escultura nem da pintura.
 
 ---
 

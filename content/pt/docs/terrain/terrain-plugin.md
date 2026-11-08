@@ -20,6 +20,8 @@ O plugin **Terrain Generator** move a geração procedural para fora do core. Us
 
 ---
 
+> **A edição é nativa.** O painel **Terrain Editor** (escultura, splat paint, undo e I/O `.cterrain`) faz parte do core da Caffeine. Este plugin apenas gera terreno proceduralmente e importa heightmaps; não registra um painel de editor.
+
 ## Presets
 
 | Preset | Descrição |
@@ -82,7 +84,7 @@ Build: o `terrain_plugin` é compilado a partir de `doppio-plugins`, instalado n
 Removido de `caffeine-core`:
 
 - `src/terrain/generation/*` (TerrainGenerator, noise, hydrology, geo sim)
-- Tab **Generate** do Terrain Editor (graph imnodes)
+- A geração procedural saiu do Terrain Editor nativo; a escultura/pintura continua no core
 - Campo `TerrainComponent::generation`
 
 Cenas antigas com blob v2–v8 ainda carregam; parâmetros de geração são ignorados. Re-gerar terreno com o plugin se necessário.
