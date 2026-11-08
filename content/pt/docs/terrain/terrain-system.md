@@ -87,7 +87,7 @@ O heightmap interno guarda valores **normalizados** `[0, 1]`. Na mesh, `y = samp
 
 ### Terrain Editor nativo
 
-![Terrain Editor sobre chão natural](../images/captures/terrain-native.png)
+![Terreno com texturas de chão naturais](../images/captures/terrain-native.png)
 
 
 Abra em **View → Terrain Editor**, na command palette (**Terrain Editor**) ou no
