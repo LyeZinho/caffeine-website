@@ -185,6 +185,7 @@ The license text is in `LICENSES/CC0-1.0.txt`.
 | Tree appears as two pieces | Add both `fir_sapling_branches.gltf` and `fir_sapling_twigs.gltf` at the same transform |
 | Leaf edges are hard | Increase `alpha_cutoff` or switch to the `_blend` variant |
 | Ground tiling is too visible | Edit `uv_tiling` in `materials/ground.mat` (demo uses 20×20) |
+| Plant shows a yellow skeleton | The Skeleton component is present. Remove it, or keep it only if you explicitly used **Fit humanoid rig**. New imports no longer get a rig automatically. |
 | LOD pops | Expected; tune the renderer's LOD distance scale or use the lower-poly plants |
 
 ## Related

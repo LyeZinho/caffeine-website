@@ -184,6 +184,7 @@ O texto da licença está em `LICENSES/CC0-1.0.txt`.
 | Árvore aparece em duas peças | Adicione `fir_sapling_branches.gltf` e `fir_sapling_twigs.gltf` com o mesmo transform |
 | Bordas das folhas duras | Aumente `alpha_cutoff` ou use a variante `_blend` |
 | Tiling do chão demasiado visível | Edite `uv_tiling` em `materials/ground.mat` (a demo usa 20×20) |
+| Planta mostra um esqueleto amarelo | O componente Skeleton está presente. Remova-o, ou mantenha-o apenas se usou **Fit humanoid rig** de propósito. Novos imports já não recebem um rig automaticamente. |
 | LOD faz popping | Esperado; ajuste a escala de distância de LOD ou use as plantas de menor poligonagem |
 
 ## Relacionado

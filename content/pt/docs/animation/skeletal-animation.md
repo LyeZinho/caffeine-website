@@ -187,6 +187,15 @@ anim.blendTree = &runBlend;
 
 ---
 
+## Meshes estáticas e rigs humanoides ajustados
+
+Um glTF sem `skins` é uma mesh estática. A Caffeine **não** sintetiza um rig
+humanoide automaticamente quando o Animator ou o Inspector a associa. Se quiser
+um rig procedural para um prop ou planta, adicione o componente **Skeleton** no
+Inspector e prima **Fit humanoid rig**; remova o componente para esconder os
+bones. Modelos com skins glTF autorais continuam a importar bones e clipes
+diretamente.
+
 ## Referências
 
 ## 🔗 Tópicos Relacionados
