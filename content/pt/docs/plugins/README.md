@@ -21,6 +21,7 @@ and enable the ones you need from **Plugins → Plugin Manager**.
 | Git | `git_plugin` | Project Git status, history and commit actions |
 | AI Development | `ai_development_plugin` | Nav volumes, nav agents and behaviour templates |
 | VC&M | `volumetric_clouds_plugin` | Procedural volumetric clouds and ground mist |
+| Natural Fluids | `natural_fluids_plugin` | Flat, wind/physics and realistic water surfaces plus real 2D/3D water, fire, fog and smoke fluids |
 
 ## Pages
 
@@ -33,6 +34,7 @@ and enable the ones you need from **Plugins → Plugin Manager**.
 | [Plugin Manager](../editor/plugin-manager.md) | Opt-in loading and troubleshooting |
 | [Compatibility](compatibility.md) | ABI, build flags and platform matrix |
 | [VC&M](volumetric-clouds.md) | Volumetric clouds and mist plugin |
+| [Natural Fluids](natural-fluids.md) | Water surfaces and real Eulerian fluids |
 
 ## Quick build
 
