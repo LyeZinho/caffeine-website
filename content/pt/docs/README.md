@@ -97,6 +97,7 @@
 | **CAF Format** | [`assets/caf-format.md`](assets/caf-format.md) | Formato binário `.caf` — zero-parsing, zero-copy |
 | **Mesh Loading** | [`assets/mesh-loading.md`](assets/mesh-loading.md) | Mesh loader (.obj, .gltf), Shader system HLSL/GLSL |
 | **Asset Pipeline** | [`assets/asset-pipeline.md`](assets/asset-pipeline.md) | CLI converter: PNG/WAV/OBJ → `.caf` |
+| **Kit de Vegetação** | [`assets/vegetation-kit.md`](assets/vegetation-kit.md) | Kit CC0 PBR/alpha para GI/AO e LOD, com cena demo |
 
 ### ECS (Entity Component System)
 

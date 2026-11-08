@@ -16,6 +16,8 @@ Carregamento de malhas 3D nos formatos `.obj` e `.gltf` , convertendo para o for
 
 **Smooth shading:** meshes importadas sem normais recebem `computeSmoothNormals()` em `MeshLoader.cpp` . Primitivas GPU procedurais ( `GpuProceduralMeshes.cpp` ) use analytical normals** — not call `computeSmoothNormals()` in them (avoids seams in sphere/torus/capsule). See [`plans/2026-09-22-viewport-rendering-quality-session.md`](../plans/2026-09-22-viewport-rendering-quality-session.md).
 
+**Alpha modes:** glTF `alphaMode` (`OPAQUE`, `MASK`, `BLEND`) and `alphaCutoff` are imported into `MeshSurfaceMaterial`; the renderer applies them per submesh so one mesh can mix opaque and cutout materials.
+
 ---
 
 ## API Implementada
