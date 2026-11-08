@@ -83,6 +83,23 @@ depois de alterar geometria estática.
 > a usar o passe screen-space do Photon. Meshes com UVs sobrepostas fazem média das
 > faces; use UVs únicas para AO por face.
 
+
+## Resolução de problemas do bake
+
+| Mensagem | Causa / correção |
+|----------|------------------|
+| **Select a mesh entity in the Hierarchy** | O bake usa uma mesh (`MeshFilterComponent`). Selecione uma entidade com mesh, não o environment ou uma luz. |
+| **Selected entity has no mesh** | A entidade não tem `MeshFilterComponent` ou o caminho da mesh custom é inválido. |
+| **Mesh has no usable UV coverage** | A mesh não tem UVs ou todas são degeneradas. Faça unwrap antes do bake. |
+| **Could not read material** | `customMaterialPath` aponta para um `.mat` inexistente ou inválido. Corrija o caminho ou limpe-o para o baker criar um novo material. |
+| **Bake scene: N failed** | Veja o estado/log; a primeira entidade falhada e o motivo são mostrados. As restantes são assadas normalmente. |
+| **GPU compute unavailable** | O device não expõe compute; o baker usa automaticamente o BVH CPU. |
+| **ORM gerado mas o viewport não muda** | O material tem de estar atribuído à mesh e o caminho ORM tem de resolver dentro do projeto. Volte a selecionar a entidade ou recarregue o material. |
+
+O bake é enfileirado pelo painel e executado **entre frames** (depois de o frame do
+editor ser submetido). Assim o command buffer da GPU fica independente do frame em
+curso.
+
 ## Performance
 
 - Low: 4 raios × 2 passos por intervalo

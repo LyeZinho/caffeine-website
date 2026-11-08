@@ -84,6 +84,23 @@ changing static geometry.
 > Photon pass. Meshes with overlapping UVs average their faces; use unique UVs for
 > per-face AO.
 
+
+## Troubleshooting the bake
+
+| Message | Cause / fix |
+|---------|-------------|
+| **Select a mesh entity in the Hierarchy** | The bake targets a mesh (`MeshFilterComponent`). Select a mesh entity, not the environment or a light. |
+| **Selected entity has no mesh** | The entity has no `MeshFilterComponent`, or its custom mesh path is invalid. |
+| **Mesh has no usable UV coverage** | The mesh has no UVs, or all UVs are degenerate. Unwrap the mesh before baking. |
+| **Could not read material** | `customMaterialPath` points to a missing or invalid `.mat`. Fix the path or clear it so the baker creates a new material. |
+| **Bake scene: N failed** | Hover the status/log; the first failing entity and reason are shown. Other meshes are baked normally. |
+| **GPU compute unavailable** | The device does not expose compute; the baker automatically uses the CPU BVH. |
+| **ORM generated but viewport unchanged** | The material must be assigned to the mesh and the ORM path must resolve under the project root. Re-select the entity or reload the material. |
+
+The bake is queued by the panel and executed **between frames** (after the editor
+frame is submitted). This keeps the GPU command buffer independent from the
+in-flight frame.
+
 ## Performance
 
 - Low: 4 rays × 2 steps per interval
