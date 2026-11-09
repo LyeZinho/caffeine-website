@@ -51,6 +51,7 @@ com ImGui; a árvore dá ids estáveis, layout, debug e uma linguagem visual ún
 | Display | `Label` / `Text`, `Paragraph`, `Badge`, `StatusDot`, `ProgressBar`, `Separator`, `Spacer`, `Image`, `EmptyState`, `KeyValue` |
 | Propriedades | `PropertyGrid`, `PropertyRow`, `FloatProperty`, `IntProperty`, `BoolProperty`, `ChoiceProperty`, `ColorFieldProperty`, `TextFieldProperty` |
 | Canvas / nodes | `Canvas`, `NodeCanvasView`, `NodeElement`, `InputPin`, `OutputPin` |
+| Overlays | `Dialog` (modal body tree) |
 | Debug | `UIContext::debugDump()`, `UIContext::drawDebugOverlay()`, `DebugPanel` |
 
 ## Exemplo
