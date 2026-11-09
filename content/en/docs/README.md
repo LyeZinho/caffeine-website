@@ -168,6 +168,7 @@
 |--------|-------------|-----------|
 | **Game UI** | [`ui/game-ui.md`](ui/game-ui.md) | UI retained mode, widgets ECS, bindValue |
 | **Editor UI** | [`ui/editor-ui.md`](ui/editor-ui.md) | Dear ImGui integrado, ProfilerWindow, ConsoleWindow |
+| **Composable UI kit** | [`ui/ui-kit.md`](ui/ui-kit.md) | Objects → Cards → Panels, controls, canvases and nodes |
 
 ### Editor
 

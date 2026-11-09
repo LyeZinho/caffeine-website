@@ -1,0 +1,114 @@
+# UI kit composável
+
+A UI do Doppio é construída com **elementos** pequenos e reutilizáveis. Um painel
+não é um caso especial: é uma árvore de objetos, cards e controlos. O mesmo
+modelo está disponível para plugins, por isso um painel de plugin parece e
+comporta-se como um painel nativo do Doppio.
+
+![UI Gallery com cards, controlos, texto, progresso e property rows](../images/captures/ui-gallery-elements.png)
+
+## Objetos → Cards → Painéis
+
+```
+Painel
+  └─ Card
+       ├─ Toolbar
+       │    ├─ Button
+       │    └─ IconButton
+       ├─ Row
+       │    ├─ Card
+       │    │    ├─ Label
+       │    │    └─ SliderFloat
+       │    └─ Card
+       │         └─ Canvas
+       ├─ PropertyGrid
+       └─ NodeCanvasView
+            └─ NodeElement
+                 ├─ InputPin
+                 └─ OutputPin
+```
+
+- **Objetos** são folhas: botão, slider, label, checkbox, combo, canvas, node,
+  pin, barra de progresso, badge, texto.
+- **Cards** agrupam objetos numa superfície elevada: `Card`, `Row`, `Column`,
+  `Grid`, `Section`, `Toolbar`, `ScrollArea`.
+- **Painéis** são janelas dockáveis: `Panel`, `TabPage`, `NodeCanvasView`,
+  `PropertyGrid`.
+- **App shells** (`PanelRegistry`, `Workspace`, `PluginManager`) são donos dos
+  painéis e do docking; nunca desenham controlos à mão.
+
+O kit é **header-only** (`caffeine/ui/UI.hpp`), por isso os plugins podem compor
+os mesmos elementos sem ligar a IDE. Por baixo, cada elemento continua a desenhar
+com ImGui; a árvore dá ids estáveis, layout, debug e uma linguagem visual única.
+
+## Elementos principais
+
+| Grupo | Elementos |
+|-------|-----------|
+| Contentores | `Panel`, `Card`, `Row`, `Column`, `Grid`, `Section`, `Toolbar`, `ScrollArea`, `TabBar` / `TabPage` |
+| Controlos | `Button`, `IconButton`, `Checkbox`, `SliderFloat`, `SliderInt`, `DragFloat`, `DragInt`, `Combo`, `TextInput`, `SearchField`, `ColorPicker`, `SegmentedControl` |
+| Display | `Label` / `Text`, `Paragraph`, `Badge`, `StatusDot`, `ProgressBar`, `Separator`, `Spacer`, `Image`, `EmptyState`, `KeyValue` |
+| Propriedades | `PropertyGrid`, `PropertyRow`, `FloatProperty`, `IntProperty`, `BoolProperty`, `ChoiceProperty`, `ColorFieldProperty`, `TextFieldProperty` |
+| Canvas / nodes | `Canvas`, `NodeCanvasView`, `NodeElement`, `InputPin`, `OutputPin` |
+| Debug | `UIContext::debugDump()`, `UIContext::drawDebugOverlay()`, `DebugPanel` |
+
+## Exemplo
+
+```cpp
+#include "caffeine/ui/UI.hpp"
+
+using namespace Caffeine::UIKit;
+using namespace Caffeine::UIKit::UI;
+
+Panel panel("My Tool", "Short description", "effects");
+auto& card = panel.emplace<Card>("General");
+card.emplace<Label>("Options", TextTone::Accent).setHeading(true);
+
+auto& row = card.emplace<Row>("Actions");
+row.emplace<Button>("Apply", ButtonVariant::Primary).setOnClick([&] { apply(); });
+row.emplace<Button>("Cancel");
+
+auto& grid = card.emplace<PropertyGrid>("Settings");
+grid.typedRow<FloatProperty>("Amount", amount, 0.0f, 1.0f, 0.01f, "%.2f", true);
+grid.typedRow<BoolProperty>("Enabled", enabled);
+
+UIContext ctx;
+ctx.draw(panel);
+```
+
+Um `Row` divide o espaço restante pelos filhos com `setGrow(true)`; um `Card`
+adapta-se ao conteúdo; um `PropertyGrid` é uma tabela de duas colunas de
+`PropertyRow`s.
+
+## Canvas e nodes
+
+`Canvas` dá um callback de desenho com a origem e o tamanho da superfície. Serve
+para previews, grafos, timelines ou qualquer visual que deva participar no layout
+dos elementos.
+
+`NodeCanvasView` embebe o `NodeCanvas` partilhado e é dono de uma lista de
+`NodeElement`s. Cada node é dono do corpo, incluindo `InputPin`/`OutputPin` e
+controlos normais. As ligações e a semântica do grafo ficam na ferramenta host.
+
+## Catálogo vivo
+
+Abre **View → Panels → UI Gallery** (ou o comando `UI Gallery`). O painel mostra
+todos os elementos em contexto: botões, inputs, tons de texto, badges, progresso,
+property rows, um canvas, um node canvas e a árvore de debug.
+
+Ativa **Draw hit rectangles** no card de Debug para ver os bounds e ids de cada
+elemento. `UIContext::debugDump()` devolve a mesma informação em texto, útil em
+testes e relatórios de bugs.
+
+## Regras
+
+1. Uma folha desenha uma coisa; um contentor é dono do layout.
+2. Usa tokens do tema, nunca cores hard-coded.
+3. Dá ids explícitos a listas dinâmicas; irmãos estáticos podem ser numerados
+   automaticamente.
+4. Mantém lógica de grafo/ligações/serialização no host, não no `NodeElement`.
+5. Migra uma peça de cada vez: os widgets de função antigos continuam suportados
+   e são o vocabulário de baixo nível por baixo dos elementos.
+
+A arquitetura completa, o guia para plugins, debug e o mapa de migração estão em
+[`apps/doppio/docs/ui-kit.md`](https://github.com/devscafecommunity/caffeine/blob/main/apps/doppio/docs/ui-kit.md).

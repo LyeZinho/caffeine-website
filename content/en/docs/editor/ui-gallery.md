@@ -43,6 +43,19 @@ orthographic projection. **Isometric** is a first-class 3D view: it sets the fix
 45° / 35.264° camera angles and switches to orthographic projection, and the same
 view-projection matrix is used by the GPU renderer, CPU picking, overlays and the grid.
 
+## Composable elements
+
+The chrome is built from **elements**: buttons, cards, panels, property rows,
+canvases and nodes are all instances of the same model. They compose into larger
+pieces (Objects → Cards → Panels) and can be reused by plugins. Open
+**View → Panels → UI Gallery** for a live catalogue of every element, including
+the debug hit-rectangle overlay.
+
+![UI Gallery showing the element kit](../images/captures/ui-gallery-elements.png)
+
+See [`ui/ui-kit.md`](../ui/ui-kit.md) for the hierarchy, examples, plugin usage
+and migration map.
+
 ## Theme and density
 
 - Neutral graphite dark palette with a single warm accent.
