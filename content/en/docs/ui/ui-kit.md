@@ -45,7 +45,8 @@ ImGui; the tree gives stable ids, layout, debugging and a single visual language
 | Group | Elements |
 |-------|----------|
 | Containers | `Panel`, `Card`, `Row`, `Column`, `Grid`, `Section`, `Toolbar`, `ScrollArea`, `TabBar` / `TabPage` |
-| Controls | `Button`, `IconButton`, `Checkbox`, `SliderFloat`, `SliderInt`, `DragFloat`, `DragInt`, `Combo`, `TextInput`, `SearchField`, `ColorPicker`, `SegmentedControl` |
+| Controls | `Button`, `IconButton`, `Checkbox`, `SliderFloat`, `SliderInt`, `DragFloat`, `DragInt`, `Combo`, `TextInput`, `SearchField`, `MultilineText`, `DropZone`, `ColorPicker`, `SegmentedControl` |
+| Lists | `ListItem`, `ListBox` |
 | Display | `Label` / `Text`, `Paragraph`, `Badge`, `StatusDot`, `ProgressBar`, `Separator`, `Spacer`, `Image`, `EmptyState`, `KeyValue` |
 | Properties | `PropertyGrid`, `PropertyRow`, `FloatProperty`, `IntProperty`, `BoolProperty`, `ChoiceProperty`, `ColorFieldProperty`, `TextFieldProperty` |
 | Canvas / nodes | `Canvas`, `NodeCanvasView`, `NodeElement`, `InputPin`, `OutputPin` |
@@ -57,7 +58,7 @@ ImGui; the tree gives stable ids, layout, debugging and a single visual language
 #include "caffeine/ui/UI.hpp"
 
 using namespace Caffeine::UIKit;
-using namespace Caffeine::UIKit::UI;
+using namespace Caffeine::UIKit::Elements;
 
 Panel panel("My Tool", "Short description", "effects");
 auto& card = panel.emplace<Card>("General");

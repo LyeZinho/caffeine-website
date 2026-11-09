@@ -46,7 +46,8 @@ com ImGui; a árvore dá ids estáveis, layout, debug e uma linguagem visual ún
 | Grupo | Elementos |
 |-------|-----------|
 | Contentores | `Panel`, `Card`, `Row`, `Column`, `Grid`, `Section`, `Toolbar`, `ScrollArea`, `TabBar` / `TabPage` |
-| Controlos | `Button`, `IconButton`, `Checkbox`, `SliderFloat`, `SliderInt`, `DragFloat`, `DragInt`, `Combo`, `TextInput`, `SearchField`, `ColorPicker`, `SegmentedControl` |
+| Controlos | `Button`, `IconButton`, `Checkbox`, `SliderFloat`, `SliderInt`, `DragFloat`, `DragInt`, `Combo`, `TextInput`, `SearchField`, `MultilineText`, `DropZone`, `ColorPicker`, `SegmentedControl` |
+| Listas | `ListItem`, `ListBox` |
 | Display | `Label` / `Text`, `Paragraph`, `Badge`, `StatusDot`, `ProgressBar`, `Separator`, `Spacer`, `Image`, `EmptyState`, `KeyValue` |
 | Propriedades | `PropertyGrid`, `PropertyRow`, `FloatProperty`, `IntProperty`, `BoolProperty`, `ChoiceProperty`, `ColorFieldProperty`, `TextFieldProperty` |
 | Canvas / nodes | `Canvas`, `NodeCanvasView`, `NodeElement`, `InputPin`, `OutputPin` |
@@ -58,7 +59,7 @@ com ImGui; a árvore dá ids estáveis, layout, debug e uma linguagem visual ún
 #include "caffeine/ui/UI.hpp"
 
 using namespace Caffeine::UIKit;
-using namespace Caffeine::UIKit::UI;
+using namespace Caffeine::UIKit::Elements;
 
 Panel panel("My Tool", "Short description", "effects");
 auto& card = panel.emplace<Card>("General");
