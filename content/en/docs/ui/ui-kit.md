@@ -49,7 +49,7 @@ ImGui; the tree gives stable ids, layout, debugging and a single visual language
 | Lists & data | `ListItem`, `ListBox`, `AssetCard`, `DataTable` / `DataRow` |
 | Display | `Label` / `Text`, `Paragraph`, `Badge`, `StatusDot`, `ProgressBar`, `Separator`, `Spacer`, `Image`, `EmptyState`, `KeyValue` |
 | Properties | `PropertyGrid`, `PropertyRow`, `FloatProperty`, `IntProperty`, `BoolProperty`, `ChoiceProperty`, `ColorFieldProperty`, `Color3FieldProperty`, `TextFieldProperty`, `PathProperty`, `Vec2Property`, `Vec3Property` |
-| Canvas / nodes | `Canvas`, `NodeCanvasView`, `NodeElement`, `InputPin`, `OutputPin` |
+| Canvas / nodes | `Canvas`, `CurveEditor`, `NodeCanvasView`, `NodeElement`, `InputPin`, `OutputPin` |
 | Overlays | `Dialog` (modal body tree), `CustomElement` (host/legacy escape hatch) |
 | Debug | `UIContext::debugDump()`, `UIContext::drawDebugOverlay()`, `DebugPanel` |
 
