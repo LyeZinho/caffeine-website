@@ -46,12 +46,12 @@ com ImGui; a árvore dá ids estáveis, layout, debug e uma linguagem visual ún
 | Grupo | Elementos |
 |-------|-----------|
 | Contentores | `Panel`, `Card`, `Row`, `Column`, `Grid`, `Section`, `Toolbar`, `ScrollArea`, `TabBar` / `TabPage` |
-| Controlos | `Button`, `IconButton`, `Checkbox`, `SliderFloat`, `SliderInt`, `DragFloat`, `DragInt`, `Combo`, `TextInput`, `SearchField`, `MultilineText`, `DropZone`, `ColorPicker`, `SegmentedControl` |
-| Listas | `ListItem`, `ListBox` |
+| Controlos | `Button`, `IconButton`, `Checkbox`, `SliderFloat`, `SliderInt`, `DragFloat`, `DragInt`, `Combo`, `TextInput`, `SearchField`, `PathField`, `MultilineText`, `DropZone`, `ColorPicker`, `SegmentedControl` |
+| Listas e dados | `ListItem`, `ListBox`, `AssetCard`, `DataTable` / `DataRow` |
 | Display | `Label` / `Text`, `Paragraph`, `Badge`, `StatusDot`, `ProgressBar`, `Separator`, `Spacer`, `Image`, `EmptyState`, `KeyValue` |
-| Propriedades | `PropertyGrid`, `PropertyRow`, `FloatProperty`, `IntProperty`, `BoolProperty`, `ChoiceProperty`, `ColorFieldProperty`, `TextFieldProperty` |
+| Propriedades | `PropertyGrid`, `PropertyRow`, `FloatProperty`, `IntProperty`, `BoolProperty`, `ChoiceProperty`, `ColorFieldProperty`, `Color3FieldProperty`, `TextFieldProperty`, `PathProperty`, `Vec2Property`, `Vec3Property` |
 | Canvas / nodes | `Canvas`, `NodeCanvasView`, `NodeElement`, `InputPin`, `OutputPin` |
-| Overlays | `Dialog` (modal body tree) |
+| Overlays | `Dialog` (modal body tree), `CustomElement` (escape hatch para widgets do host/legado) |
 | Debug | `UIContext::debugDump()`, `UIContext::drawDebugOverlay()`, `DebugPanel` |
 
 ## Exemplo

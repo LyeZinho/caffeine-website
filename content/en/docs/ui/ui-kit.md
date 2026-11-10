@@ -45,12 +45,12 @@ ImGui; the tree gives stable ids, layout, debugging and a single visual language
 | Group | Elements |
 |-------|----------|
 | Containers | `Panel`, `Card`, `Row`, `Column`, `Grid`, `Section`, `Toolbar`, `ScrollArea`, `TabBar` / `TabPage`, `TreeView` / `TreeItem` |
-| Controls | `Button`, `IconButton`, `Checkbox`, `SliderFloat`, `SliderInt`, `DragFloat`, `DragInt`, `Combo`, `TextInput`, `SearchField`, `MultilineText`, `DropZone`, `ColorPicker`, `SegmentedControl` |
-| Lists | `ListItem`, `ListBox` |
+| Controls | `Button`, `IconButton`, `Checkbox`, `SliderFloat`, `SliderInt`, `DragFloat`, `DragInt`, `Combo`, `TextInput`, `SearchField`, `PathField`, `MultilineText`, `DropZone`, `ColorPicker`, `SegmentedControl` |
+| Lists & data | `ListItem`, `ListBox`, `AssetCard`, `DataTable` / `DataRow` |
 | Display | `Label` / `Text`, `Paragraph`, `Badge`, `StatusDot`, `ProgressBar`, `Separator`, `Spacer`, `Image`, `EmptyState`, `KeyValue` |
-| Properties | `PropertyGrid`, `PropertyRow`, `FloatProperty`, `IntProperty`, `BoolProperty`, `ChoiceProperty`, `ColorFieldProperty`, `TextFieldProperty` |
+| Properties | `PropertyGrid`, `PropertyRow`, `FloatProperty`, `IntProperty`, `BoolProperty`, `ChoiceProperty`, `ColorFieldProperty`, `Color3FieldProperty`, `TextFieldProperty`, `PathProperty`, `Vec2Property`, `Vec3Property` |
 | Canvas / nodes | `Canvas`, `NodeCanvasView`, `NodeElement`, `InputPin`, `OutputPin` |
-| Overlays | `Dialog` (modal body tree) |
+| Overlays | `Dialog` (modal body tree), `CustomElement` (host/legacy escape hatch) |
 | Debug | `UIContext::debugDump()`, `UIContext::drawDebugOverlay()`, `DebugPanel` |
 
 ## Example
