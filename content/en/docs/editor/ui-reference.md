@@ -26,12 +26,6 @@ View menu: focus, camera reset and render.
 
 Scene hierarchy: lists every entity and selects one on click.
 
-## `editor.pane.assets`
-
-![editor.pane.assets](../images/ui-reference/editor-pane-assets.png)
-
-Project assets found under the loaded project's asset root.
-
 ## `editor.pane.viewport`
 
 ![editor.pane.viewport](../images/ui-reference/editor-pane-viewport.png)
@@ -43,6 +37,78 @@ Engine render of the current scene with camera controls.
 ![editor.pane.inspector](../images/ui-reference/editor-pane-inspector.png)
 
 Transform and actions for the selected entity.
+
+## `hierarchy.tree.scene`
+
+![hierarchy.tree.scene](../images/ui-reference/hierarchy-tree-scene.png)
+
+The scene root row of the hierarchy tree.
+
+## `hierarchy.search`
+
+![hierarchy.search](../images/ui-reference/hierarchy-search.png)
+
+Search field for filtering hierarchy entities.
+
+## `editor.pane.tab.hierarchy`
+
+![editor.pane.tab.hierarchy](../images/ui-reference/editor-pane-tab-hierarchy.png)
+
+Hierarchy tab in a shared pane.
+
+## `editor.pane.tab.assets`
+
+![editor.pane.tab.assets](../images/ui-reference/editor-pane-tab-assets.png)
+
+Assets tab in a shared pane.
+
+## `editor.pane.tab.viewport`
+
+![editor.pane.tab.viewport](../images/ui-reference/editor-pane-tab-viewport.png)
+
+Viewport tab in a shared pane.
+
+## `editor.pane.tab.inspector`
+
+![editor.pane.tab.inspector](../images/ui-reference/editor-pane-tab-inspector.png)
+
+Inspector tab in a shared pane.
+
+## `editor.pane.tab.console`
+
+![editor.pane.tab.console](../images/ui-reference/editor-pane-tab-console.png)
+
+Console tab in a shared pane.
+
+## `console.filter.error`
+
+![console.filter.error](../images/ui-reference/console-filter-error.png)
+
+Show or hide error entries in the Console.
+
+## `console.filter.log`
+
+![console.filter.log](../images/ui-reference/console-filter-log.png)
+
+Show or hide general log entries in the Console.
+
+## `console.filter.action`
+
+![console.filter.action](../images/ui-reference/console-filter-action.png)
+
+Show or hide editor action entries in the Console.
+
+## `console.filter.engine`
+
+![console.filter.engine](../images/ui-reference/console-filter-engine.png)
+
+Show or hide engine entries in the Console.
+
+## `console.filter.ui`
+
+![console.filter.ui](../images/ui-reference/console-filter-ui.png)
+
+Show or hide UI entries in the Console.
 
 ## `editor.pane.console`
 
