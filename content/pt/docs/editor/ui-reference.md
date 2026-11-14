@@ -2,47 +2,23 @@
 
 Gerado por `cargo test -p doppio-ui capture_ui_gallery -- --ignored`. As descrições vivem em `doppio/docs/ui-captions.json`.
 
-## `editor.toolbar.undo`
+## `editor.menu.scene`
 
-![editor.toolbar.undo](../images/ui-reference/editor-toolbar-undo.png)
+![editor.menu.scene](../images/ui-reference/editor-menu-scene.png)
 
-Desfaz o último passo do editor.
+Menu Cena: adicionar, guardar e jogar.
 
-## `editor.toolbar.redo`
+## `editor.menu.edit`
 
-![editor.toolbar.redo](../images/ui-reference/editor-toolbar-redo.png)
+![editor.menu.edit](../images/ui-reference/editor-menu-edit.png)
 
-Refaz o último passo desfeito.
+Menu Editar: desfazer, refazer e apagar.
 
-## `editor.toolbar.add_entity`
+## `editor.menu.view`
 
-![editor.toolbar.add_entity](../images/ui-reference/editor-toolbar-add_entity.png)
+![editor.menu.view](../images/ui-reference/editor-menu-view.png)
 
-Cria uma entidade nova na cena atual e seleciona-a.
-
-## `editor.toolbar.toggle_play`
-
-![editor.toolbar.toggle_play](../images/ui-reference/editor-toolbar-toggle_play.png)
-
-Inicia ou para o modo de jogo e avança o motor.
-
-## `editor.toolbar.save`
-
-![editor.toolbar.save](../images/ui-reference/editor-toolbar-save.png)
-
-Guarda a cena .caf atual e limpa o marcador de alterações.
-
-## `editor.toolbar.render`
-
-![editor.toolbar.render](../images/ui-reference/editor-toolbar-render.png)
-
-Pede um render offscreen do viewport.
-
-## `editor.toolbar.log`
-
-![editor.toolbar.log](../images/ui-reference/editor-toolbar-log.png)
-
-Escreve uma linha de exemplo no console (auxiliar de testes).
+Menu Ver: focar, repor câmara e renderizar.
 
 ## `editor.pane.hierarchy`
 
@@ -80,53 +56,11 @@ Registo do editor: seleções, edições, gravação e frames.
 
 Imagem do motor apresentada dentro do painel de viewport.
 
-## `viewport.camera.orbit_left`
-
-![viewport.camera.orbit_left](../images/ui-reference/viewport-camera-orbit_left.png)
-
-Roda a câmara do viewport para a esquerda.
-
-## `viewport.camera.orbit_right`
-
-![viewport.camera.orbit_right](../images/ui-reference/viewport-camera-orbit_right.png)
-
-Roda a câmara do viewport para a direita.
-
-## `viewport.camera.zoom_in`
-
-![viewport.camera.zoom_in](../images/ui-reference/viewport-camera-zoom_in.png)
-
-Aproxima a câmara do ponto de foco.
-
-## `viewport.camera.zoom_out`
-
-![viewport.camera.zoom_out](../images/ui-reference/viewport-camera-zoom_out.png)
-
-Afasta a câmara do ponto de foco.
-
-## `viewport.camera.focus_selection`
-
-![viewport.camera.focus_selection](../images/ui-reference/viewport-camera-focus_selection.png)
-
-Enquadra a entidade selecionada no viewport.
-
-## `viewport.camera.reset`
-
-![viewport.camera.reset](../images/ui-reference/viewport-camera-reset.png)
-
-Repõe a posição de câmara predefinida.
-
 ## `inspector.entity.name`
 
 ![inspector.entity.name](../images/ui-reference/inspector-entity-name.png)
 
 Nome editável da entidade selecionada; chega ao motor.
-
-## `inspector.entity.delete`
-
-![inspector.entity.delete](../images/ui-reference/inspector-entity-delete.png)
-
-Destrói a entidade selecionada no mundo do motor.
 
 ## `inspector.add_component`
 
