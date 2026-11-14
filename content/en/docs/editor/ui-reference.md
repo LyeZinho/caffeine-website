@@ -104,6 +104,12 @@ Moves the camera closer to its focus point.
 
 Moves the camera away from its focus point.
 
+## `viewport.camera.focus_selection`
+
+![viewport.camera.focus_selection](../images/ui-reference/viewport-camera-focus_selection.png)
+
+Frames the selected entity in the viewport.
+
 ## `viewport.camera.reset`
 
 ![viewport.camera.reset](../images/ui-reference/viewport-camera-reset.png)

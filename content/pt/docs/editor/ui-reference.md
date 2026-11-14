@@ -104,6 +104,12 @@ Aproxima a câmara do ponto de foco.
 
 Afasta a câmara do ponto de foco.
 
+## `viewport.camera.focus_selection`
+
+![viewport.camera.focus_selection](../images/ui-reference/viewport-camera-focus_selection.png)
+
+Enquadra a entidade selecionada no viewport.
+
 ## `viewport.camera.reset`
 
 ![viewport.camera.reset](../images/ui-reference/viewport-camera-reset.png)
