@@ -2,6 +2,18 @@
 
 Gerado por `cargo test -p doppio-ui capture_ui_gallery -- --ignored`. As descrições vivem em `doppio/docs/ui-captions.json`.
 
+## `editor.toolbar.undo`
+
+![editor.toolbar.undo](../images/ui-reference/editor-toolbar-undo.png)
+
+Desfaz o último passo do editor.
+
+## `editor.toolbar.redo`
+
+![editor.toolbar.redo](../images/ui-reference/editor-toolbar-redo.png)
+
+Refaz o último passo desfeito.
+
 ## `editor.toolbar.add_entity`
 
 ![editor.toolbar.add_entity](../images/ui-reference/editor-toolbar-add_entity.png)
