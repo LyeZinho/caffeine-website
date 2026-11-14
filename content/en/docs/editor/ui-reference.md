@@ -62,6 +62,12 @@ Transform and actions for the selected entity.
 
 Editor log: selections, edits, save state and engine frames.
 
+## `viewport.canvas.surface`
+
+![viewport.canvas.surface](../images/ui-reference/viewport-canvas-surface.png)
+
+Engine render output shown inside the viewport pane.
+
 ## `viewport.camera.orbit_left`
 
 ![viewport.camera.orbit_left](../images/ui-reference/viewport-camera-orbit_left.png)

@@ -62,6 +62,12 @@ Transformação e ações da entidade selecionada.
 
 Registo do editor: seleções, edições, gravação e frames.
 
+## `viewport.canvas.surface`
+
+![viewport.canvas.surface](../images/ui-reference/viewport-canvas-surface.png)
+
+Imagem do motor apresentada dentro do painel de viewport.
+
 ## `viewport.camera.orbit_left`
 
 ![viewport.camera.orbit_left](../images/ui-reference/viewport-camera-orbit_left.png)
