@@ -122,7 +122,7 @@ Launches the built game/editor executable.
 
 **Searches:**
 - `./bin/caffeine-combined`
-- `./build/apps/doppio/caffeine-combined`
+- `./build/caffeine-combined`
 - `./build/bin/caffeine-combined`
 - Full `./build/` recursion as fallback
 

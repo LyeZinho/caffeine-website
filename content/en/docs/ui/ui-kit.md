@@ -109,5 +109,8 @@ useful in tests and bug reports.
 5. Migrate one piece at a time: the older free-function widgets are still
    supported and are the low-level vocabulary underneath the elements.
 
-The full architecture, plugin guide, debugging notes and migration map live in
-[`apps/doppio/docs/ui-kit.md`](https://github.com/devscafecommunity/caffeine/blob/main/apps/doppio/docs/ui-kit.md).
+The headers live in
+[`include/caffeine/ui/`](https://github.com/devscafecommunity/caffeine/tree/main/include/caffeine/ui).
+This kit is the legacy ImGui plugin SDK vocabulary. The active Doppio editor is
+Rust/Iced and consumes the C ABI instead; see the
+[Rust UI notes](https://github.com/devscafecommunity/caffeine/blob/main/doppio/docs/rust-ui.md).
