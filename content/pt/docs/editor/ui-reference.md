@@ -1,0 +1,142 @@
+# Referência da UI do Doppio
+
+Gerado por `cargo test -p doppio-ui capture_ui_gallery -- --ignored`. As descrições vivem em `doppio/docs/ui-captions.json`.
+
+## `editor.toolbar.add_entity`
+
+![editor.toolbar.add_entity](../images/ui-reference/editor-toolbar-add_entity.png)
+
+Cria uma entidade nova na cena atual e seleciona-a.
+
+## `editor.toolbar.toggle_play`
+
+![editor.toolbar.toggle_play](../images/ui-reference/editor-toolbar-toggle_play.png)
+
+Inicia ou para o modo de jogo e avança o motor.
+
+## `editor.toolbar.save`
+
+![editor.toolbar.save](../images/ui-reference/editor-toolbar-save.png)
+
+Guarda a cena .caf atual e limpa o marcador de alterações.
+
+## `editor.toolbar.render`
+
+![editor.toolbar.render](../images/ui-reference/editor-toolbar-render.png)
+
+Pede um render offscreen do viewport.
+
+## `editor.toolbar.log`
+
+![editor.toolbar.log](../images/ui-reference/editor-toolbar-log.png)
+
+Escreve uma linha de exemplo no console (auxiliar de testes).
+
+## `editor.pane.hierarchy`
+
+![editor.pane.hierarchy](../images/ui-reference/editor-pane-hierarchy.png)
+
+Hierarquia da cena: lista as entidades e permite selecionar.
+
+## `editor.pane.assets`
+
+![editor.pane.assets](../images/ui-reference/editor-pane-assets.png)
+
+Assets do projeto encontrados na raiz de assets carregada.
+
+## `editor.pane.viewport`
+
+![editor.pane.viewport](../images/ui-reference/editor-pane-viewport.png)
+
+Render do motor para a cena atual, com controlos de câmara.
+
+## `editor.pane.inspector`
+
+![editor.pane.inspector](../images/ui-reference/editor-pane-inspector.png)
+
+Transformação e ações da entidade selecionada.
+
+## `editor.pane.console`
+
+![editor.pane.console](../images/ui-reference/editor-pane-console.png)
+
+Registo do editor: seleções, edições, gravação e frames.
+
+## `viewport.camera.orbit_left`
+
+![viewport.camera.orbit_left](../images/ui-reference/viewport-camera-orbit_left.png)
+
+Roda a câmara do viewport para a esquerda.
+
+## `viewport.camera.orbit_right`
+
+![viewport.camera.orbit_right](../images/ui-reference/viewport-camera-orbit_right.png)
+
+Roda a câmara do viewport para a direita.
+
+## `viewport.camera.zoom_in`
+
+![viewport.camera.zoom_in](../images/ui-reference/viewport-camera-zoom_in.png)
+
+Aproxima a câmara do ponto de foco.
+
+## `viewport.camera.zoom_out`
+
+![viewport.camera.zoom_out](../images/ui-reference/viewport-camera-zoom_out.png)
+
+Afasta a câmara do ponto de foco.
+
+## `viewport.camera.reset`
+
+![viewport.camera.reset](../images/ui-reference/viewport-camera-reset.png)
+
+Repõe a posição de câmara predefinida.
+
+## `inspector.entity.name`
+
+![inspector.entity.name](../images/ui-reference/inspector-entity-name.png)
+
+Nome editável da entidade selecionada; chega ao motor.
+
+## `inspector.entity.nudge_x`
+
+![inspector.entity.nudge_x](../images/ui-reference/inspector-entity-nudge_x.png)
+
+Move a entidade selecionada uma unidade em +X.
+
+## `inspector.entity.nudge_rot_y`
+
+![inspector.entity.nudge_rot_y](../images/ui-reference/inspector-entity-nudge_rot_y.png)
+
+Roda a entidade selecionada 15 graus em Y.
+
+## `inspector.entity.scale_up`
+
+![inspector.entity.scale_up](../images/ui-reference/inspector-entity-scale_up.png)
+
+Escala a entidade selecionada em 1.1 em todos os eixos.
+
+## `inspector.entity.delete`
+
+![inspector.entity.delete](../images/ui-reference/inspector-entity-delete.png)
+
+Destrói a entidade selecionada no mundo do motor.
+
+## `hierarchy.list.entity_row.0`
+
+![hierarchy.list.entity_row.0](../images/ui-reference/entity-row-0.png)
+
+A row in the hierarchy list; rows use the .N suffix.
+
+## `hierarchy.list.entity_row.1`
+
+![hierarchy.list.entity_row.1](../images/ui-reference/entity-row-1.png)
+
+A row in the hierarchy list; rows use the .N suffix.
+
+## `annotated.inspector`
+
+![annotated.inspector](../images/ui-reference/annotated-inspector.png)
+
+Controlos do inspector, numerados para documentação.
+

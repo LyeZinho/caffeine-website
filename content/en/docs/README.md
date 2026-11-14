@@ -13,6 +13,7 @@
 | **Getting started** | [`getting-started/README.md`](getting-started/README.md) | Clone, build and run Doppio |
 | **Build guide** | [`getting-started/build-guide.md`](getting-started/build-guide.md) | `caffeine-build` wrapper for every platform |
 | **UI gallery** | [`editor/ui-gallery.md`](editor/ui-gallery.md) | Screenshots of the editor, viewport and docking |
+| **UI reference (generated)** | [`editor/ui-reference.md`](editor/ui-reference.md) | Every widget id with a captioned, highlighted image |
 | **Plugin Manager** | [`editor/plugin-manager.md`](editor/plugin-manager.md) | Build, install and enable plugins explicitly |
 
 ### Arquitectura

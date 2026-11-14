@@ -13,6 +13,7 @@
 | **Começar** | [`getting-started/README.md`](getting-started/README.md) | Clonar, compilar e executar o Doppio |
 | **Build guide** | [`getting-started/build-guide.md`](getting-started/build-guide.md) | Wrapper `caffeine-build` para todas as plataformas |
 | **Galeria da UI** | [`editor/ui-gallery.md`](editor/ui-gallery.md) | Screenshots do editor, viewport e docking |
+| **Referência da UI (gerada)** | [`editor/ui-reference.md`](editor/ui-reference.md) | Cada id de widget com imagem legendada e destacada |
 | **Plugin Manager** | [`editor/plugin-manager.md`](editor/plugin-manager.md) | Compilar, instalar e ativar plugins explicitamente |
 
 ### Arquitectura
