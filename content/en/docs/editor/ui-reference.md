@@ -116,29 +116,17 @@ Restores the default camera position.
 
 Editable name of the selected entity; edits reach the engine.
 
-## `inspector.entity.nudge_x`
-
-![inspector.entity.nudge_x](../images/ui-reference/inspector-entity-nudge_x.png)
-
-Moves the selected entity one unit along +X.
-
-## `inspector.entity.nudge_rot_y`
-
-![inspector.entity.nudge_rot_y](../images/ui-reference/inspector-entity-nudge_rot_y.png)
-
-Rotates the selected entity 15 degrees around Y.
-
-## `inspector.entity.scale_up`
-
-![inspector.entity.scale_up](../images/ui-reference/inspector-entity-scale_up.png)
-
-Scales the selected entity by 1.1 on every axis.
-
 ## `inspector.entity.delete`
 
 ![inspector.entity.delete](../images/ui-reference/inspector-entity-delete.png)
 
 Destroys the selected entity in the engine world.
+
+## `inspector.add_component`
+
+![inspector.add_component](../images/ui-reference/inspector-add_component.png)
+
+Adds a component to the selected entity.
 
 ## `hierarchy.list.entity_row.0`
 

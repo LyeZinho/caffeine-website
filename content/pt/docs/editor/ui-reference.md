@@ -116,29 +116,17 @@ Repõe a posição de câmara predefinida.
 
 Nome editável da entidade selecionada; chega ao motor.
 
-## `inspector.entity.nudge_x`
-
-![inspector.entity.nudge_x](../images/ui-reference/inspector-entity-nudge_x.png)
-
-Move a entidade selecionada uma unidade em +X.
-
-## `inspector.entity.nudge_rot_y`
-
-![inspector.entity.nudge_rot_y](../images/ui-reference/inspector-entity-nudge_rot_y.png)
-
-Roda a entidade selecionada 15 graus em Y.
-
-## `inspector.entity.scale_up`
-
-![inspector.entity.scale_up](../images/ui-reference/inspector-entity-scale_up.png)
-
-Escala a entidade selecionada em 1.1 em todos os eixos.
-
 ## `inspector.entity.delete`
 
 ![inspector.entity.delete](../images/ui-reference/inspector-entity-delete.png)
 
 Destrói a entidade selecionada no mundo do motor.
+
+## `inspector.add_component`
+
+![inspector.add_component](../images/ui-reference/inspector-add_component.png)
+
+Adiciona um componente à entidade selecionada.
 
 ## `hierarchy.list.entity_row.0`
 
