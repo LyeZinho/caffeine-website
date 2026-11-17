@@ -52,11 +52,28 @@ the native returns `null` / `false`.
 
 ## Registering a new component
 
-Add one `component<T>(id, "Name", { fields... })` entry to `componentRegistry()` in `ComponentReflection.cpp`. It then
-appears in the Doppio inspector, the C ABI and both languages with no further binding code.
+Hand-written entries (the first 16, with curated ranges) live in `componentRegistry()` in `ComponentReflection.cpp`.
+Everything else is **generated from the component headers**: add the struct to the `COMPONENTS` list in
+`scripts/gen-component-reflection.py` (with a fixed id) and run it:
+
+```bash
+python3 scripts/gen-component-reflection.py --list   # what it found and what it skipped
+python3 scripts/gen-component-reflection.py          # rewrites ComponentReflectionGenerated.*.inc
+```
+
+The generator understands floats, bools, ints, `Vec2/3/4`, `std::string`, `char[N]`, `char[N][M]` (as numbered
+fields), `FixedString`, dense `enum class` types (as option lists) and nested plain structs, which are flattened as
+`"Bloom: Intensity"`. It skips runtime caches (revision counters, dirty flags), vectors and non-text arrays. A
+component then appears in the Doppio inspector, the C ABI and both languages with no binding code.
 
 ## Status
 
-The registry covers 16 components today (transform, 3D position/rotation/scale, camera, lights, mesh filter and
-renderer, 2D and 3D bodies and colliders, script). Extending it to the rest of the engine (fluids and water,
-terrain, audio, animation, navigation, effects, post-processing, particles) is the next phase.
+The registry covers **43 components and ~400 fields**: transforms (3D and legacy 2D), cameras (2D, 3D, controller),
+lights, meshes and skinned meshes, bodies and colliders (2D and 3D), script, sprite and sprite LOD, particles,
+health, audio emitter, **terrain** (size, height, resolution, the four splat layer textures), **natural fluids /
+water**, nav agent, effects, skybox, environment effects (day/night), post-processing (every effect, flattened),
+forward-render features, procedural world and map surface. A test adds, reads, writes back, and removes *every*
+registered component and field, and checks ids and names stay unique.
+
+Not reflected yet (the state does not fit plain fields): animator state machines and clips, nav volumes, the water
+wave list, and runtime data such as active particles and meshes. Those need dedicated APIs (phase 3).
