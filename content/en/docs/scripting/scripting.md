@@ -60,6 +60,7 @@ game scripts and editor plugins. Highlights:
 - `caffeine.assets` — text assets.
 - `caffeine.events` — subscribe/emit game events.
 - `caffeine.component` — generic reflection-based component access (Lua and Dryad).
+- Lua/Dryad parity, the new `caffeine.math` 3D helpers, the Dryad `caffeine_time_*`, `caffeine_input_*` and `caffeine_world_*` natives, and the roadmap: [api-roadmap.md](api-roadmap.md).
 - `caffeine.map`, `caffeine.native`, `caffeine.postprocess`, `caffeine.forwardrender`,
   `caffeine.material`.
 
