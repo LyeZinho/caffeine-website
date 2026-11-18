@@ -1,22 +1,39 @@
 # Installing plugins
 
-Doppio discovers shared libraries in a few well-known `plugins/` directories but
-**loads none of them at startup**. A discovered library is listed in the Plugin
-Manager and stays disabled until you enable it.
+<div class="doc-meta">
+  <span class="doc-badge doc-badge--reference">Reference</span>
+  <span>Last updated: <time datetime="2026-11-18">2026-11-18</time></span>
+</div>
+
+<p class="doc-lede">Caminhos de descoberta e lista de plugins ativos no host C++ legado.</p>
+
+
+
+<div class="doc-callout doc-callout--warning">
+  <p><strong>Host legado.</strong> O Doppio atual em Rust/Iced não carrega plugins C++.
+  Estas páginas documentam o SDK de plugins C++/ImGui e o seu host no editor C++ arquivado
+  (<code>doppio-archived/</code>). A engine continua a compilar todos os plugins do
+  submódulo, para que o SDK se mantenha testado na compilação.</p>
+</div>
+
+
+O host C++ legado descobre bibliotecas partilhadas em alguns diretórios `plugins/`
+conhecidos, mas **não carrega nenhuma no arranque**. Uma biblioteca descoberta aparece
+no Plugin Manager desse host e fica desativada até a ativares. O Doppio atual em Rust
+não procura estes diretórios.
 
 ## Discovery locations
 
 | Scope | Path |
 |-------|------|
 | Project | `<project-root>/plugins/*.so` (`*.dll` on Windows) |
-| Doppio build | `<caffeine-build>/plugins/*.so` |
-| Next to the binary | `<doppio-binary-dir>/plugins/*.so` |
+| Legacy host build | `<caffeine-build>/plugins/*.so` |
+| Next to the host binary | `<host-binary-dir>/plugins/*.so` |
 
 Example after a typical Caffeine build:
 
 ```
 caffeine/build/
-├── doppio
 └── plugins/
     ├── hello_plugin.so
     ├── terrain_plugin.so
@@ -26,10 +43,11 @@ caffeine/build/
 ## Manual install
 
 ```bash
-cp /path/to/built/my_plugin.so /path/to/doppio/plugins/
+cp /path/to/built/my_plugin.so /path/to/caffeine/build/plugins/
 ```
 
-Restart Doppio or press **Refresh Directory** in **Plugins → Plugin Manager**.
+Reinicia o host legado ou carrega em **Refresh Directory** no **Plugins → Plugin
+Manager** desse host.
 
 ## Enabling and disabling
 
@@ -59,5 +77,5 @@ config; each user can still disable plugins locally.
 
 Plugins are compiled against the public headers in `include/caffeine/plugin/`. Keep
 the ABI version aligned with the engine; a plugin built for a different ABI may
-fail to load or crash. Use the same compiler and standard library as Doppio on
+fail to load or crash. Usa o mesmo compilador e standard library que o host C++ em
 Linux.

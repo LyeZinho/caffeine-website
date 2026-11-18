@@ -1,122 +1,126 @@
-# Workspace, tema e UI kit
+# Workspace, tema e componentes
 
-O chrome do editor Doppio é construído com **Caffeine::UIKit**, uma pequena
-biblioteca de UI immediate-mode nos headers públicos (`include/caffeine/ui/`). O mesmo
-vocabulário é usado pelos painéis nativos e pelos painéis de plugins, mantendo o
-editor visualmente consistente mesmo quando funcionalidades saem do core.
+<div class="doc-meta">
+  <span class="doc-badge doc-badge--stable">Stable</span>
+  <span class="doc-badge">Doppio</span>
+  <span>Verificado em: <time datetime="2026-11-18">2026-11-18</time></span>
+  <span>Fonte: <a href="https://github.com/devscafecommunity/caffeine/blob/main/doppio/crates/ui/src/uikit/theme.rs"><code>uikit/theme.rs</code></a></span>
+</div>
 
-![Workspace por omissão do Doppio](../images/diagrams/workspace-layout.svg)
+<p class="doc-lede">Como o workspace Rust do Doppio é composto: o layout PaneGrid, o
+kit de componentes Iced, os tokens visuais, e onde o kit legado C++ ainda se aplica.</p>
 
-## Camadas
+<figure class="doc-figure">
+  <img src="../images/editor/workspace-scene.png" alt="Workspace do Doppio com hierarchy, viewport, inspector e painéis de assets em baixo" loading="lazy">
+  <figcaption>O editor é uma janela dividida por um <code>PaneGrid</code>. Os painéis são funções de vista puras; os primitivos interativos vivem em <code>uikit/components/</code>.</figcaption>
+</figure>
 
-| Camada | Header | Responsabilidade |
-|--------|--------|------------------|
-| **Theme** | `caffeine/ui/Theme.hpp` | Paleta, métricas, espaçamento, tipografia |
-| **Widgets** | `caffeine/ui/Widgets.hpp` | Botões, property grids, section headers, empty states |
-| **Icons** | `caffeine/ui/Icons.hpp` | Glifos vetoriais de toolbars e títulos |
-| **PanelRegistry** | `caffeine/ui/PanelRegistry.hpp` | Ids estáveis, categorias, visibilidade |
-| **Workspace** | `caffeine/ui/Workspace.hpp` | Layout JSON de docking, persistência, hot reload |
+## Duas stacks de UI, um produto
 
-A biblioteca não depende de internals do Doppio. Os plugins incluem
-`caffeine/plugin/PluginUI.hpp` e desenham os painéis com os mesmos widgets.
+<table class="doc-table">
+  <thead>
+    <tr><th>Stack</th><th>Usada por</th><th>Localização</th></tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><strong>Rust / Iced</strong></td>
+      <td>O editor Doppio ativo: docking, hierarchy, viewport, inspector, assets, console e geradores.</td>
+      <td><code>doppio/crates/ui/</code></td>
+    </tr>
+    <tr>
+      <td><strong>C++ / ImGui UIKit</strong></td>
+      <td>O runtime autónomo, plugins legados e painéis do Doppio C++ arquivado.</td>
+      <td><code>include/caffeine/ui/</code></td>
+    </tr>
+  </tbody>
+</table>
 
-## Tema
+As stacks partilham vocabulário visual, não código. Não descreva o editor Rust como
+usando `Caffeine::UIKit`; o kit C++ só é carregado pelo runtime e pelos plugins.
 
-`assets/ui/theme.json` guarda a paleta e métricas:
+## Janela → painel → componente
 
-```json
-{
-  "name": "Graphite",
-  "accent": "#e0a458",
-  "background": "#17181c",
-  "panel": "#23252b",
-  "text": "#e8e8ea",
-  "textMuted": "#9aa0aa",
-  "rounding": 6,
-  "spacing": 8
-}
-```
+| Camada | Localização | Regra |
+|---|---|---|
+| **Janela** | `windows/main.rs` | Detém `App`, mensagens, subscrições e o `PaneGrid`. |
+| **Painel** | `uikit/panels/*.rs` | `view(...) -> Element` pura; nunca chama `text_input`, `checkbox`, `slider` ou `button` diretamente. |
+| **Componente** | `uikit/components/*.rs` | Primitivos reutilizáveis: botões, campos, cartões, tabs, menus, tree view, gizmo, viewport surface, node canvas. |
 
-- Paleta grafite escura com um único acento quente.
-- Tabs ativas recebem uma overline de acento em vez de fill pesado.
-- Separadores de docking subtis; bordas só quando têm significado.
-- Paleta clara incluída; overrides do utilizador são merged no load.
+Os painéis compõem componentes. `scripts/check-rust-ui.sh` rejeita widgets crus em
+`uikit/panels/`, o que mantém foco, hover, estados disabled e tema consistentes.
 
-O ficheiro é observado em runtime: guarde-o e o editor reaplica a paleta sem
-reiniciar.
+## Layout e docking
 
-## Layout do workspace
+O `PaneGrid` padrão é construído a partir de quatro regiões:
 
-`assets/ui/workspace.json` descreve a árvore de docks:
+1. **Hierarchy** à esquerda.
+2. Um **grupo central** com Viewport, Material Generator, Texture Generator, Texture
+   Set, Script e Dryad Nodes.
+3. Um **grupo direito** com Inspector, Material, Nature, Water e Terrain.
+4. Um **grupo inferior** com Assets e Console.
 
-```json
-{
-  "version": 1,
-  "docks": {
-    "left":   { "size": 0.20, "panels": ["editor.hierarchy", "editor.toolbox"] },
-    "center": { "panels": ["editor.viewport"] },
-    "right":  { "size": 0.22, "panels": ["editor.inspector"] },
-    "bottom": { "size": 0.26, "panels": ["editor.assets", "editor.console"] }
-  }
-}
-```
+Arraste um separador pelo cabeçalho para mostrar os guias de docking: o centro
+adiciona ao painel de destino, uma aresta divide o painel. Os botões maximizam e
+restauram. Os presets estão no menu View:
 
-Regras:
+| Preset | Atalho | Resultado |
+|---|---|---|
+| Default Layout | `Ctrl+1` | Hierarchy à esquerda, ferramentas ao centro/direita, Assets + Console em baixo |
+| Viewport Layout | `Ctrl+2` | Dá a maior parte da janela ao viewport |
 
-1. O **layout do utilizador** ganha se existir (`~/.config/caffeine/ui/workspace.json`).
-2. Caso contrário, carrega o **layout do projeto** (`<projeto>/ui/workspace.json`).
-3. Caso contrário, usa o **default embutido** (`assets/ui/workspace.json`).
+O layout Rust é estado de sessão; não é escrito em `workspace.json`. O
+`Caffeine::Workspace` legado em ImGui continua a persistir
+`~/.config/caffeine/ui/workspace.json` para o runtime e hosts de plugins.
 
-Edições do utilizador são escritas apenas na config por utilizador; a árvore de
-assets nunca é modificada. Use **View → Save UI layout** e **View → Reset UI layout**.
+## Tokens do tema
 
-## Painéis
+`doppio/crates/ui/src/uikit/theme.rs` é a única fonte de cores, bordas e espaçamento.
+Os painéis não devem fixar cores.
 
-Cada painel regista um id estável, categoria e dock por omissão:
+<table class="doc-table">
+  <thead>
+    <tr><th>Token</th><th>Valor</th><th>Usado em</th></tr>
+  </thead>
+  <tbody>
+    <tr><td><code>BACKGROUND</code></td><td><code>#151515</code></td><td>Janela e envolvência do viewport</td></tr>
+    <tr><td><code>PANEL</code></td><td><code>#242424</code></td><td>Corpo dos painéis e cartões</td></tr>
+    <tr><td><code>PANEL_ALT</code></td><td><code>#2e2e2e</code></td><td>Linhas alternadas e inputs</td></tr>
+    <tr><td><code>TOOLBAR</code></td><td><code>#1e1e1e</code></td><td>Barras de tabs, menus e barra de estado</td></tr>
+    <tr><td><code>BORDER</code></td><td><code>#313131</code></td><td>Contornos de painéis e campos</td></tr>
+    <tr><td><code>TEXT</code></td><td><code>#d6d6d6</code></td><td>Labels e valores primários</td></tr>
+    <tr><td><code>TEXT_MUTED</code></td><td><code>#8e8e8e</code></td><td>Labels secundários e dicas</td></tr>
+    <tr><td><code>ACCENT</code></td><td><code>#4a8fe0</code></td><td>Seleção, foco e ferramentas ativas</td></tr>
+    <tr><td><code>DANGER</code></td><td><code>#c24f4f</code></td><td>Eliminar, erros e ações destrutivas</td></tr>
+    <tr><td><code>WARNING</code></td><td><code>#d1a03c</code></td><td>Avisos e estados pendentes</td></tr>
+    <tr><td><code>SUCCESS</code></td><td><code>#5da56b</code></td><td>Estado gravado e verificações bem-sucedidas</td></tr>
+  </tbody>
+</table>
 
-```cpp
-UIKit::PanelDesc desc;
-desc.id = "editor.inspector";
-desc.title = "Inspector";
-desc.icon = "inspect";
-desc.category = "Scene";
-desc.dock = UIKit::DockArea::Right;
-desc.size = 0.22f;
-desc.defaultOpen = true;
-UIKit::PanelRegistry::instance().add(std::move(desc));
-```
+As barras de identidade dos geradores usam a paleta de ícones: ciano para Material,
+laranja para Texture e Terrain, verde para Nature, azul-ciano para Water.
 
-O registo é idempotente: um plugin pode voltar a registar após hot reload sem
-duplicar tabs nem repor o dock do utilizador.
+## Ids de widgets estáveis
 
-## UI de plugins
+Cada widget interativo tem um `UiId` hierárquico
+(`editor.menu.scene`, `inspector.entity.name`, `hierarchy.list.entity_row.3`) e uma
+entrada em `uikit::id::CATALOG` com tipo e descrição. O catálogo alimenta:
 
-Os painéis de plugins não recebem `EditorContext*`. O host expõe callbacks opacos via
-`PluginHostApi`, e os helpers públicos de `PluginUI.hpp` embrulham-nos:
+- o targeting headless e as capturas anotadas;
+- a [referência de UI](ui-reference.md) gerada;
+- as ações dos agentes e as legendas em `doppio/docs/ui-captions.json`.
 
-```cpp
-#include "caffeine/plugin/PluginUI.hpp"
+Adicione um id e uma entrada no catálogo com cada widget novo.
 
-void renderPanel(void* userData) {
-    using namespace Caffeine::UIKit;
-    PanelHeader("My Tool", "Short description", "settings");
-    if (Section("Options")) {
-        // property grid, buttons, fields…
-    }
-    if (PrimaryButton("Apply")) { /* host callback */ }
-}
-```
+## Kit C++ legado (runtime e plugins)
 
-Isto mantém a ABI dos plugins estável sem retirar o vocabulário de widgets do editor.
+`include/caffeine/ui/` ainda fornece `Theme`, `Widgets`, `Icons`, `PanelRegistry` e
+`Workspace` para `caffeine-runtime` e plugins C++. É ImGui em modo imediato, não
+Iced. Os painéis de plugins usam `caffeine/plugin/PluginUI.hpp` e os mesmos ids do
+`PanelRegistry`; o layout é persistido pelo `Workspace` em
+`~/.config/caffeine/ui/workspace.json`.
 
-## Validação
-
-- `CaffeineTest "[ui]"` cobre tokens de tema, widgets, panel registry e persistência
-  do workspace.
-- `audit-plugin-coupling` verifica que os plugins não incluem internals do editor.
-
-## Relacionado
-
-- [Galeria da UI](ui-gallery.md) para screenshots.
-- [Scene viewport](scene-viewport.md) e [toolbar do viewport](viewport-toolbar.md).
-- [Plugin SDK](plugin-sdk.md) e [Plugin Manager](plugin-manager.md).
+<div class="doc-callout doc-callout--note">
+  <p><strong>Nota.</strong> O editor C++ arquivado em <code>doppio-archived/</code>
+  também usava este kit. É código de referência congelado e não faz parte do editor
+  ativo.</p>
+</div>

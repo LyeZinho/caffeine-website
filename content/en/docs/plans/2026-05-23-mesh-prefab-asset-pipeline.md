@@ -1,5 +1,10 @@
 # Mesh & Prefab Asset Pipeline Implementation Plan
 
+<div class="doc-meta">
+  <span class="doc-badge doc-badge--historical">Historical</span>
+  <span>Last updated: <time datetime="2026-11-18">2026-11-18</time></span>
+</div>
+
 > **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
 
 **Goal:** Complete end-to-end mesh and prefab asset pipeline: import 3D models → serialize to .caf → runtime loading → prefab installation in editor and game.
@@ -19,10 +24,10 @@
 ### Task 1: Fix MeshEncoder for glTF/glb Support
 
 **Files:**
-- Modify: `src/tools/MeshEncoder.hpp:45-70`
-- Modify: `src/tools/MeshEncoder.cpp:1-100` (new impl)
+- Modify: `src/caffeine/tools/MeshEncoder.hpp`
+- Modify: `src/caffeine/tools/MeshEncoder.hpp` (new impl)
 - Test: `tests/test_mesh_encoder.cpp` (add test case)
-- Reference: `src/tools/TextureEncoder.cpp` (pattern reference)
+- Reference: `src/caffeine/tools/TextureEncoder.hpp` (pattern reference)
 
 **Objective:** Make MeshEncoder::encode() actually process .gltf/.glb files instead of returning "not yet implemented"
 
@@ -40,7 +45,7 @@ Expected: Find existing glTF parser usage pattern (likely in mesh loader or asse
 
 **Step 3: Implement glTF encoding in MeshEncoder**
 
-Add to `src/tools/MeshEncoder.cpp` :
+Add to `src/caffeine/tools/MeshEncoder.hpp` :
 
 ```cpp
 #include "gltf/gltf.hpp"  // Adjust include path based on actual vendored lib
@@ -173,10 +178,10 @@ git commit -m "feat: implement gltf/glb mesh encoding to .caf format
 ### Task 2: Add Mesh Resolution to Runtime AssetManager
 
 **Files:**
-- Modify: `src/core/AssetManager.hpp:45-80`
-- Modify: `src/core/AssetManager.cpp:131-180`
+- Modify: `src/caffeine/assets/AssetManager.hpp`
+- Modify: `src/caffeine/assets/AssetManager.cpp`
 - Test: `tests/test_asset_manager.cpp:150-200` (add mesh test)
-- Reference: `src/core/AssetManager.cpp:145-170` (texture resolution pattern)
+- Reference: `src/caffeine/assets/AssetManager.cpp` (texture resolution pattern)
 
 **Objective:** Enable AssetManager::load<Mesh>() to resolve .caf mesh files at runtime
 
@@ -188,7 +193,7 @@ Expected: See pattern for caching, file I/O, format checking
 
 **Step 2: Add Mesh specialization to AssetManager header**
 
-Modify `src/core/AssetManager.hpp` to add (after Texture specialization):
+Modify `src/caffeine/assets/AssetManager.hpp` to add (after Texture specialization):
 
 ```cpp
 // Mesh specialization
@@ -324,11 +329,11 @@ git commit -m "feat: add mesh asset resolution to runtime AssetManager
 ### Task 3: Define PrefabAsset Format & Serialization
 
 **Files:**
-- Modify: `src/assets/CafTypes.hpp:30-50`
-- Create: `src/assets/PrefabAsset.hpp` (new file)
-- Create: `src/assets/PrefabSerializer.hpp` (new file)
+- Modify: `src/caffeine/core/io/CafTypes.hpp`
+- Create: `src/caffeine/assets/PrefabAsset.hpp` (new file)
+- Create: `src/caffeine/assets/PrefabSerializer.hpp` (new file)
 - Test: `tests/test_prefab_serialization.cpp` (new file)
-- Reference: `src/scene/SceneSerializer.cpp` (serialization pattern)
+- Reference: `src/caffeine/scene/SceneSerializer.hpp` (serialization pattern)
 
 **Objective:** Define binary Prefab format and implement save/load
 
@@ -407,7 +412,7 @@ private:
 
 **Step 4: Implement in PrefabSerializer.cpp**
 
-Create `src/assets/PrefabSerializer.cpp` :
+Create `src/caffeine/assets/PrefabSerializer.cpp` :
 
 ```cpp
 #include "assets/PrefabSerializer.hpp"
@@ -611,15 +616,15 @@ git commit -m "feat: implement prefab asset serialization/deserialization
 ### Task 4: Connect Prefab Resolution to AssetManager
 
 **Files:**
-- Modify: `src/core/AssetManager.hpp:90-120`
-- Modify: `src/core/AssetManager.cpp:200-250`
+- Modify: `src/caffeine/assets/AssetManager.hpp`
+- Modify: `src/caffeine/assets/AssetManager.cpp`
 - Test: `tests/test_asset_manager.cpp:250-300`
 
 **Objective:** Enable AssetManager::load<Prefab>() for runtime instantiation
 
 **Step 1: Add Prefab handle to AssetManager**
 
-In `src/core/AssetManager.hpp` :
+In `src/caffeine/assets/AssetManager.hpp` :
 
 ```cpp
 template<>
@@ -729,9 +734,9 @@ git commit -m "feat: add prefab asset resolution to runtime AssetManager
 ### Task 5: Enable Mesh Drag-and-Drop to Create Prefabs
 
 **Files:**
-- Modify: `src/editor/SceneViewport.cpp:100-130`
-- Modify: `src/editor/HierarchyPanel.cpp:70-85`
-- Modify: `src/editor/AssetBrowser.cpp:700-800`
+- Modify: `doppio-archived/src/doppio/editor/SceneViewport.cpp`
+- Modify: `doppio-archived/src/doppio/editor/HierarchyPanel.cpp`
+- Modify: `doppio-archived/src/doppio/editor/AssetBrowser.cpp`
 - Test: `tests/test_editor_integration.cpp` (new file)
 
 **Objective:** Enable drag mesh → scene to self-create entity with MeshRenderer
@@ -790,7 +795,7 @@ if (const auto* asset = DragDropManager::AcceptAssetDrop()) {
 
 **Step 3: Add mesh type to AssetBrowser drag classification**
 
-Modify `src/editor/AssetBrowser.cpp:714` (getAssetTypeFromExtension):
+Modify `doppio-archived/src/doppio/editor/AssetBrowser.cpp` (getAssetTypeFromExtension):
 
 ```cpp
 static AssetType getAssetTypeFromExtension(const std::string& ext) {
@@ -880,8 +885,8 @@ git commit -m "feat: enable mesh drag-and-drop in scene viewport
 ### Task 6: Create "Make Prefab" Editor Command
 
 **Files:**
-- Modify: `src/editor/InspectorPanel.cpp:500-600`
-- Modify: `src/editor/AssetBrowser.cpp:1000-1100`
+- Modify: `doppio-archived/src/doppio/editor/InspectorPanel.cpp`
+- Modify: `doppio-archived/src/doppio/editor/AssetBrowser.cpp`
 - Create: `src/editor/PrefabBuilder.hpp` (new file, optional utility)
 - Test: `tests/test_prefab_creation.cpp`
 
@@ -889,7 +894,7 @@ git commit -m "feat: enable mesh drag-and-drop in scene viewport
 
 **Step 1: Add "Save as Prefab" button in InspectorPanel**
 
-Modify `src/editor/InspectorPanel.cpp` :
+Modify `doppio-archived/src/doppio/editor/InspectorPanel.cpp` :
 
 ```cpp
 // In entity inspector section (around line 550)
@@ -920,7 +925,7 @@ if (ImGuiFileDialog::Instance()->Display("SavePrefabDialog")) {
 
 **Step 2: Add drag-drop context menu in AssetBrowser**
 
-Modify `src/editor/AssetBrowser.cpp` :
+Modify `doppio-archived/src/doppio/editor/AssetBrowser.cpp` :
 
 ```cpp
 // In file item context menu (around line 800)

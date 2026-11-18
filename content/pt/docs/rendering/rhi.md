@@ -1,273 +1,133 @@
-# ⚡ RHI — Rendering Hardware Interface
+# RHI — Rendering Hardware Interface
 
-> **Fase:** 3 — O Olho da Engine  
-> **Namespace:** `Caffeine::RHI`  
-> **Arquivos:** `src/rhi/RenderDevice.hpp`, `src/rhi/CommandBuffer.hpp`  
-> **Status:** 📅 Planejado  
-> **RFs:** RF3.1, RF3.2
+<div class="doc-meta">
+  <span class="doc-badge doc-badge--stable">Stable</span>
+  <span class="doc-badge">Engine</span>
+  <span>Verificado em: <time datetime="2026-11-18">2026-11-18</time></span>
+  <span>Fonte: <a href="https://github.com/devscafecommunity/caffeine/blob/main/src/caffeine/rhi/RenderDevice.hpp"><code>rhi/RenderDevice.hpp</code></a></span>
+</div>
 
----
+<p class="doc-lede">O RHI envolve o SDL3 GPU: um device, command buffers explícitos,
+texturas, buffers, shaders, samplers, pipelines gráficas e pipelines de compute. O
+motor não chama SDL_GPU diretamente fora desta camada.</p>
 
-## Visão Geral
+<div class="doc-callout doc-callout--note">
+  <p><strong>Porque existe.</strong> O código de render fala com uma só API. Hoje é
+  SDL3 GPU (Vulkan, D3D12 ou Metal por baixo); um backend futuro pode ser trocado sem
+  reescrever o renderer.</p>
+</div>
 
-O RHI é a camada de abstração sobre `SDL_GPU`. A engine **nunca** chama funções SDL_GPU diretamente — todas as chamadas passam pelo RHI, que gerencia command buffers, swapchains e render targets.
-
-**Por que RHI?**  
-Separa a lógica de renderização da API gráfica subjacente. Hoje SDL_GPU; amanhã Vulkan diretamente ou WebGPU — sem alterar o [Batch Renderer](batch-renderer.md) nem os shaders do jogo.
-
----
-
-## API Planejada
-
-```cpp
-namespace Caffeine::RHI {
-
-// ============================================================================
-// @brief  Configuração do render device.
-// ============================================================================
-struct RenderConfig {
-    u32  width          = 1280;
-    u32  height         = 720;
-    bool vsync          = true;
-    bool tripleBuffering = true;
-    const char* windowTitle = "Caffeine Engine";
-};
-
-// ============================================================================
-// @brief  Descritor de textura para criação.
-// ============================================================================
-struct TextureDesc {
-    u32            width, height;
-    SDL_GPUTextureFormat format = SDL_GPU_TEXTUREFORMAT_R8G8B8A8_UNORM;
-    SDL_GPUTextureUsageFlags usage = SDL_GPU_TEXTUREUSAGE_SAMPLER;
-    u32            mipLevels = 1;
-};
-
-// ============================================================================
-// @brief  Descritor de buffer para criação.
-// ============================================================================
-struct BufferDesc {
-    u64 size;
-    const char* name = nullptr;  // para debug
-};
-
-enum class BufferUsage : u8 {
-    Vertex,
-    Index,
-    Uniform,
-    Storage,
-    TransferSrc,
-    TransferDst
-};
-
-// ============================================================================
-// @brief  Descritor de shader para criação.
-// ============================================================================
-struct ShaderDesc {
-    const u8* code;
-    usize     codeSize;
-    const char* entryPoint = "main";
-    SDL_GPUShaderStage stage;
-};
-
-// ============================================================================
-// @brief  Dispositivo de renderização principal.
-//
-//  Gerencia:
-//  - SDL_GPUDevice (handle para a GPU)
-//  - Swapchain (buffers de apresentação)
-//  - Triple buffering de command buffers
-//  - Resource pools (textures, buffers, shaders)
-// ============================================================================
-class RenderDevice {
-public:
-    RenderDevice() = default;
-    ~RenderDevice();
-
-    bool init(SDL_Window* window, const RenderConfig& config = {});
-    void shutdown();
-
-    // ── Frame lifecycle ────────────────────────────────────────
-    CommandBuffer* beginFrame();
-    void           endFrame(CommandBuffer* cmd);
-    void           present(CommandBuffer* cmd);
-
-    // ── Resource creation ──────────────────────────────────────
-    Texture* createTexture(const TextureDesc& desc);
-    Texture* createTextureFromData(const void* pixels, u32 width, u32 height);
-    Shader*  createShader(const ShaderDesc& desc);
-    Buffer*  createBuffer(const BufferDesc& desc, BufferUsage usage);
-
-    // ── Resource destruction ───────────────────────────────────
-    void destroyTexture(Texture* tex);
-    void destroyShader(Shader* shader);
-    void destroyBuffer(Buffer* buf);
-
-    // ── Queries ────────────────────────────────────────────────
-    u32  backbufferWidth()  const { return m_config.width; }
-    u32  backbufferHeight() const { return m_config.height; }
-    bool isVSync()          const { return m_config.vsync; }
-
-    SDL_GPUDevice* nativeDevice() const { return m_device; }
-
-private:
-    SDL_GPUDevice*    m_device    = nullptr;
-    SDL_Window*        m_window    = nullptr;
-    SDL_GPUSwapchain* m_swapchain = nullptr;
-    CommandBuffer*     m_cmdBuffers[3];  // triple buffering
-    u32                m_frameIndex = 0;
-    RenderConfig       m_config;
-};
-
-// ============================================================================
-// @brief  DrawCommand — comando de desenho enfileirado.
-//
-//  Enfileirado pelo BatchRenderer, executado em flush pelo CommandBuffer.
-// ============================================================================
-struct DrawCommand {
-    Pipeline* pipeline  = nullptr;
-    Buffer*   vertices  = nullptr;
-    Buffer*   indices   = nullptr;
-    Texture*  texture   = nullptr;
-    u32       indexCount  = 0;
-    u32       firstIndex  = 0;
-    u32       instanceCount = 1;
-    Mat4      transform  = Mat4::identity();
-    Vec4      tint       = {1, 1, 1, 1};
-    i32       sortKey    = 0;
-};
-
-// ============================================================================
-// @brief  Command buffer — encapsula comandos GPU de um frame.
-//
-//  Ciclo:
-//  1. beginRenderPass() — abre passo de renderização
-//  2. Emite comandos (bind, draw)
-//  3. endRenderPass()   — fecha passo
-//  4. RenderDevice::present() — submete para GPU
-// ============================================================================
-class CommandBuffer {
-public:
-    void beginRenderPass(const RenderPassDesc& desc);
-    void endRenderPass();
-
-    // Binding de recursos
-    void bindPipeline(Pipeline* pipeline);
-    void bindVertexBuffer(Buffer* buf, u32 slot = 0);
-    void bindIndexBuffer(Buffer* buf);
-    void bindTexture(Texture* tex, u32 slot = 0);
-    void setViewport(f32 x, f32 y, f32 w, f32 h);
-    void setScissor(u32 x, u32 y, u32 w, u32 h);
-
-    // Draw calls
-    void draw(u32 vertexCount, u32 firstVertex = 0);
-    void drawIndexed(u32 indexCount, u32 firstIndex = 0, i32 vertexOffset = 0);
-    void drawInstanced(u32 vertexCount, u32 instanceCount,
-                       u32 firstVertex = 0, u32 firstInstance = 0);
-
-    // Pipeline barriers (sincronização CPU↔GPU)
-    void barrier(const BarrierDesc& desc);
-
-    // GPU timestamps para profiling
-    void writeTimestamp(GPUTimestamps* pool, u32 index);
-};
-
-}  // namespace Caffeine::RHI
-```
-
----
-
-## Ciclo de Render por Frame
-
-- `beginFrame()`
-  - `acquires swapchain texture, allocates CommandBuffer`
-- `CommandBuffer::beginRenderPass(clearColor)`
-  - `BatchRenderer → bindPipeline + bindVertexBuffer + drawInstanced`
-  - `DebugDraw     → additional draw calls (debug builds only)`
-  - `UI System     → UI draw calls (Fase 4)`
-- `CommandBuffer::endRenderPass()`
-- `present(cmd)`
-  - `submits cmd to GPU, presents swapchain`
-
-
----
-
-## Triple Buffering
-
-```mermaid
-stateDiagram-v2
-  Frame N:   [CommandBuffer 0] --> GPU executa Frame N+1: [CommandBuffer 1]
-  GPU executa Frame N+1: [CommandBuffer 1] --> CPU prepara enquanto GPU executa N Frame N+2: [CommandBuffer 2]
-  CPU prepara enquanto GPU executa N Frame N+2: [CommandBuffer 2] --> CPU prepara enquanto GPU executa N+1
-```
-
-
-**Benefício:** CPU não espera GPU — pode preparar o próximo frame em paralelo.
-
----
-
-## Exemplos de Uso
+## Ciclo de frame
 
 ```cpp
-// ── Inicialização ─────────────────────────────────────────────
 Caffeine::RHI::RenderDevice device;
-device.init(window, { .vsync = true, .tripleBuffering = true });
+device.init(window, {.width = 1600, .height = 900, .vsync = true});
 
-// ── Criar recursos ────────────────────────────────────────────
-Caffeine::RHI::TextureDesc texDesc { .width = 512, .height = 512 };
-Texture* heroTex = device.createTexture(texDesc);
-
-// ── Frame loop ────────────────────────────────────────────────
-auto* cmd = device.beginFrame();
-
-cmd->beginRenderPass({ .clearColor = {0.1f, 0.1f, 0.1f, 1.0f} });
-
-// BatchRenderer envia seus comandos aqui (internamente):
-batchRenderer.endFrame(cmd);
-
+Caffeine::RHI::CommandBuffer* cmd = device.beginFrame();
+Caffeine::RHI::RenderPassDesc pass{};
+pass.colorTarget = nullptr;   // nullptr = swapchain
+cmd->beginRenderPass(pass);
+cmd->bindPipeline(pipeline);
+cmd->bindVertexBuffer(vertices);
+cmd->draw(3);
 cmd->endRenderPass();
-device.present(cmd);
 device.endFrame(cmd);
 ```
 
----
+`beginFrame` adquire a imagem da swapchain e devolve um command buffer para o frame.
+`endFrame` submete-o. Até três frames estão em voo (`MAX_FRAMES_IN_FLIGHT`).
 
-## Decisões de Design
+## Render offscreen
 
-| Decisão | Justificativa |
-|---------|-------------|
-| Abstração sobre SDL_GPU | Portabilidade futura (Vulkan direto, WebGPU) |
-| Triple buffering | Eliminação de GPU stalls |
-| `CommandBuffer` tipado | Encapsula estado corrente da pipeline |
-| Recursos opacos (Texture*, Buffer*) | Implementação interna pode mudar |
+Para thumbnails, previews de materiais, o viewport do Doppio e testes:
 
----
+```cpp
+CommandBuffer* cmd = device.beginOffscreen();
+// grava numa textura e submete sem esperar
+device.endOffscreen(cmd);
+// mais tarde: copiar a textura e chamar device.releaseOffscreenResources()
+```
 
-## Critério de Aceitação
+`readTexture(texture, pixels)` lê o mip 0 de uma textura de cor com 4 bytes por pixel e
+bloqueia. `beginOffscreen` não tem swapchain, por isso funciona sem janela quando o
+device foi criado com `initOffscreen`.
 
-- [ ] Nenhum código de jogo chama SDL_GPU diretamente
-- [ ] Triple buffering funcional (CPU não para esperando GPU)
-- [ ] `createTexture` / `destroyTexture` sem memory leaks
-- [ ] GPU Profiler mostra < 2ms por frame com 50K sprites
+## Recursos
 
----
+<table class="doc-table">
+  <thead>
+    <tr><th>Recurso</th><th>Criar</th><th>Destruir</th></tr>
+  </thead>
+  <tbody>
+    <tr><td>Textura</td><td><code>createTexture(TextureDesc)</code></td><td><code>destroyTexture</code></td></tr>
+    <tr><td>Buffer</td><td><code>createBuffer(BufferDesc, BufferUsage)</code></td><td><code>destroyBuffer</code></td></tr>
+    <tr><td>Shader</td><td><code>createShader(ShaderDesc)</code></td><td><code>destroyShader</code></td></tr>
+    <tr><td>Pipeline gráfica</td><td><code>createGraphicsPipeline(vs, fs, desc)</code></td><td><code>destroyPipeline</code></td></tr>
+    <tr><td>Pipeline de compute</td><td><code>createComputePipeline(desc)</code></td><td><code>destroyComputePipeline</code></td></tr>
+    <tr><td>Sampler</td><td><code>createSampler(SamplerDesc)</code></td><td><code>destroySampler</code></td></tr>
+  </tbody>
+</table>
 
-## Dependências
+Uploads: `uploadBuffer`, `uploadTexture`, `uploadTexture3D`. O bytecode de shader pode
+ser SPIR-V, DXBC, MSL ou metallib; `ShaderBytecodeFormat` seleciona.
 
-- **Upstream:** `SDL3::SDL_GPU`, [Fase 1 — Math](../math/vectors.md)
-- **Downstream:** [Batch Renderer](batch-renderer.md), [Debug Tools](../debug/debug-tools.md) (DebugDraw), [Fase 4 — UI](../ui/game-ui.md)
+## Command buffer
 
----
+| Grupo | Métodos |
+|---|---|
+| Render pass | `beginRenderPass`, `endRenderPass` |
+| Binding | `bindPipeline`, `bindVertexBuffer`, `bindIndexBuffer`, `bindTexture`, `bindVertexTexture`, `setViewport`, `setScissor` |
+| Draw | `draw`, `drawIndexed`, `drawInstanced`, `drawIndexedInstanced` |
+| Uniforms | `pushUniformData(stage, slot, data, size)` |
+| Compute | `beginComputePass`, `bindComputePipeline`, `bindComputeStorageBuffers`, `bindComputeTextures`, `pushComputeUniformData`, `dispatch`, `endComputePass` |
+| Cópias | `copyTexture`, `copyTextureRegion`, `generateMipmaps` |
 
-## 🔗 Tópicos Relacionados
+Um command buffer grava um pass de cada vez. Verifique `isInRenderPass()` /
+`isInComputePass()` quando um helper pode ser chamado dos dois caminhos.
 
-| Tópico | Descrição |
-|--------|-----------|
-| [Renderização & Pipeline]() | RHI como abstração da GPU |
+## Formatos e usage
 
-## Referências
+`TextureFormat` mapeia formatos SDL e acrescenta os que o renderer precisa
+(`R8G8_UNORM` para o G-buffer do Photon, `R16G16_FLOAT` para momentos de probes,
+`R11G11B10_UFLOAT` para probes HDR). `TextureUsage` é uma máscara de bits:
+`Sampler | ColorTarget | DepthStencil | StorageRead | ComputeRead | ComputeWrite`.
 
-- [`docs/architecture_specs.md`](../architecture_specs.md) — §8 RHI
-- [`docs/fase3/batch-renderer.md`](batch-renderer.md) — usa RHI internamente
-- [SDL_GPU API Reference](https://wiki.libsdl.org/SDL3/CategoryGPU)
-- [Índice de Tópicos Transversais]()
+`GraphicsPipelineDesc` aceita até quatro color targets (`kMaxColorTargets`), layouts de
+vértice com `VertexFormat::Float2/3/4`, blend modes (`Alpha`, `Premultiplied`,
+`Additive`, `Min`) e fill mode (`Fill` ou `Line`).
+
+## Texturas e o editor
+
+O viewport do Doppio renderiza offscreen pelo RHI do motor e lê a textura de volta para
+o processo Rust. O SDL_GPU não expõe um handle nativo de textura pela API pública, por
+isso o editor não pode partilhar a textura diretamente; veja
+[Scene viewport](../editor/scene-viewport.md).
+
+## Regras de design
+
+1. **Um dono por recurso.** Criar e destruir via `RenderDevice`.
+2. **Sem estado escondido.** Faça bind de tudo o que um draw precisa; pipelines não
+   guardam texturas.
+3. **Caminhos offscreen usam `beginOffscreen`.** Nunca abra uma janela para um thumbnail
+   ou um teste.
+4. **Uploads são staged.** `uploadTexture` trata do transfer buffer; não mapeie buffers
+   SDL fora do RHI.
+5. **Texturas retiradas são diferidas.** O device mantém-nas vivas durante os frames em
+   voo antes de as libertar.
+
+## Testes
+
+`tests/test_rhi.cpp` cobre init do device, passes offscreen, criação de texturas,
+uploads, pipelines e readback. Corra com:
+
+```bash
+./build/tests/CaffeineTest "[rhi]"
+```
+
+## Páginas relacionadas
+
+- [Batch renderer](batch-renderer.md)
+- [Materiais PBR](materials-pbr.md)
+- [Shadow mapping](shadow-mapping.md)
+- [Reflexos](reflections.md)
+- [Scene viewport](../editor/scene-viewport.md)

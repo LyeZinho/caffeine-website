@@ -1,5 +1,22 @@
 # Compatibilidade de plugins
 
+<div class="doc-meta">
+  <span class="doc-badge doc-badge--reference">Reference</span>
+  <span>Last updated: <time datetime="2026-11-18">2026-11-18</time></span>
+</div>
+
+<p class="doc-lede">Compatibilidade de ABI, flags de build e matriz de plataformas para plugins C++ legados.</p>
+
+
+
+<div class="doc-callout doc-callout--warning">
+  <p><strong>Host legado.</strong> O Doppio atual em Rust/Iced não carrega plugins C++.
+  Estas páginas documentam o SDK de plugins C++/ImGui e o seu host no editor C++ arquivado
+  (<code>doppio-archived/</code>). A engine continua a compilar todos os plugins do
+  submódulo, para que o SDK se mantenha testado na compilação.</p>
+</div>
+
+
 Plugins são bibliotecas nativas partilhadas. A compatibilidade depende da ABI da
 engine, dos headers públicos do SDK e do toolchain de build.
 
@@ -28,13 +45,13 @@ sempre os plugins ao atualizar a engine.
 
 | Plataforma | Biblioteca | Notas |
 |------------|------------|-------|
-| Linux | `.so` | Usar o mesmo compilador e standard library do Doppio |
+| Linux | `.so` | Usar o mesmo compilador e standard library do host C++ |
 | Windows | `.dll` | Tem de corresponder ao runtime MSVC (`/MD` vs `/MT`) |
 | macOS | `.dylib` | Ainda não é alvo principal |
 
 ## Símbolos
 
-O Doppio carrega plugins com `dlopen` / `LoadLibrary` e resolve:
+O host C++ legado carrega plugins com `dlopen` / `LoadLibrary` e resolve:
 
 - `CreatePlugin(const PluginHostApi*)`
 - `DestroyPlugin(IPlugin*)`
@@ -43,7 +60,7 @@ Ambos têm de ser exportados com linkage C.
 
 ## Dependências em runtime
 
-Um plugin pode depender de bibliotecas de runtime já carregadas pelo Doppio. Não deve
+Um plugin pode depender de bibliotecas de runtime já carregadas pelo host. Não deve
 trazer a sua própria cópia de ImGui ou da engine. Compile contra os mesmos headers.
 
 ## Resolução de problemas

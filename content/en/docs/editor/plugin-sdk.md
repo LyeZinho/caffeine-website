@@ -1,8 +1,22 @@
-# Plugin SDK
+# Plugin SDK (legacy C++)
 
-Doppio is a **lean IDE**. Feature plugins are built from the separate
-[doppio-plugins](https://github.com/devscafecommunity/doppio-plugins) repository
-(an engine submodule) and load at runtime from a `plugins/` directory.
+<div class="doc-meta">
+  <span class="doc-badge doc-badge--reference">Reference</span>
+  <span>Last updated: <time datetime="2026-11-18">2026-11-18</time></span>
+</div>
+
+<p class="doc-lede">The C++/ImGui plugin ABI, host services and panel registration used by the legacy host.</p>
+
+<div class="doc-callout doc-callout--warning">
+  <p><strong>Legacy host.</strong> The active Rust/Iced Doppio does not load C++ plugins.
+  These pages document the C++/ImGui plugin SDK and its host in
+  <code>caffeine-runtime</code> / <code>doppio-archived</code>. The engine still builds
+  every plugin from the submodule so the SDK stays compile-tested.</p>
+</div>
+
+
+The plugin SDK targets the **C++/ImGui host** in `caffeine-runtime` / the archived C++ Doppio. The active Rust/Iced Doppio does not load these libraries. Sources live in the separate
+[doppio-plugins](https://github.com/devscafecommunity/doppio-plugins) submodule.
 
 ## Architecture
 
@@ -24,19 +38,27 @@ Doppio is a **lean IDE**. Feature plugins are built from the separate
 1. **Plugins own their logic** — bridges, panels, services live in `.so` files, not in `doppio` sources.
 2. **Core owns ECS + runtime** — `PostProcessComponent` , `TerrainComponent` , procedural systems are engine data/runtime; editor UI for them is plugin territory.
 3. **Service registry is generic** — call plugins `registerService` in `OnLoad` ; Doppio never hardcodes feature services.
-4. **No in-tree plugin builds** — the engine CMake never builds or copies feature plugins. Build them from `doppio-plugins` against the public SDK.
+4. **Plugins live in the submodule** — the engine CMake builds every plugin from `doppio-plugins` into `build/plugins`, but the sources never live in the engine tree. Set `CAFFEINE_BUILD_DOPPIO_PLUGINS=OFF` for a plugin-free build.
 5. **Opt-in loading** — nothing is preloaded at startup. Discovered libraries stay disabled until the user enables them in **Plugins → Plugin Manager**; the choice is stored in `~/.config/caffeine/plugins.cfg`.
 
 ## Install plugins
 
+The normal engine configure already builds the submodule plugins into
+`build/plugins`:
+
 ```bash
-# Build the plugin repository against this engine checkout
+./scripts/submodules.sh
+cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
+cmake --build build -j
+```
+
+To build the plugin repository against another engine checkout, point it at the SDK:
+
+```bash
 cmake -S doppio-plugins -B doppio-plugins/build \
   -DCAFFEINE_ROOT=/path/to/caffeine \
   -DIMGUI_DIR=/path/to/caffeine/build/_deps/imgui-src
 cmake --build doppio-plugins/build -j
-
-# Copy into a discovered directory (project, build or user)
 cp doppio-plugins/build/plugins/*.so build/plugins/
 ```
 

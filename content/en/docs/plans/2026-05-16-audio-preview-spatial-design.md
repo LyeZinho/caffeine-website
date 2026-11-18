@@ -1,5 +1,10 @@
 # Audio Preview & Spatial Placement — Design Document
 
+<div class="doc-meta">
+  <span class="doc-badge doc-badge--historical">Historical</span>
+  <span>Last updated: <time datetime="2026-11-18">2026-11-18</time></span>
+</div>
+
 **Date:** 2026-05-16
 **Issue:** #121
 **Milestone:**M4 — Advanced Tools & Polish
@@ -115,7 +120,7 @@ auto* emitter = world.get<Audio::AudioEmitter>(e);
 
 #### 4. Audio::AudioEmitter — ECS Registration
 
-`Audio::AudioEmitter` (already defined in `src/audio/AudioComponents.hpp` ) will be registered as an ECS component. The struct already has the right fields:
+`Audio::AudioEmitter` (already defined in `src/caffeine/audio/AudioComponents.hpp` ) will be registered as an ECS component. The struct already has the right fields:
 
 ```cpp
 struct AudioEmitter {
@@ -145,7 +150,7 @@ When an audio asset ( `.wav` , `.ogg` ) is dropped into the viewport:
 - Initialize audio system in `SceneEditor::init()` if not already initialized
 
 ### CMakeLists.txt
-- Add `src/editor/AudioPreviewPanel.cpp` to doppio target
+- Add `doppio-archived/src/doppio/editor/AudioPreviewPanel.cpp` to doppio target
 - No new external dependencies (SDL_audio already linked)
 
 ### Tests

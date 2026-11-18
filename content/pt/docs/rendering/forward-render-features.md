@@ -1,5 +1,14 @@
 # Forward render features
 
+<div class="doc-meta">
+  <span class="doc-badge doc-badge--reference">Reference</span>
+  <span>Last verified: <time datetime="2026-11-18">2026-11-18</time></span>
+  <span>Source: <a href="https://github.com/devscafecommunity/caffeine/blob/main/src/caffeine/render/ForwardRenderFeatures.cpp"><code>render/ForwardRenderFeatures.cpp</code></a></span>
+</div>
+
+<p class="doc-lede">Interruptores ao nível da cena para instancing, IBL, oclusão grosseira,
+reflexos e volumétricos, resolvidos a cada frame a partir de um componente ECS.</p>
+
 > **Componente:** `ForwardRenderFeaturesComponent`  
 > **Resolver:** `Render::resolveForwardRenderFeatures`  
 > **Lua:** `caffeine.forwardrender.*`  

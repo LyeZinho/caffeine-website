@@ -1,12 +1,31 @@
 # Getting started
 
-This guide walks through building and installing your first Doppio plugin.
+<div class="doc-meta">
+  <span class="doc-badge doc-badge--reference">Reference</span>
+  <span>Last updated: <time datetime="2026-11-18">2026-11-18</time></span>
+</div>
+
+<div class="doc-callout doc-callout--warning">
+  <p><strong>Legacy host.</strong> The active Rust/Iced Doppio does not load C++ plugins.
+  These pages document the C++/ImGui plugin SDK and its host in the archived C++ editor
+  (<code>doppio-archived/</code>). The engine still builds every plugin from the submodule
+  so the SDK stays compile-tested.</p>
+</div>
+
+
+<p class="doc-lede">Build one shared library from the doppio-plugins template and install it
+into the legacy C++ editor's plugin directory.</p>
+
+This guide walks through building and installing your first plugin for the legacy
+C++/ImGui host.
 
 ## Prerequisites
 
-1. **Caffeine Engine** cloned and built with Doppio enabled (SDL3 + ImGui)
+1. **Caffeine Engine** cloned and configured (the build still fetches ImGui for the SDK)
 2. **CMake 3.20+** and a C++20 compiler
 3. **doppio-plugins** cloned (this repository)
+4. A **legacy C++/ImGui host** that implements `PluginHostApi`. The archived C++
+   editor is reference only; the Rust Doppio does not load plugins.
 
 ## Build the hello template
 
@@ -30,15 +49,17 @@ mkdir -p $CAFFEINE_ROOT/build/plugins
 cp build/plugins/hello_plugin.so $CAFFEINE_ROOT/build/plugins/
 ```
 
-Launch Doppio:
+Launch the legacy C++ host you built from `doppio-archived/`.
 
-```bash
-$CAFFEINE_ROOT/build/doppio
-```
+Open its **Plugins → Plugin Manager**, tick **Enabled** for **Hello Plugin**, then
+find the **Hello Plugin** panel. Plugins are never preloaded; the enable list is
+stored in `~/.config/caffeine/plugins.cfg`.
 
-Open **Plugins → Plugin Manager**, tick **Enabled** for **Hello Plugin**, then find
-the **Hello Plugin** panel. Plugins are never preloaded; the enable list is stored in
-`~/.config/caffeine/plugins.cfg`.
+<div class="doc-callout doc-callout--note">
+  <p><strong>Note.</strong> The active Rust Doppio has no plugin manager and will not
+  list the library. Building the plugin still verifies the SDK and the engine-side
+  services.</p>
+</div>
 
 ## Create your own plugin
 
@@ -68,8 +89,8 @@ See the [plugin catalog](README.md) for per-plugin details.
 
 | Problem | Fix |
 |---------|-----|
-| Plugin not listed | Check the file is in a discovered `plugins/` directory and ends in `.so` / `.dll` |
-| Plugin listed but disabled | Enable it in **Plugins → Plugin Manager** |
+| Plugin not listed | Use the legacy C++ host; the Rust Doppio does not scan plugins. Check the file is in a discovered `plugins/` directory and ends in `.so` / `.dll` |
+| Plugin listed but disabled | Enable it in the legacy host's **Plugins → Plugin Manager** |
 | `CreatePlugin` not found | Build with `CAFFEINE_PLUGIN_EXPORTS=1`; use `doppio_add_plugin()` |
 | ImGui headers missing | Set `-DIMGUI_DIR=.../imgui-src` from Caffeine's CMake fetch |
 | Crash on load | Mismatched Caffeine version — rebuild plugin against same tree |

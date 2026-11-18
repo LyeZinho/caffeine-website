@@ -1,5 +1,10 @@
 # Sessão 2026-09-22 — Phong GPU, Handles e Sombras
 
+<div class="doc-meta">
+  <span class="doc-badge doc-badge--historical">Historical</span>
+  <span>Last updated: <time datetime="2026-11-18">2026-11-18</time></span>
+</div>
+
 > **Branch:** `feature/editor-plugin-sdk`  
 > **Objetivo:** avançar pilares P0 (rendering Phong + handles) e tarefas P1 (sombras pontuais GPU, normal maps no terreno).  
 > **Build verificado:** `caffeine-core`, `caffeine-runtime`, `doppio` compilam com sucesso.
@@ -32,7 +37,7 @@
 
 ### Ficheiros
 
-- `src/assets/AssetHandle.hpp`, `AssetTypes.hpp`, `AssetManager.{hpp,cpp}`
+- `src/caffeine/assets/AssetHandle.hpp`, `AssetTypes.hpp`, `AssetManager.{hpp,cpp}`
 - `tests/test_assetmanager.cpp` — testes de geração, LRU, callbacks
 
 ### Documentação
@@ -76,11 +81,11 @@
 
 ### Ficheiros principais
 
-- `src/render/GpuSceneRenderer.cpp`, `GpuPointShadowMap.{hpp,cpp}`
-- `src/render/shaders/scene_lit.{vert,frag}`, `terrain_lit.frag`
+- `src/caffeine/render/GpuSceneRenderer.cpp`, `GpuPointShadowMap.{hpp,cpp}`
+- `src/caffeine/render/shaders/scene_lit.vert` / `.frag`, `terrain_lit.frag`
 - `src/scene/LightingSystem.{hpp,cpp}`
-- `src/editor/SceneViewport.cpp`, `InspectorPanel.cpp`, `SceneSerializer.cpp`
-- `src/terrain/TerrainGpuTextures.cpp`, `src/ecs/TerrainComponents.hpp`
+- `doppio-archived/src/doppio/editor/SceneViewport.cpp`, `InspectorPanel.cpp`, `SceneSerializer.cpp`
+- `src/caffeine/terrain/TerrainGpuTextures.cpp`, `src/caffeine/ecs/TerrainComponents.hpp`
 
 ### Documentação
 

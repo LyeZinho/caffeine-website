@@ -1,21 +1,30 @@
 # Containers Module
 
-> Documentation for Caffeine Engine Containers module - Phase 1: Atomic Foundation
+<div class="doc-meta">
+  <span class="doc-badge doc-badge--reference">Reference</span>
+  <span class="doc-badge">Engine</span>
+  <span>Last verified: <time datetime="2026-11-18">2026-11-18</time></span>
+  <span>Source: <a href="https://github.com/devscafecommunity/caffeine/tree/main/src/caffeine/containers"><code>src/caffeine/containers</code></a></span>
+</div>
+
+<p class="doc-lede">Four small, cache-friendly containers used across the
+runtime: a growable vector, a linear associative map, a non-owning string view
+and an inline fixed-capacity string.</p>
 
 ## Overview
 
 The Containers module provides data structures optimized for game development with cache locality and zero heap allocations where possible.
 
-**Location:** `src/containers/`
+**Location:** `src/caffeine/containers`
 
 ## Files
 
 | File | Description | Status |
 |------|-------------|--------|
-| [`Vector.hpp`](../../src/containers/Vector.hpp) | Dynamic array with cache-friendly contiguous memory | ✅ Complete |
-| [`HashMap.hpp`](../../src/containers/HashMap.hpp) | Hash table with O(1) lookup | ✅ Complete |
-| [`StringView.hpp`](../../src/containers/StringView.hpp) | String without ownership (zero-copy) | ✅ Complete |
-| [`FixedString.hpp`](../../src/containers/FixedString.hpp) | Inline buffer string (zero heap) | ✅ Complete |
+| [`Vector.hpp`](https://github.com/devscafecommunity/caffeine/blob/main/src/caffeine/containers/Vector.hpp) | Dynamic array with cache-friendly contiguous memory | ✅ Complete |
+| [`HashMap.hpp`](https://github.com/devscafecommunity/caffeine/blob/main/src/caffeine/containers/HashMap.hpp) | Linear-search map backed by `Vector<Pair>` | ✅ Complete |
+| [`StringView.hpp`](https://github.com/devscafecommunity/caffeine/blob/main/src/caffeine/containers/StringView.hpp) | String without ownership (zero-copy) | ✅ Complete |
+| [`FixedString.hpp`](https://github.com/devscafecommunity/caffeine/blob/main/src/caffeine/containers/FixedString.hpp) | Inline buffer string (zero heap) | ✅ Complete |
 
 ## Vector<T>
 
@@ -114,7 +123,7 @@ Provides `cStr()` / `data()` / `length()` / `size()` / `capacity()` (returns `N`
 - [HISTORY.md](../HISTORY.md) - Phase 1 requirements and development rules
 - [architecture_specs.md](../architecture_specs.md) - Technical specifications
 - [API Reference](../api/README.md) - Complete API documentation
-- [Test Documentation](../../tests/test_containers.cpp) - Container tests
+- [Test Documentation](https://github.com/devscafecommunity/caffeine/blob/main/tests/test_containers.cpp) - Container tests
 
 ### Related Modules
 - [Core Module](../core/types.md) - Foundation types

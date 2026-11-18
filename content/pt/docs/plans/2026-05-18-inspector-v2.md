@@ -1,5 +1,10 @@
 # Inspector 2.0 Implementation Plan
 
+<div class="doc-meta">
+  <span class="doc-badge doc-badge--historical">Historical</span>
+  <span>Last updated: <time datetime="2026-11-18">2026-11-18</time></span>
+</div>
+
 > **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
 
 **Goal:** Upgrade the Inspector with a unified Transform component, typed widget library, asset picker fields, component lifecycle (enable/disable/remove), and a searchable Add Component registry.
@@ -11,27 +16,27 @@
 **Build command:** `cmake --build "C:/Users/Pedro Jesus/Downloads/caffeine/build" --config Release --target doppio`
 
 **Key files to understand before starting:**
-- `src/ecs/Components.hpp` — existing component structs
+- `src/caffeine/ecs/Components.hpp` — existing component structs
 - `src/editor/InspectorPanel.hpp/.cpp` — current inspector (~591 lines)
-- `src/editor/DragDropSystem.hpp` — `DragDropManager::AcceptAssetDrop()` usage
-- `src/editor/HierarchyPanel.cpp` — `createEntityWithType()` to update
-- `src/containers/FixedString.hpp` — `cStr()`, not `c_str()`
-- `src/math/Vec3.hpp` — Vec3 struct fields
+- `doppio-archived/src/doppio/editor/DragDropSystem.hpp` — `DragDropManager::AcceptAssetDrop()` usage
+- `doppio-archived/src/doppio/editor/HierarchyPanel.cpp` — `createEntityWithType()` to update
+- `src/caffeine/containers/FixedString.hpp` — `cStr()`, not `c_str()`
+- `src/caffeine/math/Vec3.hpp` — Vec3 struct fields
 
 ---
 
 ## Task 1: Add `Transform` and `DisabledTag` to ECS
 
 **Files:**
-- Modify: `src/ecs/Components.hpp`
+- Modify: `src/caffeine/ecs/Components.hpp`
 
 **Step 1: Read Vec3 struct to know field names**
 
-Open `src/math/Vec3.hpp` — confirm fields are `x`, `y`, `z` (f32).
+Open `src/caffeine/math/Vec3.hpp` — confirm fields are `x`, `y`, `z` (f32).
 
 **Step 2: Add structs after `PersistentComponent`**
 
-In `src/ecs/Components.hpp`, after `struct PersistentComponent { ... };`, add:
+In `src/caffeine/ecs/Components.hpp`, after `struct PersistentComponent { ... };`, add:
 
 ```cpp
 struct DisabledTag {};
@@ -62,7 +67,7 @@ git commit -m "feat(ecs): add Transform component and DisabledTag"
 ## Task 2: Create `InspectorWidgets.hpp`
 
 **Files:**
-- Create: `src/editor/InspectorWidgets.hpp`
+- Create: `doppio-archived/src/doppio/editor/InspectorWidgets.hpp`
 
 **Step 1: Create the file**
 
@@ -235,8 +240,8 @@ git commit -m "feat(editor): add InspectorWidgets helper library"
 ## Task 3: Create `ComponentRegistry`
 
 **Files:**
-- Create: `src/editor/ComponentRegistry.hpp`
-- Create: `src/editor/ComponentRegistry.cpp`
+- Create: `doppio-archived/src/doppio/editor/ComponentRegistry.hpp`
+- Create: `doppio-archived/src/doppio/editor/ComponentRegistry.cpp`
 
 **Step 1: Create `ComponentRegistry.hpp`**
 
@@ -392,7 +397,7 @@ void registerAllComponents(ComponentRegistry& reg) {
 
 **Step 3: Add `ComponentRegistry.cpp` to CMake**
 
-Open `CMakeLists.txt` (or the doppio target CMakeLists) and find where `InspectorPanel.cpp` is listed. Add `src/editor/ComponentRegistry.cpp` to the same source list.
+Open `CMakeLists.txt` (or the doppio target CMakeLists) and find where `InspectorPanel.cpp` is listed. Add `doppio-archived/src/doppio/editor/ComponentRegistry.cpp` to the same source list.
 
 To find the right file:
 ```bash
@@ -418,8 +423,8 @@ git commit -m "feat(editor): add ComponentRegistry with all component entries"
 ## Task 4: Rewrite `InspectorPanel` — Transform drawer + lifecycle headers
 
 **Files:**
-- Modify: `src/editor/InspectorPanel.hpp`
-- Modify: `src/editor/InspectorPanel.cpp`
+- Modify: `doppio-archived/src/doppio/editor/InspectorPanel.hpp`
+- Modify: `doppio-archived/src/doppio/editor/InspectorPanel.cpp`
 
 **Step 1: Update `InspectorPanel.hpp` — add includes and declare `drawTransform3D`**
 
@@ -550,7 +555,7 @@ git commit -m "feat(inspector): unified Transform drawer and ComponentHeader lif
 ## Task 5: Upgrade Sprite and AudioSource with `AssetField`
 
 **Files:**
-- Modify: `src/editor/InspectorPanel.cpp`
+- Modify: `doppio-archived/src/doppio/editor/InspectorPanel.cpp`
 
 **Step 1: Add `resolveProjectRoot` helper**
 
@@ -629,8 +634,8 @@ git commit -m "feat(inspector): asset picker fields for Sprite, AudioSource, Mes
 ## Task 6: Replace Add Component popup with Registry-driven searchable menu
 
 **Files:**
-- Modify: `src/editor/InspectorPanel.cpp`
-- Modify: `src/editor/SceneEditor.cpp` (call `registerAllComponents` at init)
+- Modify: `doppio-archived/src/doppio/editor/InspectorPanel.cpp`
+- Modify: `doppio-archived/src/doppio/editor/SceneEditor.cpp` (call `registerAllComponents` at init)
 
 **Step 1: Replace the popup in `InspectorPanel::render`**
 
@@ -684,7 +689,7 @@ char m_addComponentSearch[128] = {};
 
 **Step 3: Call `registerAllComponents` at startup**
 
-In `src/editor/SceneEditor.cpp`, in `SceneEditor::init(...)`, at the end before `return true;`:
+In `doppio-archived/src/doppio/editor/SceneEditor.cpp`, in `SceneEditor::init(...)`, at the end before `return true;`:
 ```cpp
 Editor::registerAllComponents(Editor::ComponentRegistry::instance());
 ```
@@ -720,7 +725,7 @@ git commit -m "feat(inspector): searchable Add Component menu via ComponentRegis
 ## Task 7: Update HierarchyPanel — new entities get `Transform`
 
 **Files:**
-- Modify: `src/editor/HierarchyPanel.cpp`
+- Modify: `doppio-archived/src/doppio/editor/HierarchyPanel.cpp`
 
 **Step 1: Find `createEntityWithType`**
 

@@ -1,5 +1,10 @@
 # Gizmo Raycasting Performance & Threshold Tuning (Task 6)
 
+<div class="doc-meta">
+  <span class="doc-badge doc-badge--historical">Historical</span>
+  <span>Last updated: <time datetime="2026-11-18">2026-11-18</time></span>
+</div>
+
 ## Performance Analysis
 
 ### Raycasting Operations per Frame (3D mode only)

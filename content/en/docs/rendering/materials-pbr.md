@@ -1,8 +1,17 @@
 # Materiais PBR (forward)
 
-> **Ficheiro:** `.mat` ( `CAFMAT2` , `CAFMAT1` still reads the header)
-> **Core:** `MaterialSurface` , `MaterialFile` , `MaterialCache` 
-> **Shader:** `scene_lit.frag` 
+<div class="doc-meta">
+  <span class="doc-badge doc-badge--reference">Reference</span>
+  <span><strong>File:</strong> `.mat` (`CAFMAT3`; `CAFMAT1`/`CAFMAT2` still load)</span>
+  <span><strong>Core:</strong> `MaterialSurface` , `MaterialFile` , `MaterialCache`</span>
+  <span><strong>Shader:</strong> `scene_lit.frag`</span>
+  <span>Last verified: <time datetime="2026-11-18">2026-11-18</time></span>
+  <span>Source: <a href="https://github.com/devscafecommunity/caffeine/blob/main/src/caffeine/assets/MaterialTypes.hpp"><code>assets/MaterialTypes.hpp</code></a></span>
+</div>
+
+<p class="doc-lede">The <code>.mat</code> surface the forward pass consumes — metallic, roughness,
+emission, maps and the advanced lobes — and where to edit it.</p>
+
 > **Editor:** Material Editor
 
 The viewport ceases to ignore the material assigned to the mesh. O `.mat` it is the surface that the forward pass already consumes: albedo, metallic, roughness, emission and maps. The old node graph compiled GLSL that the `GpuSceneRenderer` nunca executava.
@@ -27,15 +36,15 @@ The viewport ceases to ignore the material assigned to the mesh. O `.mat` it is 
 
 The map of the mesh (Albedo Texture / Normal Map in the inspector) continues ahead of the material map. Metallic and roughness of the file win to the built-in glTF material.
 
-Presets nomeados: `src/assets/MaterialPresets.hpp` (Mirror, Chrome, Clear Glass, ...).
+Presets nomeados: `src/caffeine/assets/MaterialPresets.hpp` (Mirror, Chrome, Clear Glass, ...).
 
 ## Onde editar
 
 - Asset Browser → create Material, open the `.mat` .
 - Inspector → Mesh Filter → Material in primitive and custom meshes. **Edit Material** opens the panel.
-- Os sliders publicam no `MaterialCache` on time. **File → Save** records the `CAFMAT2` . The scene stamp includes the cache revision, so the viewport redesigns without camera orbit.
+- The sliders publish to `MaterialCache` immediately. **File → Save** writes `CAFMAT3`. The scene stamp includes the cache revision, so the viewport redraws without orbiting the camera.
 
-Ficheiros `CAFMAT1` open with header albedo, metallic and roughness. The graph is no longer evaluated.
+`CAFMAT1` files open with the header albedo, metallic and roughness. The node graph is no longer evaluated.
 
 ## Preview
 

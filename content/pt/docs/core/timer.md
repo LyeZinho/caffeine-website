@@ -1,10 +1,17 @@
 # ⏱️ High-Resolution Timer
 
-> **Fase:** 2 — O Pulso e a Concorrência  
-> **Namespace:** `Caffeine::Core`  
-> **Arquivos:** `src/core/Timer.hpp`, `src/core/Timer.cpp`  
-> **Status:** ✅ Implementado  
-> **Testes:** `tests/test_timer.cpp` (~30 casos)
+<div class="doc-meta">
+  <span class="doc-badge doc-badge--stable">Stable</span>
+  <span class="doc-badge">Engine</span>
+  <span><strong>Namespace:</strong> <code>Caffeine::Core</code></span>
+  <span><strong>Arquivos:</strong> <code>src/caffeine/core/Timer.hpp</code>, <code>src/caffeine/core/Timer.cpp</code></span>
+  <span>Last verified: <time datetime="2026-11-18">2026-11-18</time></span>
+</div>
+
+<p class="doc-lede">Um cronómetro start/stop e um tipo de duração usados para
+medir o delta entre frames do game loop e para instrumentar escopos da engine.</p>
+
+> **Testes:** `tests/test_timer.cpp` (31 casos)
 
 ---
 
@@ -22,7 +29,7 @@ e para instrumentação manual de performance. A implementação usa
 
 ---
 
-## API Real
+## API
 
 ```cpp
 namespace Caffeine::Core {
@@ -156,7 +163,7 @@ Caffeine::Core::Duration total = t.elapsed();
 
 // --- fábricas e conversões ---
 auto d = Caffeine::Core::Duration::fromMillis(16.666);
-LOG_INFO("dt = %.2f ms", d.millis());
+CF_INFO("Timer", "dt = %.2f ms", d.millis());
 
 // --- ScopeTimer (hoje: só marca escopo, sem saída) ---
 {
@@ -171,8 +178,9 @@ LOG_INFO("dt = %.2f ms", d.millis());
 
 ```mermaid
 flowchart TD
-  std__chrono__high_resolution_clock__now_["std::chrono::high_resolution_clock::now()"] --> m[""]
-  n[""] --> time_since_epoch___em_nanossegundos___Ti["time_since_epoch() em nanossegundos → TimePoint.ticks"]
+  NOW["std::chrono::high_resolution_clock::now()"] --> EPOCH["time_since_epoch()"]
+  EPOCH --> NANOS["duration_cast para nanoseconds"]
+  NANOS --> TICKS["TimePoint.ticks"]
 ```
 
 
@@ -206,15 +214,15 @@ ou o acesso deve ser serializado pelo Game Loop.
 
 ## Dependências
 
-- **Upstream:** `Caffeine::Core::Types` ([`src/core/Types.hpp`](../../src/core/Types.hpp))
-- **Downstream:** [Game Loop](game-loop.md); Profiler planejado ([`../debug/debug-tools.md`](../debug/debug-tools.md))
+- **Upstream:** `Caffeine::Core::Types` ([`src/caffeine/core/Types.hpp`](https://github.com/devscafecommunity/caffeine/blob/main/src/caffeine/core/Types.hpp))
+- **Downstream:** [Game Loop](game-loop.md); Profiler ([`../debug/debug-tools.md`](../debug/debug-tools.md))
 - **Externas:** apenas `<chrono>` da std
 
 ---
 
 ## Referências
 
-- [`src/core/Timer.hpp`](../../src/core/Timer.hpp) / [`src/core/Timer.cpp`](../../src/core/Timer.cpp)
-- [`tests/test_timer.cpp`](../../tests/test_timer.cpp)
+- [`src/caffeine/core/Timer.hpp`](https://github.com/devscafecommunity/caffeine/blob/main/src/caffeine/core/Timer.hpp) / [`src/caffeine/core/Timer.cpp`](https://github.com/devscafecommunity/caffeine/blob/main/src/caffeine/core/Timer.cpp)
+- [`tests/test_timer.cpp`](https://github.com/devscafecommunity/caffeine/blob/main/tests/test_timer.cpp)
 - [`docs/architecture_specs.md`](../architecture_specs.md) — §1 Game Loop
 - [`core/game-loop.md`](game-loop.md) — Usa Timer internamente

@@ -1,219 +1,128 @@
-# Caffeine Unified Ecosystem — Complete Workflow
+# Unified asset workflow
 
-This document describes the complete pipeline for creating, packing, and loading assets using the Caffeine unified ecosystem across Doppio (IDE), caf-pack (asset packer), the Caffeine Engine and the game runtime.
+<div class="doc-meta">
+  <span class="doc-badge doc-badge--stable">Stable</span>
+  <span class="doc-badge">Tooling</span>
+  <span>Last verified: <time datetime="2026-11-18">2026-11-18</time></span>
+  <span>Source: <a href="https://github.com/devscafecommunity/caf-pack"><code>caf-pack</code></a></span>
+</div>
 
-## Full Pipeline Example
+<p class="doc-lede">From raw PNG, WAV and OBJ files to a <code>.cap</code> the engine
+maps into memory: one pipeline shared by Doppio, caf-pack, the runtime and CI.</p>
 
-### 1. Create Raw Assets
+## Pipeline
 
-Prepare source assets in standard formats:
-
-**Texture:**
-- Create or edit the texture in any image editor
-- Export as PNG file to `raw_assets/` directory
-
-**Audio:**
-- Create or edit the sound in any audio editor
-- Export as WAV file to `raw_assets/` directory
-
-**Mesh:**
-- Create or export OBJ file from 3D tool (Blender, Maya, etc.)
-- Place in `raw_assets/` directory
-
-```bash
-mkdir raw_assets
-cp texture.png raw_assets/
-cp sound.wav raw_assets/
-cp model.obj raw_assets/
+```text
+raw assets ──► caf-pack ──► .caf / .cap ──► AssetManager ──► renderer / audio / physics
+(PNG WAV OBJ)   (process)    (binary)        (async, hot reload)
 ```
 
-### 2. Pack Assets with caf-pack
+| Stage | Tool | Output |
+|---|---|---|
+| Author | Any image, audio or DCC tool | `assets/raw/**` |
+| Pack | `caf-pack --input <dir> --output <file.cap>` | `.caf` payloads inside a `.cap` |
+| Load | `Caffeine::Assets::AssetManager` | Typed handles (`Texture`, `AudioClip`, `Mesh`, `Prefab`, `ShaderBlob`) |
+| Use | Renderer, audio, physics, scripting | Resolved structs |
 
-Use the caf-pack CLI to process assets into optimized binary format:
+## 1. Raw assets
 
-```bash
-./caf-pack --input raw_assets/ \
-           --output game.cap \
-           --gen-ids include/game_assets.hpp \
-           --compress
+Keep source files in the project's asset root, normally `assets/raw/`:
+
+```text
+assets/raw/
+  Textures/brick.png
+  Audio/step.wav
+  Models/crate.obj
+  Materials/brick.mat
 ```
 
-This command:
-- Scans `raw_assets/` directory recursively
-- PNG processes → optimized texture (RGBA8 with padding)
-- WAV processes → optimized audio (PCM samples, binned waveform)
-- OBJ processes → optimized mesh (triangulated vertices)
-- Compresses all assets with zstd (default compression level 3)
-- Writes to `game.cap` with header and asset table
-- Generates `include/game_assets.hpp` with asset ID constants
+Doppio creates the standard folders (`Textures`, `Models`, `Materials`, `Audio`,
+`Animations`, `Prefabs`, `Sky`) through the asset wizard.
 
-**Generated header example:**
+## 2. Pack with caf-pack
+
+```bash
+caf-pack --input assets/raw --output build/game.cap --gen-ids build/game_assets.hpp
+```
+
+The CLI:
+
+1. scans the input directory recursively;
+2. converts PNG to RGBA/CAF, WAV to PCM/CAF and OBJ to interleaved mesh/CAF;
+3. aligns each payload to 32 bytes;
+4. writes the CAP header, asset table (hash, offset, size) and blobs;
+5. optionally generates a C++ header with stable hash ids.
+
+`--compress` enables optional compression (`zstd` is linked by the packer). See the
+[caf-pack README](https://github.com/devscafecommunity/caf-pack/blob/main/README.md)
+for the formats and the current processor list.
+
+In Doppio, the **Assets → Pack** tab runs the same CLI and writes the `.cap` into the
+project. The binary is found via `CAF_PACK`, `CAFFEINE_ENGINE_ROOT`,
+`caf-pack/build/src` or `PATH`.
+
+## 3. Load in the engine
+
+`AssetManager` owns the cache and the async jobs:
+
 ```cpp
-namespace Assets {
-    constexpr uint64_t texture_id = 0x1a2b3c4d5e6f7g8h;
-    constexpr uint64_t sound_id = 0x8g7f6e5d4c3b2a19;
-    constexpr uint64_t model_id = 0x5e6f7g8h1a2b3c4d;
+#include "assets/AssetManager.hpp"
+
+Caffeine::Threading::JobSystem jobs;
+Caffeine::Assets::AssetManager assets(&jobs, "assets/raw", 256);
+
+auto texture = assets.loadAsync<Caffeine::Assets::Texture>("Textures/brick.caf");
+auto mesh    = assets.loadAsync<Caffeine::Assets::Mesh>("Models/crate.caf");
+
+// each frame
+assets.tick(frameIndex);
+
+if (texture.isReady()) {
+    const auto* data = texture.get();
+    // upload or bind data
 }
+
+assets.collectGarbage();
 ```
 
-### 3. Load Assets in Game Engine
+Key points:
 
-Use the AssetLoader to load assets asynchronously without blocking the main game loop:
+- `loadAsync<T>` / `loadSync<T>` return an `AssetHandle<T>` with a generation counter.
+- `tick()` pumps completed jobs and checks hot reload.
+- `collectGarbage()` evicts least-recently-used entries when the cache exceeds its
+  budget (`maxCacheMB`).
+- `reloadAsset(path)` reloads an already-loaded asset from disk.
+- `registerInvalidationCallback` notifies systems when an asset changes.
 
-```cpp
-#include "include/game_assets.hpp"
-#include "engine/AssetLoader.hpp"
+The handle is invalidated if the entry is evicted or reloaded; check `isValid()` /
+`isReady()` before dereferencing.
 
-class GameState {
-private:
-    Caffeine::AssetLoader m_assetLoader;
-    Caffeine::AssetHandle m_textureHandle;
-    Caffeine::AssetHandle m_soundHandle;
-    
-public:
-    void init() {
-        m_textureHandle = m_assetLoader.loadAssetAsync(
-            Assets::texture_id,
-            [this](const std::vector<u8>& data) {
-                onTextureLoaded(data);
-            }
-        );
-        
-        m_soundHandle = m_assetLoader.loadAssetAsync(
-            Assets::sound_id,
-            [this](const std::vector<u8>& data) {
-                onSoundLoaded(data);
-            }
-        );
-    }
-    
-    void update() {
-        m_assetLoader.update();
-    }
-    
-private:
-    void onTextureLoaded(const std::vector<u8>& data) {
-        gameTexture = renderer->uploadTexture(data);
-    }
-    
-    void onSoundLoaded(const std::vector<u8>& data) {
-        audioManager->loadSound(data);
-    }
-};
+## Project layout
+
+```text
+my_game/
+  project.caffeine
+  assets/raw/          # source assets
+  assets/processed/    # optional individual .caf files
+  build/game.cap       # final pack
+  build/game_assets.hpp
+  scenes/
+  materials/
+  texture_sets/
 ```
 
-### 4. Preview in doppio IDE
+## Runtime and Doppio
 
-Open your game project in doppio to visualize and manage assets:
+- Doppio previews raw assets and packs them; it does not parse `.cap` in Rust.
+- The engine `AssetManager` loads `.caf`/`.cap`; the C ABI exposes the same asset
+  metadata and paths to the editor.
+- The runtime uses the same `AssetManager` and project layout, so a scene saved in
+  Doppio points at the same relative paths.
 
-1. Launch doppio IDE
-2. Open project directory
-3. Game.cap auto-loads in Asset Browser
-4. Features available:
-   - Browse all packed assets by name
-   - View texture thumbnails
-   - Display audio waveforms with stereo visualization
-   - See mesh statistics (vertex count, bounds)
-   - Drag-and-drop PNG/WAV files into Asset Browser → auto-packed into game. cap
+## Related pages
 
-## External tool integration
-
-Convoy and WaveShaper are **legacy projects and are no longer bundled in the
-Caffeine repository**. Any external tool can still participate in the pipeline by
-calling the `caf-pack` CLI or linking `caf-pack-lib`:
-
-```bash
-caf-pack --input <temporary-export-dir> --output <project>/game.cap \
-         --gen-ids include/game_assets.hpp
-```
-
-The packer treats PNG, WAV and OBJ files uniformly, so the source tool does not
-matter. If a tool wants a native "Export to CAP" action, invoke the same CLI or
-link the library directly.
-
-### Drag-Drop Import in doppio
-
-1. Open doppio IDE with project
-2. In Asset Browser (CAP mode), drag PNG/WAV file
-3. File automatically packed using caf-pack
-4. game.cap updated in-place
-5. Waveform/thumbnail preview generated
-
-## Architecture Overview
-
-> ┐
-> ♪ Raw Assets ♪
-> │ (PNG, WAV, │
-> │ OBJ files) │
-> └
-> │
-> ▼
-> ┐
-> ♪ Caf-pack CLI ♪
-> │ (Packer) │
-> └
-> │
-> ┐
-> │ │ │
-> ▼ ▼ ▼
-> ┐ ┐ ┐
-> │game.cap │ │Asset IDs │ │ CAP │
-> │(binary) │ │ │Header │ │ Loader │
-> └ │ │(.hpp) │ │(Engine) │
-> │ │ └ └
-> │ │
-> ▼ ▼ ┐ ┐
-> │ doppio IDE │ │ Game Engine │
-> │ (Asset Browser) │ │ (AssetLoader)│
-> │ (Live Preview) │ │(async load) │
-> └ └
-
-
-## Key Benefits
-
-1. **Zero-Parsing**: Engine receives pre-processed binary assets, no runtime conversion
-2. **Memory-Ready**: All assets aligned for direct CPU/GPU access
-3. **Hash-Based IDs**: Fast O(1) asset lookup by hash instead of string comparison
-4. **Async Loading**: Load large assets without blocking game loop
-5. **Shared Format**: Doppio, caf-pack and the runtime use the same asset format; external tools join through the CLI or library
-6. **Compression**: Optional zstd compression reduces file size without runtime overhead
-
-## Compilation & Build
-
-Build the engine, Doppio and caf-pack with one command:
-
-```bash
-cd /path/to/caffeine
-cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
-cmake --build build -j
-```
-
-This produces:
-- `libcaffeine-core.a` — Engine library with AssetLoader
-- `libcaf-pack-lib.a` — Asset packer library (when `caf-pack` is initialized)
-- `caf-pack` — CLI tool for asset processing
-- `doppio` — IDE with Asset Browser and live preview
-
-## Testing the Pipeline
-
-Complete end-to-end test:
-
-```bash
-# 1. Create test assets
-mkdir test_assets
-echo "PNG placeholder" > test_assets/test.png
-echo "OBJ placeholder" > test_assets/test.obj
-
-# 2. Pack with caf-pack
-./caf-pack --input test_assets --output test.cap --gen-ids test_assets.hpp --compress
-
-# 3. Verify header generation
-cat test_assets.hpp | head -20
-
-# 4. Launch doppio and open project
-./doppio
-
-# 5. Asset Browser should display test.cap with asset previews
-```
-
-All components working together provide a unified, high-performance asset ecosystem for Caffeine games.
+- [CAF format](assets/caf-format.md)
+- [Asset manager](assets/asset-manager.md)
+- [Asset pipeline](assets/asset-pipeline.md)
+- [Cafpack architecture](architecture/cafpack.md)
+- [caf-pack README](https://github.com/devscafecommunity/caf-pack/blob/main/README.md)

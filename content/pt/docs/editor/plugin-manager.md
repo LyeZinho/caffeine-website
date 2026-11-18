@@ -1,13 +1,36 @@
-# Plugin Manager e carregamento opt-in
+# Plugin Manager (host legado)
 
-O Doppio é distribuído **sem** plugins de funcionalidades embutidos. O core do
-editor não compila, copia nem pré-carrega plugins de terreno, procedural, Git,
-pós-processamento ou IA. Expõe apenas o host de plugins (`PluginManager` +
-`PluginServiceRegistry`).
+<div class="doc-meta">
+  <span class="doc-badge doc-badge--reference">Reference</span>
+  <span>Last updated: <time datetime="2026-11-18">2026-11-18</time></span>
+</div>
 
-![Arquitetura de plugins do Doppio](../images/diagrams/plugin-architecture.svg)
+<p class="doc-lede">Como o host C++ legado descobre e ativa bibliotecas de plugins, e porque o Doppio Rust não as carrega.</p>
 
-![Ciclo de vida dos plugins](../images/diagrams/plugin-lifecycle.svg)
+<div class="doc-callout doc-callout--warning">
+  <p><strong>Host legado.</strong> O Doppio ativo em Rust/Iced não carrega plugins C++.
+  Estas páginas documentam o SDK C++/ImGui e o seu host em
+  <code>caffeine-runtime</code> / <code>doppio-archived</code>. A engine continua a
+  compilar todos os plugins do submódulo para manter o SDK testado.</p>
+</div>
+
+
+O build da engine compila **todos** os plugins do submódulo `doppio-plugins` para
+`build/plugins/`, mas o **host C++ legado** não os carrega até o utilizador ativar cada um no
+Plugin Manager. O core do editor expõe apenas o host (`PluginManager` +
+`PluginServiceRegistry`); nenhum plugin de funcionalidade está hardcoded.
+
+<figure class="doc-figure">
+  <img src="../images/diagrams/plugin-architecture.svg" alt="Arquitetura de plugins do Doppio" loading="lazy">
+  <figcaption>Arquitetura de plugins do Doppio</figcaption>
+</figure>
+
+
+<figure class="doc-figure">
+  <img src="../images/diagrams/plugin-lifecycle.svg" alt="Ciclo de vida dos plugins" loading="lazy">
+  <figcaption>Ciclo de vida dos plugins</figcaption>
+</figure>
+
 
 ## Onde vivem os plugins
 
@@ -56,7 +79,7 @@ copiada mais tarde para a pasta fica desativada até ser ativada.
 
 | Antes | Agora |
 |-------|-------|
-| Plugins compilados dentro do CMake da engine | Compilados a partir de `doppio-plugins` contra o SDK público |
+| Plugins compilados dentro da árvore da engine | Compilados a partir do submódulo `doppio-plugins` contra o SDK público |
 | Todos os `.so` carregados no arranque | Só carregam plugins ativados pelo utilizador |
 | Core referenciava identificadores de plugins | Core expõe apenas serviços genéricos |
 | UI dos plugins acoplada ao Doppio | UI usa `Caffeine::UIKit` e callbacks opacos do host |

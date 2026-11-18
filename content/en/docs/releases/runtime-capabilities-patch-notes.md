@@ -1,5 +1,14 @@
 # Runtime capabilities — patch notes
 
+<div class="doc-meta">
+  <span class="doc-badge doc-badge--historical">Historical</span>
+  <span>Session record: 2026-10-14</span>
+  <span>Last updated: <time datetime="2026-11-18">2026-11-18</time></span>
+</div>
+
+<p class="doc-lede">A patch note from 2026-10-14 describing the picking, overlay, map
+surface, sprite LOD and native-module work of that period, with its migration checklist.</p>
+
 **Date:** 2026-10-14
 **Scope:** Caffeine engine core + scripting (Doppio consumes the same APIs)
 **RFC:** [planning/engine-runtime-capabilities-rfc.md](../plans/milestones/engine-runtime-capabilities-rfc.md)
@@ -12,7 +21,7 @@ This document is intended for **all engine users** (internal teams and third-par
 
 1. **Optional** — Projects that only use sprites + scripts pay no map/native/LOD cost unless they use these APIs.
 2. **Neutral** — No real-world map providers, HTTP Tile URLs, or game-specific names in core.
-3. **Editor 
+3. **Editor ≠ runtime** — Doppio plugins stay separate from play-mode native modules.
 4. **Single Lua contract** — Documented in [runtime-apis.md](../scripting/runtime-apis.md).
 
 ---
@@ -100,13 +109,13 @@ Older `.caf` files load unchanged; new components are opt-in.
 
 ## Files touched (high level)
 
-- `src/scene/PickQuery.*` , `PickRaycast.*` , `MapSurfaceSystem.*` , `SpriteLod2DSystem.*`
-- `src/render/Overlay2D.*` , `src/render/shaders/overlay2d.*`
-- `src/script/RuntimeScriptBindings.cpp` , `NativeModuleHost.*` , `AssetTextLoader.*`
-- `src/runtime/PlayClock.*` , `GameStateStack.*`
-- `src/ecs/MapComponents.hpp` , `LodComponents.hpp`
+- `src/caffeine/scene/PickQuery.hpp` , `PickRaycast.*` , `MapSurfaceSystem.*` , `SpriteLod2DSystem.*`
+- `src/caffeine/render/Overlay2D.hpp` / `.cpp` , `src/caffeine/render/shaders/overlay2d.vert` / `.frag`
+- `src/caffeine/script/RuntimeScriptBindings.cpp` , `NativeModuleHost.*` , `AssetTextLoader.*`
+- `src/caffeine/runtime/PlayClock.hpp` / `.cpp` , `GameStateStack.*`
+- `src/caffeine/ecs/MapComponents.hpp` , `LodComponents.hpp`
 - `include/caffeine/runtime/NativeModuleAPI.h`
-- `src/editor/SceneSerializer.*` , `ComponentRegistry.cpp`
+- `src/caffeine/scene/SceneSerializer.hpp` , `ComponentRegistry.cpp`
 - `docs/scripting/*` , `docs/rendering/overlay-2d-rhi.md` , this file
 
 ---

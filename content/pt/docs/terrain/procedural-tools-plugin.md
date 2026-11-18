@@ -1,6 +1,16 @@
 # 🎲 Procedural Tools Plugin
 
-> **Plugin:** `procedural_tools_plugin.so`  
+<div class="doc-meta">
+  <span class="doc-badge doc-badge--reference">Reference</span>
+  <span class="doc-badge">Plugin</span>
+  <span><strong>Plugin:</strong> `procedural_tools_plugin.so`</span>
+  <span>Last verified: <time datetime="2026-11-18">2026-11-18</time></span>
+  <span>Source: <a href="https://github.com/devscafecommunity/caffeine/blob/main/src/caffeine/procedural/ProceduralWorldSystem.hpp"><code>procedural/ProceduralWorldSystem.hpp</code></a></span>
+</div>
+
+<p class="doc-lede">Ferramentas de streaming para mundos infinitos: alturas de terreno por
+chunk, estruturas opcionais, um director Lua e uma API de noise sobre o
+<code>ProceduralWorldComponent</code>.</p>
 > **Scripts:** `assets/plugins/procedural/scripts/`  
 > **Runtime API:** `caffeine.procedural.*` (Lua)
 
@@ -28,8 +38,9 @@ Exploração, backrooms e corrida infinita são **benchmarks** (exemplos de refe
 3. Escolher **Terrain height** e **Structure spawner** (ou `none` + Lua)
 4. Definir **Script path** (default: `custom_director.lua`)
 5. **Install Lua scripts** → copia templates para `scripts/procedural/`
-6. **Create Streaming Setup** → cria `ProceduralTerrain` + `ProceduralDirector`
-7. **Play** — chunks carregam à volta da câmara
+6. **Create Streaming Setup** → cria uma entidade de terreno mais uma entidade director com
+   `ProceduralWorldComponent` e um `ScriptComponent`
+7. **Play** — os chunks fazem streaming à volta da câmara
 
 ### Benchmarks
 
@@ -88,13 +99,16 @@ end
 
 ## Componentes ECS
 
+`ProceduralWorldComponent` na entidade director:
+
 | Campo | Função |
 |-------|--------|
 | `terrainProfile` | `flat`, `hills`, `fbm` |
 | `structureProfile` | `none`, `markers`, `rooms`, `track` |
 | `customScriptPath` | Lua director |
 | `seed`, `chunkSize`, `viewRadius` | Streaming |
-| `ProceduralSpawnTag` | Entidades removidas no unload |
+| `terrainEntityId`, `focusEntityId` | Ligações ao terreno e ao alvo de follow |
+| `ProceduralSpawnTag` | Marca entidades removidas no unload |
 
 ---
 
@@ -112,8 +126,8 @@ end
 
 | Módulo | Ficheiro |
 |--------|----------|
-| Profiles | `src/procedural/ProceduralProfiles.*` |
-| Noise | `src/procedural/ProceduralNoise.*` |
-| Geradores | `src/procedural/ProceduralGenerator.*` |
-| Streaming | `src/procedural/ProceduralStreamer.*` |
-| Tick play mode | `src/procedural/ProceduralWorldSystem.*` |
+| Profiles | `src/caffeine/procedural/ProceduralProfiles.hpp` |
+| Noise | `src/caffeine/procedural/ProceduralNoise.hpp` |
+| Geradores | `src/caffeine/procedural/ProceduralGenerator.hpp` |
+| Streaming | `src/caffeine/procedural/ProceduralStreamer.hpp` |
+| Tick play mode | `src/caffeine/procedural/ProceduralWorldSystem.hpp` |

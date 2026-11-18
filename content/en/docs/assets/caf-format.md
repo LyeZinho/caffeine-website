@@ -1,10 +1,27 @@
 # 📄 Format .caf — Caffeine Asset Format
 
-> **Phases:**3 (foundation)+4 (Prefabs/Scenes)
-> **Namespace:** `Caffeine` , `Caffeine::IO`
-> **Files:** `src/core/io/CafTypes.hpp` , `src/core/io/BlobLoader.hpp/.cpp` , `src/core/io/CafWriter.hpp/.cpp` , `src/core/io/Crc32.hpp`
-> **Status: ** Implemented
+<div class="doc-meta">
+  <span class="doc-badge doc-badge--reference">Reference</span>
+  <span>Last verified: <time datetime="2026-11-18">2026-11-18</time></span>
+  <span>Source: <a href="https://github.com/devscafecommunity/caffeine/blob/main/src/caffeine/core/io/CafTypes.hpp"><code>core/io/CafTypes.hpp</code></a></span>
+</div>
+
+<p class="doc-lede">The binary <code>.caf</code> layout used inside the engine: a 32-byte
+header, a typed metadata block, the payload and a whole-file CRC footer.</p>
+
+> **Phases:** 3 (foundation) + 4 (Prefabs/Scenes)
+> **Namespace:** `Caffeine`, `Caffeine::IO`
+> **Files:** `src/caffeine/core/io/CafTypes.hpp`, `src/caffeine/core/io/BlobLoader.hpp` / `.cpp`, `src/caffeine/core/io/CafWriter.hpp` / `.cpp`, `src/caffeine/core/io/Crc32.hpp`
+> **Status:** Implemented
 > **RF:** RF3.0, RF4.5
+
+<div class="doc-callout doc-callout--note">
+  <p><strong>Scope.</strong> This header still defines the engine-internal
+  <code>.caf</code> used for scene and prefab serialization (magic <code>0xCAFECAFE</code>).
+  Runtime asset packs (<code>.cap</code>) and imported assets use <code>caf-pack</code> as the
+  single source of truth (magic <code>0x43414621</code>, <code>"CAF!"</code>); see
+  <a href="../architecture/cafpack.md">Cafpack</a>.</p>
+</div>
 
 ---
 
@@ -176,7 +193,7 @@ struct ShaderMetadata {
 
 ---
 
-## `Crc32` — 'src/core/io/Crc32.hpp'
+## `Crc32` — `src/caffeine/core/io/Crc32.hpp`
 
 IEEE 802.3 CRC32 com lookup table `constexpr` . Zero external dependencies.
 
@@ -194,7 +211,7 @@ constexpr u32 crc32Continue(u32 runningCrc, const void* data, usize size);
 
 ---
 
-## `BlobLoader` — 'src/core/io/BlobLoader. hpp `
+## `BlobLoader` — `src/caffeine/core/io/BlobLoader.hpp`
 
 Low-level loader. One single `fread` zero seeks, zero extra copies.
 
@@ -238,7 +255,7 @@ private:
 
 ---
 
-## `CafWriter` — 'src/core/io/CafWriter. hpp `
+## `CafWriter` — `src/caffeine/core/io/CafWriter.hpp`
 
 Write a file `.caf` completo com header, metadata, payload e footer CRC32.
 
@@ -375,8 +392,8 @@ flowchart TD
 
 ## Dependencies
 
-- **Upstream:** [Job System](../concurrency/job-system.md), [Memory — LinearAllocator](../memory/allocators. md)
-- **Downstream:** [Asset Manager](asset-manager.md), [Phase 4 — Scene Serialization](../ecs/scene.md), [Phase 5 — Mesh Loading](../assets/mesh-loading.md), [Phase 6 — Asset Pipeline](.../assets/asset-pipeline. md)
+- **Upstream:** [Job System](../concurrency/job-system.md), [Memory — LinearAllocator](../memory/allocators.md)
+- **Downstream:** [Asset Manager](asset-manager.md), [Phase 4 — Scene Serialization](../ecs/scene.md), [Phase 5 — Mesh Loading](mesh-loading.md), [Phase 6 — Asset Pipeline](asset-pipeline.md)
 
 ---
 
@@ -388,8 +405,8 @@ flowchart TD
 
 ## References
 
-- [`docs/architecture_specs.md`](../architecture specs.md) — §5 Scene Serialization, §7 Asset Manager
-- [`docs/HISTORY.md`](../ HISTORY.md) — §4.2 Asset system — The .caf Format
+- [`architecture_specs.md`](../architecture_specs.md) — §5 Scene Serialization, §7 Asset Manager
+- [`HISTORY.md`](../HISTORY.md) — §4.2 Asset system — The .caf Format
 - [`assets/asset-manager.md`](asset-manager.md) — use `BlobLoader` internamente
 - [`assets/asset-pipeline.md`](../assets/asset-pipeline.md) — produces files `.caf`
 - [Transversal Topic Index]()

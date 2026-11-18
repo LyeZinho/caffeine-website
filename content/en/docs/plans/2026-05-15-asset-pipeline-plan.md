@@ -1,5 +1,10 @@
 # Asset Pipeline Integration — Implementation Plan
 
+<div class="doc-meta">
+  <span class="doc-badge doc-badge--historical">Historical</span>
+  <span>Last updated: <time datetime="2026-11-18">2026-11-18</time></span>
+</div>
+
 > **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
 
 **Goal:** Implement automatic conversion of raw assets (PNG/JPG) to optimized `.caf` format via a FileWatcher-driven pipeline.
@@ -13,8 +18,8 @@
 ### Task 1: FileWatcher
 
 **Files:**
-- Create: `src/core/io/FileWatcher.hpp`
-- Create: `src/core/io/FileWatcher.cpp`
+- Create: `src/caffeine/core/io/FileWatcher.hpp`
+- Create: `src/caffeine/core/io/FileWatcher.cpp`
 
 **Description:** Native Windows directory monitoring via `ReadDirectoryChangesW` on a background thread. Class `Caffeine::IO::FileWatcher` with `start(dir, recursive)` , `stop()` , `poll()` returning `std::vector<std::filesystem::path>` .
 
@@ -214,10 +219,10 @@ git commit -m "feat(core): add native Windows FileWatcher (ReadDirectoryChangesW
 ### Task 2: AssetPipeline + IAssetCompiler
 
 **Files:**
-- Create: `src/assets/AssetPipeline.hpp`
-- Create: `src/assets/AssetPipeline.cpp`
+- Create: `src/caffeine/assets/AssetPipeline.hpp`
+- Create: `src/caffeine/assets/AssetPipeline.cpp`
 - Modify: `CMakeLists.txt` (add sources to caffeine-core)
-- Modify: `src/Caffeine.hpp` (add AssetPipeline include)
+- Modify: `src/caffeine/Caffeine.hpp` (add AssetPipeline include)
 
 **Description:** Core pipeline classes in `Caffeine::Assets` namespace: `AssetImportContext` , `IAssetCompiler` , `AssetPipeline` . Pipeline owns a FileWatcher, compiler registry, import queue, and manifest.
 
@@ -648,8 +653,8 @@ git commit -m "feat(assets): add AssetPipeline with FileWatcher and compiler reg
 ### Task 3: TextureCompiler
 
 **Files:**
-- Create: `src/assets/TextureCompiler.hpp`
-- Create: `src/assets/TextureCompiler.cpp`
+- Create: `src/caffeine/assets/TextureCompiler.hpp`
+- Create: `src/caffeine/assets/TextureCompiler.cpp`
 - Modify: `CMakeLists.txt` (add stb_image compile-as-C source)
 
 **Description:** First concrete compiler in `Caffeine::Assets` . Decodes PNG/JPG using `stb_image.h` , writes RGBA8 `.caf` via `CafWriter` .

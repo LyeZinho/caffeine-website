@@ -1,6 +1,26 @@
 # Writing a plugin
 
-Doppio plugins are **shared libraries** that implement a small C ABI. The host (`doppio`) loads them with `dlopen` / `LoadLibrary` and calls into your code through `PluginHostApi` function pointers.
+<div class="doc-meta">
+  <span class="doc-badge doc-badge--reference">Reference</span>
+  <span>Last updated: <time datetime="2026-11-18">2026-11-18</time></span>
+</div>
+
+<p class="doc-lede">Como escrever, compilar e instalar um plugin C++/ImGui para o host legado.</p>
+
+
+
+<div class="doc-callout doc-callout--warning">
+  <p><strong>Host legado.</strong> O Doppio atual em Rust/Iced não carrega plugins C++.
+  Estas páginas documentam o SDK de plugins C++/ImGui e o seu host no editor C++ arquivado
+  (<code>doppio-archived/</code>). A engine continua a compilar todos os plugins do
+  submódulo, para que o SDK se mantenha testado na compilação.</p>
+</div>
+
+
+Os plugins são **bibliotecas partilhadas** que implementam uma C ABI pequena. O host
+C++ legado carrega-as com `dlopen` / `LoadLibrary` e chama o teu código através dos
+ponteiros de função de `PluginHostApi`. O Doppio atual em Rust não carrega estas
+bibliotecas.
 
 ## Minimal plugin
 
@@ -49,19 +69,22 @@ Defined in `include/caffeine/plugin/PluginAPI.hpp`:
 
 | Callback | Use |
 |----------|-----|
-| `registerPanel` | ImGui dockable / floating panel |
-| `openPanel` | Focus an already registered panel |
-| `registerMenuAction` | Menu path like `Tools/My Action` |
-| `registerComponentDrawer` | Custom Inspector UI for an ECS component |
-| `registerEntityPresetManifest` | Add entity presets to the create menu |
-| `registerService` | Expose a named capability to other plugins |
-| `invokeService` | Call a host or plugin service by name |
-| `getActiveWorld` | Current ECS world in editor |
-| `getSelectedEntityId` | Hierarchy selection |
-| `getProjectRootPath` | Open project root (parent of `scenes/`) |
-| `markSceneDirty` | Prompt save on scene change |
-| `getComponentTypeId` | Resolve component name → type id for drawers |
-| `logInfo` / `logError` | Editor console output |
+| `registerPanel` | Painel ImGui dockable / flutuante |
+| `registerPanelEx` | Painel com metadados de layout `PluginPanelInfo` (preferido para plugins novos) |
+| `openPanel` | Focar um painel já registado |
+| `registerMenuAction` | Caminho de menu como `Tools/My Action` |
+| `registerComponentDrawer` | UI de Inspector personalizada para um componente ECS |
+| `registerEntityPresetManifest` | Adicionar presets de entidade ao menu de criação |
+| `registerService` | Expor uma capacidade nomeada a outros plugins |
+| `invokeService` | Chamar um serviço do host ou de um plugin pelo nome |
+| `getActiveWorld` | World ECS atual no editor |
+| `getSelectedEntityId` / `setSelectedEntityId` | Ler ou alterar a seleção da hierarquia |
+| `getProjectRootPath` | Raiz do projeto aberto (pai de `scenes/`) |
+| `getCurrentScenePath` | Caminho da cena aberta |
+| `markSceneDirty` / `markAssetBrowserDirty` | Notificar o host de que o estado mudou |
+| `getComponentTypeId` | Resolver nome de componente → type id para drawers |
+| `getTerrainBrush` / `setTerrainBrush` | Ler ou editar o pincel de terreno do viewport |
+| `logInfo` / `logError` | Saída na consola do editor |
 
 ## Component drawers
 
@@ -87,10 +110,13 @@ Plugins can register additional services for aggregators or tooling. See [servic
 
 ## Build rules
 
-- **Output name** = plugin id (e.g. `terrain_plugin.so` → id `terrain_plugin`)
-- **No `lib` prefix** on Unix (`PREFIX ""` in CMake)
-- **Link only** against ImGui + your own deps — do **not** link `caffeine-core` into the `.so` (ABI is callback-based)
-- Define `CAFFEINE_PLUGIN_EXPORTS=1` when building the plugin
+- **Output name** = id do plugin (ex.: `terrain_plugin.so` → id `terrain_plugin`)
+- **Sem prefixo `lib`** em Unix (`PREFIX ""` no CMake)
+- **Não ligues `caffeine-core` nem ImGui** dentro do `.so`. O host exporta esses
+  símbolos e o SDK é baseado em callbacks; liga apenas bibliotecas de sistema extra
+  (por exemplo `${CMAKE_DL_LIBS}`) quando o plugin precisar.
+- Define `CAFFEINE_PLUGIN_EXPORTS=1` (e `CF_HAS_IMGUI=1`) ao compilar o plugin;
+  `doppio_add_plugin()` define ambos
 
 Use `cmake/DoppioPlugin.cmake`:
 
@@ -103,12 +129,12 @@ doppio_add_plugin(my_plugin OUTPUT_NAME my_plugin SOURCES src/main.cpp)
 | Style | Headers | Best for |
 |-------|---------|----------|
 | SDK-only | `caffeine/plugin/*.hpp` + ImGui | Panels, menus, lightweight tools |
-| Engine-coupled | `src/editor/*`, `src/ecs/*` | Terrain, post-process, deep Inspector integration |
+| Engine-coupled | `doppio-archived/src/doppio/editor/`, `src/caffeine/ecs/` | Terrain, post-process, deep Inspector integration |
 
 Engine-coupled plugins must be rebuilt when Caffeine internals change. Prefer services and the public SDK when possible.
 
 ## Further reading
 
-- [Caffeine Plugin SDK](https://github.com/caffeine-engine/caffeine/blob/main/docs/editor/plugin-sdk.md) (upstream)
+- [Referência do Plugin SDK](../editor/plugin-sdk.md)
 - [Installing plugins](installing-plugins.md)
 - [Hello template](https://github.com/devscafecommunity/doppio-plugins/tree/main/templates/hello-plugin)

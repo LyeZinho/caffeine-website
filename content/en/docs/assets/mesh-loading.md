@@ -1,18 +1,27 @@
 # 🗿 Mesh Loading
 
-> **Phase:**5 — Dimensional Transition
-> **Namespace:** `Caffeine::Assets` 
-> **File:** `src/assets/MeshLoader.hpp` 
-> **Status: ** Implemented
-> **RFs:** RF5.2, RF5.3
+<div class="doc-meta">
+  <span class="doc-badge doc-badge--stable">Stable</span>
+  <span><strong>Namespace:</strong> `Caffeine::Assets`</span>
+  <span><strong>File:</strong> `src/caffeine/assets/MeshLoader.hpp`</span>
+  <span>Last verified: <time datetime="2026-11-18">2026-11-18</time></span>
+  <span>Source: <a href="https://github.com/devscafecommunity/caffeine/blob/main/src/caffeine/assets/MeshTypes.hpp"><code>assets/MeshTypes.hpp</code></a></span>
+</div>
+
+<p class="doc-lede">Importing OBJ and glTF into <code>Mesh3D</code>: geometry, tangents,
+smooth normals, per-surface glTF materials and alpha modes, plus the GPU upload path.</p>
 
 ---
 
 ## Overview
 
-Carregamento de malhas 3D nos formatos `.obj` e `.gltf` , convertendo para o formato interno `.caf` (Mesh). Shaders HLSL (Windows Direct3D) / GLSL (Linux/macOS OpenGL via SDL_GPU).
+Loading 3D meshes in `.obj` and `.gltf` formats, converting them to the internal `.caf` (Mesh)
+representation. Shaders are GLSL sources compiled to SPIR-V by `Render::ShaderCompiler`.
 
-**Normal mapping:** after import, `computeMeshTangents()` preenche `Vertex3D::tangent` (vec4 com handedness em `.w` ). O editor liga normal maps via `MeshFilterComponent::customNormalPath` no shader Phong [`materials-phong.md`](../rendering/materials-phong.md).
+**Normal mapping:** after import, `computeMeshTangents()` fills `Vertex3D::tangent` (vec4 with
+handedness in `.w`). The editor binds normal maps through
+`MeshFilterComponent::customNormalPath` in the forward PBR pass
+[`materials-phong.md`](../rendering/materials-phong.md).
 
 **Smooth shading:** meshes importadas sem normais recebem `computeSmoothNormals()` em `MeshLoader.cpp` . Primitivas GPU procedurais ( `GpuProceduralMeshes.cpp` ) use analytical normals** — not call `computeSmoothNormals()` in them (avoids seams in sphere/torus/capsule). See [`plans/2026-09-22-viewport-rendering-quality-session.md`](../plans/2026-09-22-viewport-rendering-quality-session.md).
 
@@ -53,11 +62,16 @@ struct SubMesh {
 
 struct Mesh3D {
     std::vector<Vertex3D> vertices;
+    std::vector<VertexSkin> skin;                 // parallel to vertices when skinned
     std::vector<u32> indices;
     std::vector<SubMesh> subMeshes;
+    std::vector<MeshSurfaceMaterial> materials;   // per-surface glTF data
     Rect3D bounds;
     u32 lodCount = 1;
-    
+    u32 geometryRevision = 1;
+    u32 uploadedRevision = 0;
+    bool flipTextureV = true;                     // OBJ V-up vs glTF V-down
+
 #ifdef CF_HAS_SDL3
     RHI::Buffer* vertexBuffer = nullptr;
     RHI::Buffer* indexBuffer = nullptr;
@@ -121,33 +135,33 @@ struct Scale3D { Vec3 scale = Vec3(1.0f, 1.0f, 1.0f); };
 
 ---
 
-## Shader System (RF5.3)
+## Shader compilation
 
 ```cpp
 namespace Caffeine::Render {
 
-// ============================================================================
-// @brief  Compilação e gerenciamento de shaders.
-//
-//  Plataforma:
-//  - Windows:    HLSL → compilado com dxc → SPIR-V via SDL_GPU
-//  - Linux/macOS: GLSL → compilado com glslc → SPIR-V via SDL_GPU
-// ============================================================================
-class ShaderSystem {
-public:
-    RHI::Shader* loadVertex(const char* path);
-    RHI::Shader* loadFragment(const char* path);
-    RHI::Pipeline* createPipeline(RHI::Shader* vert,
-                                   RHI::Shader* frag,
-                                   const RHI::PipelineDesc& desc);
+struct CompiledShader {
+    std::vector<u8> bytecode;
+    std::string     errorLog;
+    bool            success = false;
+};
 
-    // Hot-reload de shaders (dev mode)
-    void reloadShader(const char* path);
-    void pollChanges();
+class ShaderCompiler {
+public:
+    // GLSL source → SPIR-V for the requested stage.
+    CompiledShader compileGlsl(const std::string& source, RHI::ShaderStage stage,
+                               const char* entryPoint = "main");
+    CompiledShader compileCached(const std::string& source, RHI::ShaderStage stage,
+                                 const char* entryPoint = "main");
+    void clearCache();
 };
 
 }  // namespace Caffeine::Render
 ```
+
+Built-in shaders are listed in `BuiltinShader` (`render/ShaderBytecode.hpp`) and created
+through `createBuiltinShader`; pipelines are built with
+`RenderDevice::createGraphicsPipeline(vs, fs, desc)`.
 
 ---
 
@@ -220,13 +234,11 @@ meshSystem.onUpdate(world, 0.016f);
 ## Dependencies
 
 - **Upstream:** [Asset Manager](../assets/asset-manager.md), [Formato .caf](../assets/caf-format.md), [RHI](../rendering/rhi.md)
-- **Downstream:** [Skeletal Animation] (skeletal-animation.md), [Phase 6 — Asset Pipeline](../assets/asset-pipeline. md)
+- **Downstream:** [Skeletal Animation](../animation/skeletal-animation.md), [Asset Pipeline](asset-pipeline.md)
 
 ---
 
-## References
-
-## 🔗 Related Topics
+## Related topics
 
 | Topic | Description |
 |--------|-----------|
@@ -235,7 +247,7 @@ meshSystem.onUpdate(world, 0.016f);
 
 ## References
 
-- [`docs/architecture_specs.md`](../architecture specs.md) — §15 Math Library
+- [`architecture_specs.md`](../architecture_specs.md) — §15 Math Library
 - [`rendering/rhi.md`](../rendering/rhi.md) — Buffer/Shader creation
-- [`rendering/texture-quality-lod.md`](../rendering/texture-lod.md) — LOD of textures in rendering GPU
+- [`rendering/texture-quality-lod.md`](../rendering/texture-quality-lod.md) — LOD of textures in rendering GPU
 - [`plans/2026-09-22-viewport-rendering-quality-session.md`](../plans/2026-09-22-viewport-rendering-quality-session.md) — shading seams in primitive

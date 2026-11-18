@@ -1,332 +1,133 @@
-# Editor Test Automation - Setup & Usage Guide
+# Editor test automation
 
-## Overview
+<div class="doc-meta">
+  <span class="doc-badge doc-badge--stable">Stable</span>
+  <span class="doc-badge">Doppio</span>
+  <span>Last verified: <time datetime="2026-11-18">2026-11-18</time></span>
+  <span>Source: <a href="https://github.com/devscafecommunity/caffeine/blob/main/doppio/docs/headless-testing.md"><code>headless-testing.md</code></a></span>
+</div>
 
-This document describes how to use the **autonomous test automation framework** for validating Caffeine Doppio editor features without manual UI testing.
+<p class="doc-lede">Doppio is tested by driving the real widget tree off-screen:
+plain JSON scripts, human-like input, assertions, screenshots, baselines and
+GIF/MP4 recordings. There is no separate Python harness.</p>
 
-**Problem Solved:**
-You can now implement ANY editor feature, create an automated test, and validate it 100% programmatically. No more sending screenshots back-and-forth.
+<div class="doc-callout doc-callout--note">
+  <p><strong>Note.</strong> Older revisions of this page described a Python
+  <code>editor_test_automation.py</code> process bridge. That harness is gone. The
+  supported path is <code>doppio-headless</code> and the committed UI flows.</p>
+</div>
 
----
+## The three layers
 
-## Architecture
+<table class="doc-table">
+  <thead>
+    <tr><th>Layer</th><th>Location</th><th>Runs</th></tr>
+  </thead>
+  <tbody>
+    <tr><td><strong>Flow</strong></td><td><code>doppio/tests/ui-flows/*.json</code></td><td>Every <code>cargo test</code> through <code>every_shipped_flow_passes</code> and through <code>scripts/check-rust-ui.sh</code>.</td></tr>
+    <tr><td><strong>Driver</strong></td><td><code>doppio/crates/ui/src/windows/main/headless/</code></td><td>Actions, targets, state snapshots, screenshots and recording.</td></tr>
+    <tr><td><strong>CLI</strong></td><td><code>scripts/doppio-headless.sh</code></td><td>Any shell, CI job or agent; no window opens.</td></tr>
+  </tbody>
+</table>
 
-> ┐
-> │ editor_test_automation.py │
-> - DoppioTestHarness (process control)
-> │ - EditorTestSuite (test cases) │
-> │ - JSON protocol (communication) │
-> └
-> │
-> ┐
-> │ │ │
-> ↓ ↓ ↓
-> [stdin/stdout] [env vars] [working dir]
-> │ │ │
-> ↓ ↓ ↓
-> ┐
-> Doppio (./build/doppio)
-> │ │
-> DOPPIO TEST MODE=1 activates:
-> │ - TestInstrumentation callbacks │
-> │ - JSON output on TEST_RESULT: │
-> │ - stdin command parsing │
-> └
-
-
----
-
-## Step 1: Enable Test Instrumentation in Doppio
-
-Add to `src/editor/SceneViewport.cpp` after selection changes:
-
-```cpp
-#include "editor/TestInstrumentation.hpp"
-
-// In click selection handler:
-if (selectedEntity.isValid()) {
-    if (shiftPressed) {
-        ctx.toggleSelection(selectedEntity);
-    } else {
-        ctx.selectEntity(selectedEntity);
-    }
-    
-    // INSTRUMENTATION:
-    TestInstrumentation::onEntitiesSelected(ctx.selectedEntities);
-}
-```
-
-Add after delete key handler:
-
-```cpp
-if (ImGui::IsKeyPressed(ImGuiKey_Delete) && ctx.selectedEntity.isValid()) {
-    ctx.beginUndo(EditorCommand::RemoveEntity, ctx.selectedEntity.id(), world);
-    world.destroy(ctx.selectedEntity);
-    ctx.selectedEntity = ECS::Entity::INVALID;
-    
-    // INSTRUMENTATION:
-    TestInstrumentation::onSceneEntities(/* list of scene entities */);
-    
-    ctx.endUndo(world);
-}
-```
-
-Add after scene load:
-
-```cpp
-// In scene loading code:
-TestInstrumentation::onSceneLoaded(scenePath);
-```
-
----
-
-## Step 2: Implement stdin Command Parsing
-
-In `src/editor/SceneViewport.cpp` in the `render()` method, add a test command processor:
-
-```cpp
-void processTestCommand(const std::string& cmd, ECS::World& world, EditorContext& ctx) {
-    if (cmd.find("select_entity") == 0) {
-        int id = std::stoi(cmd.substr(14));
-        ECS::Entity entity(id);
-        if (world.get<ECS::Transform>(entity) || world.get<ECS::Position3D>(entity)) {
-            ctx.selectEntity(entity);
-            TestInstrumentation::onEntitySelected(entity);
-        }
-    } 
-    else if (cmd.find("multi_select") == 0) {
-        int id = std::stoi(cmd.substr(13));
-        ECS::Entity entity(id);
-        ctx.toggleSelection(entity);
-        TestInstrumentation::onEntitiesSelected(ctx.selectedEntities);
-    }
-    else if (cmd == "delete_selected") {
-        if (ctx.selectedEntity.isValid()) {
-            world.destroy(ctx.selectedEntity);
-            ctx.selectedEntity = ECS::Entity::INVALID;
-            // Collect remaining entities
-            std::vector<ECS::Entity> remaining;
-            // ... iterate world entities ...
-            TestInstrumentation::onSceneEntities(remaining);
-        }
-    }
-    else if (cmd == "focus_selected") {
-        if (ctx.selectedEntity.isValid()) {
-            Vec3 pos;
-            if (tryGetEntityPosition(world, ctx.selectedEntity, pos)) {
-                ctx.camFocus = pos;
-                ctx.camDistance = 5.0f;
-                TestInstrumentation::onCameraFocused(pos, 5.0f);
-            }
-        }
-    }
-    else if (cmd == "get_scene") {
-        std::vector<ECS::Entity> entities;
-        // ... iterate world and collect ...
-        TestInstrumentation::onSceneEntities(entities);
-    }
-}
-
-// In render loop (if test mode):
-if (TestInstrumentation::isTestMode()) {
-    std::string cmd;
-    if (std::getline(std::cin, cmd)) {
-        processTestCommand(cmd, world, ctx);
-    }
-}
-```
-
----
-
-## Step 3: Compile with Test Support
-
-Doppio already compiles. Just ensure `TestInstrumentation.hpp` is in the include path.
+## Run the flows
 
 ```bash
-cd /home/pedro/repo/caffeine/build
-make doppio -j8
+./scripts/doppio-headless.sh run doppio/tests/ui-flows --format text
 ```
 
----
+Each flow gets its own artifact folder. A failing step prints the action, the target,
+the messages it produced and a hint. Exit codes: `0` pass, `1` step/assertion failure,
+`2` usage or invalid JSON.
 
-## Step 4: Create Test Fixture (Scene with Entities)
+## Write a flow
 
-Create a simple test scene manually in Doppio, or via script:
-
-```python
-#!/usr/bin/env python3
-import json
-
-# Create a simple scene with 3 cube entities
-scene = {
-    "entities": [
-        {
-            "id": 1,
-            "name": "Cube1",
-            "components": {
-                "Transform": {"position": [0, 0, 0], "scale": [1, 1, 1]},
-                "MeshFilter": {"primitive": "Cube"}
-            }
-        },
-        {
-            "id": 2,
-            "name": "Cube2",
-            "components": {
-                "Transform": {"position": [2, 0, 0], "scale": [1, 1, 1]},
-                "MeshFilter": {"primitive": "Cube"}
-            }
-        },
-        {
-            "id": 3,
-            "name": "Cube3",
-            "components": {
-                "Transform": {"position": [4, 0, 0], "scale": [1, 1, 1]},
-                "MeshFilter": {"primitive": "Cube"}
-            }
-        }
-    ]
+```json
+{
+  "name": "Open the Scene menu and add an entity",
+  "description": "Guards keyboard and menu routing for the add action.",
+  "fixture": "entities",
+  "size": [1280, 720],
+  "steps": [
+    { "action": "click", "target": "id:editor.menu.scene" },
+    { "action": "expect", "state": { "/menu": "Scene" }, "exists": "text:Add Entity" },
+    { "action": "click", "target": "id:editor.add_entity" },
+    { "action": "expect", "count": { "prefix": "hierarchy.list.entity_row.", "at_least": 3 } },
+    { "action": "screenshot", "name": "after-add", "annotate": true }
+  ]
 }
-
-with open('/tmp/test_scene.caf', 'w') as f:
-    json.dump(scene, f)
-
-print("Created test_scene.caf")
 ```
 
----
+Guidelines:
 
-## Step 5: Run Tests
+- Start from a fixture (`entities`, `empty`, `material`, `texture`, `scene3d`,
+  `nature`, `water`, `terrain`).
+- Use catalogue ids (`id:...`), not points, unless the point is the behaviour under
+  test.
+- Assert after each meaningful action; put a `label` on assertions so failures read
+  well.
+- Keep screenshots as artifacts; use `baseline` only when the visuals are the point.
+- Name the bug the flow guards in `description`.
+
+## Inspect the UI
 
 ```bash
-# Make the test script executable
-chmod +x /home/pedro/repo/caffeine/tests/editor_test_automation.py
-
-# Run tests against the Doppio binary with a test scene
-DOPPIO_TEST_MODE=1 python3 /home/pedro/repo/caffeine/tests/editor_test_automation.py \
-    /home/pedro/repo/caffeine/build/doppio \
-    /tmp/test_scene.caf
+./scripts/doppio-headless.sh widgets --size 1440x800
+./scripts/doppio-headless.sh screenshot --annotate --name workspace --out /tmp/shots
 ```
 
----
+`widgets` lists ids, kinds and bounds. `screenshot --annotate` numbers every
+catalogued widget and appends the legend `n. id — description`. The same catalogue
+drives the [UI reference](ui-reference.md).
 
-## Example Output
+## Capture documentation images
 
-```
-[DEBUG] 2026-05-24 00:15:30 - Launching: /home/pedro/repo/caffeine/build/doppio --scene /tmp/test_scene.caf
-[INFO] 2026-05-24 00:15:30 - Process started with PID 12345
+Committed capture flows live in `doppio/docs/flows/capture-*.json`. Their shell
+wrappers strip the numeric prefix so image names are stable:
 
-============================================================
-TEST: Scene Load
-============================================================
-[INFO] 2026-05-24 00:15:31 - Waiting for pattern: 'Scene loaded' (timeout: 15s)
-[INFO] 2026-05-24 00:15:32 - ✓ Found pattern: Scene loaded: /tmp/test_scene.caf
-[INFO] 2026-05-24 00:15:32 - ✓ Scene loaded successfully
-
-============================================================
-TEST: Entity Selection (ID: 1)
-============================================================
-[INFO] 2026-05-24 00:15:32 - Sending command: select_entity 1
-[INFO] 2026-05-24 00:15:32 - Waiting for result: selected_entity
-[INFO] 2026-05-24 00:15:32 - ✓ Result: {'key': 'selected_entity', 'id': 1}
-[INFO] 2026-05-24 00:15:32 - ✓ Entity 1 selected successfully
-
-============================================================
-TEST SUMMARY
-============================================================
-Passed: 5
-Failed: 0
-Total:  5
-Pass Rate: 100.0%
-============================================================
+```bash
+./scripts/capture-material-docs.sh
+./scripts/capture-nature-docs.sh
+./scripts/capture-terrain-docs.sh
+./scripts/capture-texture-docs.sh
+./scripts/capture-water-docs.sh
+./scripts/capture-gizmo-docs.sh
+./scripts/capture-editor-tour.sh   # short MP4/GIF tour
 ```
 
----
+A capture flow is a normal flow plus `screenshot` steps with `target`, `padding` and
+`scale`. See `doppio/docs/flows/capture-gizmo-docs.json` for the scene3d pattern.
 
-## How to Add New Tests
+## Record GIFs and videos
 
-1. **Write a new test method in `EditorTestSuite` :**
+`record_start` / `record_stop` capture the window or one widget and encode with
+ffmpeg:
 
-```mermaid
-flowchart TD
-  def_test_your_feature_self__arg1__int___["def test_your_feature(self, arg1: int) -> bool:"] --> ___Test__Your_feature_description____[""""Test: Your feature description.""""]
-  ___Test__Your_feature_description____[""""Test: Your feature description.""""] --> logger_info___n________60_["logger.info("\n" + "="*60)"]
-  ___Test__Your_feature_description____[""""Test: Your feature description.""""] --> logger_info__TEST__Your_Feature__["logger.info("TEST: Your Feature")"]
-  ___Test__Your_feature_description____[""""Test: Your feature description.""""] --> logger_info_____60_["logger.info("="*60)"]
-  ___Test__Your_feature_description____[""""Test: Your feature description.""""] --> __Send_command["# Send command"]
-  ___Test__Your_feature_description____[""""Test: Your feature description.""""] --> if_not_self_harness_send_test_command_f_["if not self.harness.send_test_command(f"your_command {arg1}"):"]
-  if_not_self_harness_send_test_command_f_["if not self.harness.send_test_command(f"your_command {arg1}"):"] --> logger_error____Failed__["logger.error("✗ Failed")"]
-  logger_error____Failed__["logger.error("✗ Failed")"] --> self_failed____1["self.failed += 1"]
-  logger_error____Failed__["logger.error("✗ Failed")"] --> return_False["return False"]
-  ___Test__Your_feature_description____[""""Test: Your feature description.""""] --> __Get_result["# Get result"]
-  ___Test__Your_feature_description____[""""Test: Your feature description.""""] --> result___self_harness_get_result__your_r["result = self.harness.get_result("your_result_key")"]
-  ___Test__Your_feature_description____[""""Test: Your feature description.""""] --> if_not_result_or_not_result_get__success["if not result or not result.get('success'):"]
-  if_not_result_or_not_result_get__success["if not result or not result.get('success'):"] --> logger_error____Feature_didn_t_work__["logger.error("✗ Feature didn't work")"]
-  logger_error____Feature_didn_t_work__["logger.error("✗ Feature didn't work")"] --> self_failed____1["self.failed += 1"]
-  logger_error____Feature_didn_t_work__["logger.error("✗ Feature didn't work")"] --> return_False["return False"]
-  ___Test__Your_feature_description____[""""Test: Your feature description.""""] --> logger_info____Feature_works___["logger.info("✓ Feature works!")"]
-  ___Test__Your_feature_description____[""""Test: Your feature description.""""] --> self_passed____1["self.passed += 1"]
-  ___Test__Your_feature_description____[""""Test: Your feature description.""""] --> return_True["return True"]
+```json
+{ "steps": [
+  { "action": "record_start", "name": "dock", "format": "mp4", "fps": 30, "target": "id:editor.pane.viewport" },
+  { "action": "drag", "from": "id:editor.pane.tab.console", "to": "point:900,300" },
+  { "action": "wait", "ms": 1200, "real_time": true },
+  { "action": "record_stop" }
+] }
 ```
 
+`format` accepts `gif`, `mp4` and `webm`; `width`, `scale`, `fps` and `keep_frames`
+control the output. A recording left open when the script ends is finished
+automatically.
 
-2. **Add instrumentation in Doppio** (for your new feature)
+## Regression rules
 
-3. **Call test from `main()` :**
+1. A user-visible fix or feature adds a flow under `doppio/tests/ui-flows/`.
+2. The flow must pass in `cargo test` and in `scripts/check-rust-ui.sh`.
+3. New widgets get a `UiId` and a `CATALOG` entry; otherwise they cannot be
+   targeted, annotated or documented.
+4. Visual changes regenerate the affected capture flow images; do not edit PNGs by
+   hand.
 
-```python
-suite.test_your_feature(42)
-```
+## Related pages
 
----
-
-## Troubleshooting
-
-### "Process not running" error
-- Check if Doppio crashes on startup
-- Run manually: `DOPPIO_TEST_MODE=1 ./doppio`
-- Check stderr output
-
-### "Timeout waiting for pattern"
-- Scene might not be loading
-- Check if test scene file exists
-- Add more logging to SceneViewport.cpp
-
-### "Failed to send command"
-- stdin might be closed
-- Check if Doppio is still running
-- Verify test mode is enabled (DOPPIO_TEST_MODE=1)
-
----
-
-## Integration with CI/CD
-
-Add to `.github/workflows/test.yml` :
-
-```yaml
-- name: Run Editor Tests
-  run: |
-    cd /home/pedro/repo/caffeine
-    DOPPIO_TEST_MODE=1 python3 tests/editor_test_automation.py \
-        ./build/doppio \
-        ./tests/fixtures/test_scene.caf
-```
-
----
-
-## Next Steps
-
-1. ✅ Integrate `TestInstrumentation.hpp` into SceneViewport.cpp
-2. Implement stdin command parsing
-3. Create test fixture scene
-4. Run tests
-5. For each new feature: Add test method → Add instrumentation → Verify
-
----
-
-## File Locations
-
-- **Test Framework**: `/home/pedro/repo/caffeine/tests/editor_test_automation.py`
-- **Instrumentation Header**: `/home/pedro/repo/caffeine/src/editor/TestInstrumentation.hpp`
-- **Test Fixtures**: `/home/pedro/repo/caffeine/tests/fixtures/`
-- **This Guide**: `/home/pedro/repo/caffeine/docs/editor/test-automation.md`
-
+- [Headless testing reference](https://github.com/devscafecommunity/caffeine/blob/main/doppio/docs/headless-testing.md)
+  — every action, target form, state key and screenshot option.
+- [UI reference](ui-reference.md) — generated ids and captions.
+- [Building](../getting-started/building.md) — test binaries and feature flags.

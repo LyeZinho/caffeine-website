@@ -1,5 +1,10 @@
 # Transform Gizmos Implementation Plan
 
+<div class="doc-meta">
+  <span class="doc-badge doc-badge--historical">Historical</span>
+  <span>Last updated: <time datetime="2026-11-18">2026-11-18</time></span>
+</div>
+
 > **For Claude:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development to implement this plan task-by-task.
 
 **Goal:** Implement Transform Gizmos (translate/rotate/scale) with axis-constrained dragging and snapping, supporting both 2D and 3D components.
@@ -12,11 +17,11 @@
 
 ## Files
 
-- Create: `src/editor/TransformGizmo.hpp`
-- Create: `src/editor/TransformGizmo.cpp`
-- Modify: `src/editor/SceneViewport.hpp` (add member, refactor gizmo methods)
-- Modify: `src/editor/SceneViewport.cpp` (integrate TransformGizmo)
-- Modify: `src/editor/EditorContext.hpp` (already has GizmoMode/GizmoSpace enums)
+- Create: `doppio-archived/src/doppio/editor/TransformGizmo.hpp`
+- Create: `doppio-archived/src/doppio/editor/TransformGizmo.cpp`
+- Modify: `doppio-archived/src/doppio/editor/SceneViewport.hpp` (add member, refactor gizmo methods)
+- Modify: `doppio-archived/src/doppio/editor/SceneViewport.cpp` (integrate TransformGizmo)
+- Modify: `src/caffeine/scene/EditorContext.hpp` (already has GizmoMode/GizmoSpace enums)
 - Modify: `CMakeLists.txt` (add TransformGizmo.cpp)
 - Test: Manual verification in editor
 
@@ -112,7 +117,7 @@ private:
 
 **Step 2: Run diagnostics**
 
-Run: `lsp_diagnostics` on `src/editor/TransformGizmo.hpp`
+Run: `lsp_diagnostics` on `doppio-archived/src/doppio/editor/TransformGizmo.hpp`
 
 Expected: No errors (only potential warnings about unused includes - ignore those)
 
@@ -569,7 +574,7 @@ float pointToLineDistance(const glm::vec2& point, const glm::vec2& lineStart, co
 
 **Step 2: Run diagnostics**
 
-Run: `lsp_diagnostics` on `src/editor/TransformGizmo.cpp`
+Run: `lsp_diagnostics` on `doppio-archived/src/doppio/editor/TransformGizmo.cpp`
 
 Expected: May need to include `<glm/geometric.hpp>` for `glm::round` and `glm::clamp` , or use `std::round` and manually clamp
 
@@ -611,7 +616,7 @@ The key integration point is calling `m_Gizmo.onImGuiRender(world, ctx.selectedE
 
 **Step 3: Run diagnostics**
 
-Run: `lsp_diagnostics` on `src/editor/SceneViewport.hpp` and `src/editor/SceneViewport.cpp`
+Run: `lsp_diagnostics` on `doppio-archived/src/doppio/editor/SceneViewport.hpp` and `doppio-archived/src/doppio/editor/SceneViewport.cpp`
 
 **Step 4: Commit**
 
@@ -692,8 +697,8 @@ Closes #90"
 
 ## Verification Checklist
 
-- [ ] `src/editor/TransformGizmo.hpp` exists and compiles
-- [ ] `src/editor/TransformGizmo.cpp` exists and compiles
+- [ ] `doppio-archived/src/doppio/editor/TransformGizmo.hpp` exists and compiles
+- [ ] `doppio-archived/src/doppio/editor/TransformGizmo.cpp` exists and compiles
 - [ ] `SceneViewport.hpp` includes TransformGizmo
 - [ ] `SceneViewport.cpp` calls `m_Gizmo.onImGuiRender()`
 - [ ] `CMakeLists.txt` includes `TransformGizmo.cpp`

@@ -1,6 +1,20 @@
 # Git Plugin
 
-> **Plugin:** `git_plugin.so` (optional — not bundled by default)
+<div class="doc-meta">
+  <span class="doc-badge doc-badge--reference">Reference</span>
+  <span><strong>Plugin:</strong> `git_plugin.so` (compilado do submódulo doppio-plugins; host legado)</span>
+  <span>Last updated: <time datetime="2026-11-18">2026-11-18</time></span>
+</div>
+
+<p class="doc-lede">Painel Git opcional para o host C++/ImGui legado: estado, stage, commit, branches, remotes, histórico e stash.</p>
+
+<div class="doc-callout doc-callout--warning">
+  <p><strong>Host legado.</strong> O Doppio ativo em Rust/Iced não carrega plugins C++.
+  Estas páginas documentam o SDK C++/ImGui e o seu host em
+  <code>caffeine-runtime</code> / <code>doppio-archived</code>. A engine continua a
+  compilar todos os plugins do submódulo para manter o SDK testado.</p>
+</div>
+
 
 Full Git workflow panel for the open Caffeine project. Requires `git` in PATH.
 

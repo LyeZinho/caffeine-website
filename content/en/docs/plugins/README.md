@@ -1,14 +1,35 @@
 # Plugins
 
-Doppio editor extensions are **shared libraries** built against the public
+<div class="doc-meta">
+  <span class="doc-badge doc-badge--reference">Reference</span>
+  <span>Last updated: <time datetime="2026-11-18">2026-11-18</time></span>
+</div>
+
+<div class="doc-callout doc-callout--warning">
+  <p><strong>Legacy host.</strong> The active Rust/Iced Doppio does not load C++ plugins.
+  These pages document the C++/ImGui plugin SDK and its host in the archived C++ editor
+  (<code>doppio-archived/</code>). The engine still builds every plugin from the submodule
+  so the SDK stays compile-tested.</p>
+</div>
+
+<p class="doc-lede">The plugin catalog, the C++/ImGui SDK contract and the build and
+install steps for the legacy editor host.</p>
+
+Editor extensions are **shared libraries** built against the public
 `caffeine/plugin/` SDK. They live in the separate
 [doppio-plugins](https://github.com/devscafecommunity/doppio-plugins) repository,
 which is pinned as an engine submodule.
 
-Doppio does not build or preload them. Install the libraries in a plugin directory
-and enable the ones you need from **Plugins → Plugin Manager**.
+The engine build compiles them into `build/plugins/`; the legacy host loads none of
+them at startup. Install the libraries in a plugin directory and enable the ones you
+need in that host's Plugin Manager. The current Rust Doppio neither scans nor loads
+these libraries.
 
-![Doppio plugin architecture](../images/diagrams/plugin-architecture.svg)
+<figure class="doc-figure">
+  <img src="../images/diagrams/plugin-architecture.svg" alt="Doppio plugin architecture" loading="lazy">
+  <figcaption>Doppio plugin architecture</figcaption>
+</figure>
+
 
 ## Catalog
 
@@ -49,4 +70,5 @@ cmake --build doppio-plugins/build -j
 cp doppio-plugins/build/plugins/*.so build/plugins/
 ```
 
-Then start Doppio and enable the plugin in the Plugin Manager.
+Then start the legacy C++ host and enable the plugin in its Plugin Manager. The
+libraries still build against the current engine; only the host is legacy.

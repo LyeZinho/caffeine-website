@@ -1,5 +1,10 @@
 # ProjectStartupDialog Tabs Implementation Plan
 
+<div class="doc-meta">
+  <span class="doc-badge doc-badge--historical">Historical</span>
+  <span>Last updated: <time datetime="2026-11-18">2026-11-18</time></span>
+</div>
+
 > **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
 
 **Goal:** Implement a 3-tab ProjectStartupDialog (Create New, Open Recent, Browse) with toast notifications and proper ImGui window management.
@@ -22,7 +27,7 @@
 ### Task 1: Add Toast Data Structure
 
 **Files:**
-- Modify: `src/editor/ProjectStartupDialog.hpp` (add after line 50)
+- Modify: `doppio-archived/src/doppio/editor/ProjectStartupDialog.hpp` (add after line 50)
 
 **Step 1: Write structure definition**
 
@@ -84,7 +89,7 @@ git commit -m "feat: add toast notification data structure to ProjectStartupDial
 ### Task 2: Implement Toast Methods
 
 **Files:**
-- Modify: `src/editor/ProjectStartupDialog.cpp` (add after line 56 - setError method)
+- Modify: `doppio-archived/src/doppio/editor/ProjectStartupDialog.cpp` (add after line 56 - setError method)
 
 **Step 1: Implement showToast()**
 
@@ -149,7 +154,7 @@ git commit -m "feat: implement toast notification methods (showToast, updateToas
 ### Task 3: Render Toasts in ImGui
 
 **Files:**
-- Modify: `src/editor/ProjectStartupDialog.cpp` (replace renderToasts stub, line ~90)
+- Modify: `doppio-archived/src/doppio/editor/ProjectStartupDialog.cpp` (replace renderToasts stub, line ~90)
 
 **Step 1: Implement renderToasts() with ImGui**
 
@@ -252,7 +257,7 @@ git commit -m "feat: implement toast notification rendering with ImGui"
 ### Task 4: Implement Tab Bar Structure
 
 **Files:**
-- Modify: `src/editor/ProjectStartupDialog.cpp` (refactor render() method, lines 66-101)
+- Modify: `doppio-archived/src/doppio/editor/ProjectStartupDialog.cpp` (refactor render() method, lines 66-101)
 
 **Step 1: Replace simple render() with tab structure**
 
@@ -420,7 +425,7 @@ git commit -m "feat: refactor render() into tab-based architecture with BeginTab
 ### Task 5: Add Recent Projects State
 
 **Files:**
-- Modify: `src/editor/ProjectStartupDialog.hpp` (add state after line 60)
+- Modify: `doppio-archived/src/doppio/editor/ProjectStartupDialog.hpp` (add state after line 60)
 
 **Step 1: Add state variables for Recent tab**
 
@@ -444,7 +449,7 @@ git commit -m "feat: add recent projects state variables to ProjectStartupDialog
 ### Task 6: Implement renderRecentTab()
 
 **Files:**
-- Modify: `src/editor/ProjectStartupDialog.cpp` (replace stub at line ~131)
+- Modify: `doppio-archived/src/doppio/editor/ProjectStartupDialog.cpp` (replace stub at line ~131)
 
 **Step 1: Load recent projects in init()**
 
@@ -537,7 +542,7 @@ git commit -m "feat: implement Open Recent tab with search filtering"
 ### Task 7: Implement renderBrowseTab()
 
 **Files:**
-- Modify: `src/editor/ProjectStartupDialog.cpp` (replace stub at line ~150)
+- Modify: `doppio-archived/src/doppio/editor/ProjectStartupDialog.cpp` (replace stub at line ~150)
 
 **Step 1: Implement renderBrowseTab()**
 
@@ -625,7 +630,7 @@ git commit -m "feat: implement Browse Projects tab with results list"
 ### Task 8: Remove Old Tab Methods (No Longer Needed)
 
 **Files:**
-- Modify: `src/editor/ProjectStartupDialog.cpp` (remove old stubs)
+- Modify: `doppio-archived/src/doppio/editor/ProjectStartupDialog.cpp` (remove old stubs)
 
 **Step 1: Check if old renderCreateTab, renderRecentTab, renderBrowseTab exist as separate methods**
 

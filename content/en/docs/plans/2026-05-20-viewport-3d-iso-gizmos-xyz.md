@@ -1,5 +1,10 @@
 # Viewport 3D/2D/Iso + Gizmos XYZ Implementation Plan
 
+<div class="doc-meta">
+  <span class="doc-badge doc-badge--historical">Historical</span>
+  <span>Last updated: <time datetime="2026-11-18">2026-11-18</time></span>
+</div>
+
 > **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
 
 **Goal:** Add 3D/2D/Iso view modes to the Scene Viewport with orbit/pan camera navigation, and upgrade all gizmos to show X/Y/Z axes (Z dimmed in 2D mode).
@@ -13,7 +18,7 @@
 ## Task 1: Add ViewMode + camera state to EditorContext
 
 **Files:**
-- Modify: `src/editor/EditorContext.hpp` (viewport state section ~line 111)
+- Modify: `src/caffeine/scene/EditorContext.hpp` (viewport state section ~line 111)
 
 **Step 1:** Add `ViewMode` enum and camera fields after the existing viewport state:
 
@@ -40,8 +45,8 @@ Expected: clean build (new fields, no breakage).
 ## Task 2: Centralise worldToScreen in SceneViewport
 
 **Files:**
-- Modify: `src/editor/SceneViewport.hpp` — add private helper declaration
-- Modify: `src/editor/SceneViewport.cpp` — implementation helper, replace inline formulas
+- Modify: `doppio-archived/src/doppio/editor/SceneViewport.hpp` — add private helper declaration
+- Modify: `doppio-archived/src/doppio/editor/SceneViewport.cpp` — implementation helper, replace inline formulas
 
 **Context:** Every draw function ( `drawSprites` , `drawEmptyEntities` , `drawPhysicsDebug` , `drawCameraFrustums` , `drawGizmo` ) currently computes screen position inline as:
 ```cpp
@@ -127,7 +132,7 @@ ImVec2 SceneViewport::projectToScreen(Math::Vec3 p, ImVec2 origin, ImVec2 viewpo
 ## Task 3: Add 3D/2D/Iso buttons to SceneViewport top-right
 
 **Files:**
-- Modify: `src/editor/SceneViewport.cpp` — in the `onImGuiRender` button rendering block (~line 160-187)
+- Modify: `doppio-archived/src/doppio/editor/SceneViewport.cpp` — in the `onImGuiRender` button rendering block (~line 160-187)
 
 **Step 1:** After the existing Physics/Snap buttons block (after `ImGui::PopStyleVar()` at ~line 186), add view-mode buttons in the **top-right** of the viewport:
 
@@ -165,7 +170,7 @@ ImVec2 SceneViewport::projectToScreen(Math::Vec3 p, ImVec2 origin, ImVec2 viewpo
 ## Task 4: Update input handling — middle mouse pan, right mouse orbit
 
 **Files:**
-- Modify: `src/editor/SceneViewport.cpp` — input section (~line 201-215)
+- Modify: `doppio-archived/src/doppio/editor/SceneViewport.cpp` — input section (~line 201-215)
 
 **Context:** Currently only middle-mouse pan and scroll zoom exist. Need to add right-mouse orbit for Mode3D/Iso.
 
@@ -212,7 +217,7 @@ if (hovered) {
 ## Task 5: Upgrade chalkmos — always XYZ, Z dimmed in Mode2D
 
 **Files:**
-- Modify: `src/editor/TransformGizmo.cpp` — `onImGuiRender` (~line 28-76)
+- Modify: `doppio-archived/src/doppio/editor/TransformGizmo.cpp` — `onImGuiRender` (~line 28-76)
 
 **Context:** Currently `onImGuiRender` checks if entity has `ECS::Position3D` to decide whether to use 2D or 3D gizmo. Now all entities use `ECS::Transform` (unified). The rule is:
 - **Always** use the 3D variants ( `renderTranslate3D` , `renderRotate3D` , `renderScale3D` ) — they show X+Y+Z
@@ -297,7 +302,7 @@ if (axis == GizmoAxis::Z) {
 ## Task 6: Update grid rendering for 3D/Iso modes
 
 **Files:**
-- Modify: `src/editor/SceneViewport.cpp` — `drawGrid` (~line 496)
+- Modify: `doppio-archived/src/doppio/editor/SceneViewport.cpp` — `drawGrid` (~line 496)
 
 **Context:** The grid currently draws horizontal/vertical lines in 2D ortho space. In Mode3D and Iso, the grid should render in the XZ or XY plane using `projectToScreen` .
 
@@ -357,7 +362,7 @@ void drawGrid3D(ImDrawList* dl, ImVec2 origin, ImVec2 viewportSize, const Editor
 **Note:** For isometric 2D-style games (Mario RPG, Stardew Valley-style), the "ground" is the XY plane (z=0), not the XZ plane. The grid in Task 6 uses XZ plane for 3D FPS-style. For Iso mode, the grid should be XY with z varying for height.
 
 **Files:**
-- Modify: `src/editor/SceneViewport.cpp` — `drawGrid3D`
+- Modify: `doppio-archived/src/doppio/editor/SceneViewport.cpp` — `drawGrid3D`
 
 **Step 1:** Branch `drawGrid3D` by mode:
 ```cpp

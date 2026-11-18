@@ -1,63 +1,139 @@
-# Galeria da interface do editor
+# Galeria de UI do editor
 
-O Doppio usa a biblioteca partilhada **Caffeine::UIKit** para todo o chrome do
-editor. Painéis, docking, toolbars e temas ficam consistentes entre o editor e as
-janelas dos plugins.
+<div class="doc-meta">
+  <span class="doc-badge doc-badge--stable">Stable</span>
+  <span class="doc-badge">Doppio</span>
+  <span>Verificado em: <time datetime="2026-11-18">2026-11-18</time></span>
+  <span>Fonte: <a href="https://github.com/devscafecommunity/caffeine/blob/main/doppio/docs/flows/capture-editor-docs.json"><code>capture-editor-docs.json</code></a></span>
+</div>
 
-![Gestor de projetos do Doppio no arranque](../images/captures/doppio-startup.png)
+<p class="doc-lede">Uma visita visual ao workspace Rust do Doppio, capturada fora do
+ecrã pelo driver headless para que cada imagem corresponda à árvore de widgets atual.</p>
 
-O diálogo de arranque cria ou reabre um projeto. Os templates pré-configuram
-projetos 2D ou 3D; **Empty** começa com uma cena vazia.
+<figure class="doc-figure">
+  <img src="../images/editor/project-manager.png" alt="Gestor de projetos do Doppio com os separadores Create New, Open Recent e Browse Projects" loading="lazy">
+  <figcaption>O Project Manager abre antes de qualquer cena. Crie um projeto, reabra um recente ou procure numa pasta de projetos.</figcaption>
+</figure>
 
-## Layout do editor
+## Arranque e gestor de projetos
 
-![Regiões do workspace por omissão](../images/diagrams/workspace-layout.svg)
+O Doppio arranca no gestor de projetos quando não recebe uma cena na linha de comandos.
+O diálogo tem três separadores:
 
-![Editor do Doppio com hierarchy, viewport, inspector e asset browser](../images/captures/doppio-editor.png)
+| Separador | Função |
+|---|---|
+| **Create New** | Nome do projeto, local, template (Empty / 2D / 3D) e **Create &amp; Open**. |
+| **Open Recent** | Projetos recentes com pesquisa e **Open Selected**. |
+| **Browse Projects** | Procura `project.caffeine` numa pasta. |
 
-O workspace por omissão está dividido em quatro regiões:
+A pasta padrão é `~/Documents/CaffeineProjects`; pode ser alterada com
+`CAFFEINE_PROJECTS_DIR`. O manifesto é `project.caffeine`, e as pastas padrão são
+criadas na hora.
 
-| Região | Painéis por omissão |
-|--------|---------------------|
-| Esquerda | Hierarchy, Toolbox |
-| Centro | Scene Viewport |
-| Direita | Inspector |
-| Baixo | Asset Browser, Console |
+## Workspace padrão
 
-Cada painel é registado por um id estável no `UIKit::PanelRegistry`. A árvore de
-docking vive em `assets/ui/workspace.json`, a paleta em `assets/ui/theme.json`, e
-ambos podem ser recarregados em runtime sem reiniciar o Doppio.
+<figure class="doc-figure">
+  <img src="../images/editor/workspace-scene.png" alt="Workspace padrão do Doppio com Hierarchy, Viewport, Inspector e os painéis Assets e Console" loading="lazy">
+  <figcaption>O layout padrão com uma cena do motor. A barra superior tem os menus e o estado do projeto/cena; a doca inferior tem Assets e Console.</figcaption>
+</figure>
 
-## Viewport da cena
+<video class="doc-video" autoplay loop muted playsinline width="960"
+       poster="../images/editor/workspace-scene.png">
+  <source src="../images/editor/doppio-tour.mp4" type="video/mp4">
+  <a href="../images/editor/doppio-tour.gif">Ver a visita ao workspace (GIF)</a>
+</video>
 
-![Viewport com toolbar só de ícones e navigation gizmo](../images/captures/doppio-scene.png)
+<p class="doc-caption">O mesmo flow de captura pode gravar movimento: os menus abrem, uma linha da hierarchy é selecionada, e o ffmpeg codifica o resultado em MP4.</p>
 
-A toolbar do viewport é deliberadamente **só com ícones e sem fundo**, para flutuar
-sobre a imagem renderizada. As ferramentas estão agrupadas em:
+O workspace é uma única janela Iced dividida em quatro regiões encaixadas:
 
-1. Seleção e transformação (select, mover, rodar, escalar).
-2. Modos de vista (2D, 3D, isométrico) e projeção (perspetiva / ortográfica).
-3. Toggles de visualização (grelha, gizmos, iluminação).
+- **Hierarchy** à esquerda.
+- **Viewport** e ferramentas de conteúdo ao centro.
+- **Inspector** e geradores de assets à direita.
+- **Assets + Console** na doca inferior.
 
-O navigation gizmo no canto superior direito também alterna entre projeção
-perspetiva e ortográfica. **Isométrico** é uma vista 3D de primeira classe: fixa os
-ângulos de câmara em 45° / 35.264° e ativa projeção ortográfica. A mesma matriz
-view-projection é usada pelo renderer GPU, picking CPU, overlays e grelha.
+Os separadores podem ser arrastados entre painéis; o guia de docking mostra o centro e
+as arestas. Os botões maximizam e restauram. Os presets são `Ctrl+1` (Default) e
+`Ctrl+2` (Viewport).
 
-## Tema e densidade
+## Painéis
 
-- Paleta grafite neutra com um único acento quente.
-- Overline de acento nas tabs ativas, separadores subtis, sem bordas pesadas.
-- Controlos compactos e property grids deixam o viewport dominante.
-- Paleta clara e overrides do utilizador são suportados por `theme.json`.
+<figure class="doc-figure">
+  <img src="../images/editor/pane-hierarchy.png" alt="Painel Hierarchy com árvore de cena, campo de pesquisa e botão de adicionar" loading="lazy">
+  <figcaption>Hierarchy: pesquisa, árvore com grupos pai, seleção e botão de adicionar. Arraste uma linha para outra para reparentar.</figcaption>
+</figure>
 
-## Capturar screenshots
+<figure class="doc-figure">
+  <img src="../images/editor/pane-inspector.png" alt="Painel Inspector com nome da entidade, campos de transform, cartões de componentes e Add Behaviour" loading="lazy">
+  <figcaption>Inspector: nome, transform combinada, cartões de componentes colapsáveis e o seletor Add Behaviour.</figcaption>
+</figure>
 
-As imagens acima são geradas a partir do próprio repositório:
+<figure class="doc-figure">
+  <img src="../images/editor/pane-assets.png" alt="Painel Assets com árvore de pastas, breadcrumb, botões New e Import e grelha de assets" loading="lazy">
+  <figcaption>Assets: árvore de pastas, breadcrumb, pesquisa, modos grelha/lista e o wizard New/Import.</figcaption>
+</figure>
+
+<figure class="doc-figure">
+  <img src="../images/editor/pane-console.png" alt="Painel Console com entradas de log tipadas e filtráveis" loading="lazy">
+  <figcaption>Console: filtros Errors, Log, Actions, Engine e UI, com a entrada mais recente no fundo.</figcaption>
+</figure>
+
+## Menus
+
+<figure class="doc-figure">
+  <img src="../images/editor/menu-scene.png" alt="Menu Scene aberto com Add Entity, Create Entity, New Material, geradores, Save Scene e Play" loading="lazy">
+  <figcaption>Menu Scene: entidades, gerador de materiais, painéis de script e Dryad, gravar e play.</figcaption>
+</figure>
+
+<figure class="doc-figure">
+  <img src="../images/editor/menu-view.png" alt="Menu View aberto com geradores, comandos de câmara, marcadores, grelha, gizmos e layouts" loading="lazy">
+  <figcaption>Menu View: geradores, focar/repor câmara, render now, marcadores, grelha, modos de gizmo e presets de layout.</figcaption>
+</figure>
+
+Os menus são overlays flutuantes. Passar o rato sobre um widget por trás de um menu
+aberto não o fecha; clique fora, prima `Escape` ou escolha um item.
+
+## Ferramentas de conteúdo
+
+### Material Generator
+
+<figure class="doc-figure">
+  <img src="../images/editor/material-generator.png" alt="Material Generator com grafo de nós, pré-visualização e controlos de channel packing" loading="lazy">
+  <figcaption>O Material Generator: paleta de nós, canvas do grafo, pré-visualização ao vivo, canais e packing ORM. Bake to Material escreve os mapas no <code>.mat</code> aberto.</figcaption>
+</figure>
+
+### Texture Generator
+
+<figure class="doc-figure">
+  <img src="../images/editor/texture-generator.png" alt="Texture Generator com grafo de nós, pré-visualização e controlos de exportação" loading="lazy">
+  <figcaption>O Texture Generator usa o mesmo node canvas com operações de textura, presets, exportação e flipbooks.</figcaption>
+</figure>
+
+### Nature, Water e Terrain
+
+<figure class="doc-figure">
+  <img src="../images/editor/nature-generator.png" alt="Nature Generator com grafo de nós e plantas geradas" loading="lazy">
+  <figcaption>Nature Generator: rochas, árvores e plantas a partir de um grafo, com modos de qualidade e exportação OBJ.</figcaption>
+</figure>
+
+<figure class="doc-figure">
+  <img src="../images/editor/water-generator.png" alt="Water Generator com grafo de ondas e pré-visualização da água" loading="lazy">
+  <figcaption>Water Generator: fontes de onda, modificadores, controlos de aspeto e presets.</figcaption>
+</figure>
+
+<figure class="doc-figure">
+  <img src="../images/editor/terrain-generator.png" alt="Terrain Generator com grafo de campos, camadas splat e pré-visualização 3D" loading="lazy">
+  <figcaption>Terrain Generator: fontes de campo, modificadores, máscaras e erosão, com pré-visualização splat e Place in Scene.</figcaption>
+</figure>
+
+## Reconstruir esta galeria
+
+As imagens vêm de um flow headless comprometido:
 
 ```bash
-python3 scripts/capture_doppio_ui.py
+./scripts/capture-editor-docs.sh   # PNGs
+./scripts/capture-editor-tour.sh   # MP4 + GIF
 ```
 
-A lista de shots está em [`caffeine-website/captures/shots.json`](https://github.com/devscafecommunity/caffeine-website/blob/main/captures/shots.json)
-e as imagens ficam em `caffeine-website/content/pt/docs/images/captures/`.
+Escreve nomes estáveis em `doppio/docs/images/editor/`. Copie os ficheiros para
+`content/{en,pt}/docs/images/editor/` depois de regenerar. Não edite os PNGs à mão.

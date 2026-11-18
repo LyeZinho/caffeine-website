@@ -1,5 +1,10 @@
 # Caffeine Ecosystem Three-Phase Implementation Plan
 
+<div class="doc-meta">
+  <span class="doc-badge doc-badge--historical">Historical</span>
+  <span>Last updated: <time datetime="2026-11-18">2026-11-18</time></span>
+</div>
+
 > **Historical note:** Convoy and WaveShaper are no longer part of the Caffeine repository. The references below describe the original plan.
 
 > **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
@@ -17,8 +22,8 @@
 ### Task 1.1: Create CAP Loader Module
 
 **Files:**
-- Create: `src/editor/CapLoader.hpp`
-- Create: `src/editor/CapLoader.cpp`
+- Create: `doppio-archived/src/doppio/editor/CapLoader.hpp`
+- Create: `doppio-archived/src/doppio/editor/CapLoader.cpp`
 
 **Step 1: Write CapLoader header with interface**
 
@@ -152,8 +157,8 @@ git commit -m "feat: add CAP file loader for Asset Browser"
 ### Task 1.2: Extend Asset Browser with CAP Mode
 
 **Files:**
-- Modify: `src/editor/AssetBrowser.hpp:1-150`
-- Modify: `src/editor/AssetBrowser.cpp:1-300`
+- Modify: `doppio-archived/src/doppio/editor/AssetBrowser.hpp`
+- Modify: `doppio-archived/src/doppio/editor/AssetBrowser.cpp`
 
 **Step 1: Add CAP mode enum and loading method to header**
 
@@ -259,8 +264,8 @@ git commit -m "feat: add CAP file browsing mode to Asset Browser"
 ### Task 1.3: Create Audio Waveform Renderer
 
 **Files:**
-- Create: `src/editor/AudioWaveformRenderer.hpp`
-- Create: `src/editor/AudioWaveformRenderer.cpp`
+- Create: `doppio-archived/src/doppio/editor/AudioWaveformRenderer.hpp`
+- Create: `doppio-archived/src/doppio/editor/AudioWaveformRenderer.cpp`
 
 **Step 1: Write header**
 
@@ -408,8 +413,8 @@ git commit -m "feat: add audio waveform generator for Asset Browser previews"
 ### Task 1.4: Extend Drag-Drop for Auto-Pack Import
 
 **Files:**
-- Modify: `src/editor/DragDropSystem.hpp:50-100`
-- Modify: `src/editor/DragDropSystem.cpp:100-200`
+- Modify: `doppio-archived/src/doppio/editor/DragDropSystem.hpp`
+- Modify: `doppio-archived/src/doppio/editor/DragDropSystem.cpp`
 
 **Step 1: Add import handler to DragDropSystem header**
 
@@ -500,7 +505,7 @@ git commit -m "feat: add drag-drop auto-pack import to Asset Browser"
 ### Task 1.5: Add Project Auto-Load for game.cap
 
 **Files:**
-- Modify: `src/editor/ProjectManager.cpp:150-200`
+- Modify: `src/caffeine/project/ProjectManager.cpp`
 
 **Step 1: Find ProjectManager::openProject method**
 
@@ -812,7 +817,7 @@ git commit -m "feat: add mesh processor for OBJ to CAF conversion"
 **Files:**
 - Modify: `caf-pack/CMakeLists.txt`
 - Modify: `caf-pack/src/Packer.cpp`
-- Modify: `src/editor/CapLoader.cpp`
+- Modify: `doppio-archived/src/doppio/editor/CapLoader.cpp`
 
 **Step 1: Add zstd to CMakeLists.txt**
 
@@ -1073,8 +1078,8 @@ git commit -m "feat: add asset ID header generator (--gen-ids flag)"
 ### Task 3.1: Implement Async Asset Loading Infrastructure
 
 **Files:**
-- Create: `src/engine/AssetLoader.hpp`
-- Create: `src/engine/AssetLoader.cpp`
+- Create: `src/caffeine/engine/AssetLoader.hpp`
+- Create: `src/caffeine/engine/AssetLoader.cpp`
 
 **Step 1: Design async loader interface**
 

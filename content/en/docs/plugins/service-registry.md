@@ -1,6 +1,23 @@
 # Service registry
 
-Doppio provides a **generic service registry**. Plugins register named handlers; any code (host or other plugins) can call `invokeService`.
+<div class="doc-meta">
+  <span class="doc-badge doc-badge--reference">Reference</span>
+  <span>Last updated: <time datetime="2026-11-18">2026-11-18</time></span>
+</div>
+
+<div class="doc-callout doc-callout--warning">
+  <p><strong>Legacy host.</strong> The active Rust/Iced Doppio does not load C++ plugins.
+  These pages document the C++/ImGui plugin SDK and its host in the archived C++ editor
+  (<code>doppio-archived/</code>). The engine still builds every plugin from the submodule
+  so the SDK stays compile-tested.</p>
+</div>
+
+
+<p class="doc-lede">Named request/response handlers let one plugin call another, or a host
+capability, without linking the two together.</p>
+
+The legacy C++ host provides a **generic service registry**. Plugins register named
+handlers; any code (host or other plugins) can call `invokeService`.
 
 This avoids hardcoding feature bridges inside the editor core.
 

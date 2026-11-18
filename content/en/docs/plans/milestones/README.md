@@ -1,5 +1,10 @@
 # Editor milestones
 
+<div class="doc-meta">
+  <span class="doc-badge doc-badge--historical">Historical</span>
+  <span>Last updated: <time datetime="2026-11-18">2026-11-18</time></span>
+</div>
+
 Historical planning for the Doppio editor, moved here from the engine tree. The
 documents are kept as design records; implementation notes live in the module
 reference and in the dated plans under `docs/plans/`.

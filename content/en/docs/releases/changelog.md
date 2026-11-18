@@ -1,8 +1,15 @@
 # Changelog
 
+<div class="doc-meta">
+  <span class="doc-badge doc-badge--reference">Reference</span>
+  <span>Last updated: <time datetime="2026-11-18">2026-11-18</time></span>
+</div>
+
+<p class="doc-lede">Notable engine and Doppio changes through November 2026, newest first, followed by a commit appendix captured on 2026-09-22.</p>
+
 Todas as alterações notáveis do projeto **Caffeine Engine** / **Doppio IDE** estão documentadas neste ficheiro.
 
-O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/) e o histórico completo de **419 commits** (desde 2026-04-06) está no [Apêndice](#apêndice--histórico-completo-de-commits).
+O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/) e o histórico completo (desde 2026-04-06) está no [Apêndice](#apêndice--histórico-completo-de-commits).
 
 Legenda de categorias: **Added** · **Changed** · **Fixed** · **Removed** · **Deprecated** · **Security**
 
@@ -13,6 +20,28 @@ Legenda de categorias: **Added** · **Changed** · **Fixed** · **Removed** · *
 _Nada por agora._
 
 ---
+
+## [2026-11-18] — Documentation refresh
+
+### Added
+- HTML-first authoring standard (`DOCS_STYLE.md`) with metadata strips, figures,
+  callouts, collapsible reference blocks and rich tables.
+- `scripts/audit-docs.py`, `scripts/fix-doc-paths.py` and `scripts/modernize-docs.py`
+  for links, source paths and HTML structure.
+- `scripts/capture-editor-docs.sh` and `scripts/capture-editor-tour.sh` for headless
+  editor screenshots and MP4/GIF tours.
+
+### Changed
+- Every documentation page now has a `doc-meta` strip and source links use absolute
+  GitHub URLs.
+- Editor pages describe the Rust/Iced Doppio; legacy C++/ImGui editor and plugin
+  pages are explicitly marked.
+- EN/PT mirrors are checked by structure (headings, fences, images) instead of exact
+  line counts.
+
+### Fixed
+- Stale source paths, broken relative links, missing Portuguese pages and outdated
+  status fields across the documentation tree.
 
 ## [2026-09-23] — Performance do editor, profiler hierárquico & skybox
 
@@ -62,7 +91,7 @@ _Nada por agora._
 - Viewport: pan/zoom 2D melhorado, click-to-select, qualidade de rendering.
 
 ### Removed
-- Geração procedural de terrain embutida no core (`src/terrain/generation/*`).
+- Geração procedural de terrain embutida no core (`src/caffeine/terrain/`).
 - Bridges builtin terrain/procedural do Doppio (`TerrainBridge`, `ProceduralBridge` no core).
 
 ---
@@ -205,7 +234,7 @@ _Nada por agora._
 
 ## Apêndice — Histórico completo de commits
 
-> 419 commits desde 2026-04-06 até 2026-09-22.
+> Apêndice capturado em 2026-09-22: 419 commits desde 2026-04-06.
 
 ### 2026-04 (81 commits)
 

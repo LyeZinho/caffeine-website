@@ -1,5 +1,10 @@
 # Object Selection via Raycasting Implementation Plan
 
+<div class="doc-meta">
+  <span class="doc-badge doc-badge--historical">Historical</span>
+  <span>Last updated: <time datetime="2026-11-18">2026-11-18</time></span>
+</div>
+
 > **For Claude:** Execute this plan task-by-task directly in this session. No subagents.
 
 **Goal:** Implement click-to-select for entities in 3D viewport using raycasting against AABB bounding boxes.
@@ -14,8 +19,8 @@ On left-click, convert screen coords to world-space ray (reuse `screenToWorldRay
 ## Task 1: Add `rayIntersectsAABB()` Helper Function
 
 **Files:**
-- Modify: `src/editor/SceneViewport.hpp` (add function declaration)
-- Modify: `src/editor/SceneViewport.cpp` (add implementation)
+- Modify: `doppio-archived/src/doppio/editor/SceneViewport.hpp` (add function declaration)
+- Modify: `doppio-archived/src/doppio/editor/SceneViewport.cpp` (add implementation)
 
 **Step 1: Add function declaration to header**
 
@@ -110,8 +115,8 @@ git commit -m "feat(selection): add rayIntersectsAABB for object picking"
 ## Task 2: Add `raycastSelectEntity()` - Entity Iteration & Hit Detection
 
 **Files:**
-- Modify: `src/editor/SceneViewport.hpp` (add function declaration)
-- Modify: `src/editor/SceneViewport.cpp` (add implementation)
+- Modify: `doppio-archived/src/doppio/editor/SceneViewport.hpp` (add function declaration)
+- Modify: `doppio-archived/src/doppio/editor/SceneViewport.cpp` (add implementation)
 
 **Step 1: Add function declaration**
 
@@ -204,7 +209,7 @@ git commit -m "feat(selection): add raycastSelectEntity for closest hit detectio
 ## Task 3: Integrate Click Detection & Ray Generation into onImGuiRender()
 
 **Files:**
-- Modify: `src/editor/SceneViewport.cpp` (add click handling logic)
+- Modify: `doppio-archived/src/doppio/editor/SceneViewport.cpp` (add click handling logic)
 
 **Step 1: Find click handling location**
 
@@ -353,7 +358,7 @@ Note any issues:
 ## Task 5: Edge Case Handling & Robustness
 
 **Files:**
-- Modify: `src/editor/SceneViewport.cpp` (add validation)
+- Modify: `doppio-archived/src/doppio/editor/SceneViewport.cpp` (add validation)
 
 **Step 1: Add null-check guards in raycastSelectEntity()**
 

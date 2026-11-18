@@ -1,5 +1,10 @@
 # Hot-Reload de Assets — Design
 
+<div class="doc-meta">
+  <span class="doc-badge doc-badge--historical">Historical</span>
+  <span>Last updated: <time datetime="2026-11-18">2026-11-18</time></span>
+</div>
+
 **Date:** 2026-05-15
 **Issue:** #93
 **Milestone:** M2 — Visual Editing & Assets

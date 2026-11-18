@@ -1,5 +1,10 @@
 # 3D Mesh Enhancements Implementation Plan
 
+<div class="doc-meta">
+  <span class="doc-badge doc-badge--historical">Historical</span>
+  <span>Last updated: <time datetime="2026-11-18">2026-11-18</time></span>
+</div>
+
 > **For Claude:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development to execute this plan task-by-task in the current session.
 
 **Goal:** Extend 3D mesh rendering with mesh caching, filled geometry rendering, texture support, and LOD (Level of Detail) simplification.
@@ -17,9 +22,9 @@
 ## Task 1: Create Mesh Cache System
 
 **Files:**
-- Create: `src/assets/MeshCache.hpp`
-- Create: `src/assets/MeshCache.cpp`
-- Modify: `src/editor/SceneViewport.cpp` (use cache in Custom mesh case)
+- Create: `src/caffeine/assets/MeshCache.hpp`
+- Create: `src/caffeine/assets/MeshCache.cpp`
+- Modify: `doppio-archived/src/doppio/editor/SceneViewport.cpp` (use cache in Custom mesh case)
 
 **Step 1: Create MeshCache header**
 
@@ -146,7 +151,7 @@ git commit -m "feat: add mesh caching system to avoid reloading per frame"
 ## Task 2: Update SceneViewport to Use Cache
 
 **Files:**
-- Modify: `src/editor/SceneViewport.cpp` (lines 844-915, Custom mesh case)
+- Modify: `doppio-archived/src/doppio/editor/SceneViewport.cpp` (lines 844-915, Custom mesh case)
 
 **Step 1: Include MeshCache header**
 
@@ -199,7 +204,7 @@ git commit -m "feat: integrate mesh cache into viewport rendering"
 ## Task 3: Add Filled Geometry Rendering
 
 **Files:**
-- Modify: `src/editor/SceneViewport.cpp` (Custom mesh case, lines 844-915)
+- Modify: `doppio-archived/src/doppio/editor/SceneViewport.cpp` (Custom mesh case, lines 844-915)
 
 **Step 1: Add filled triangle rendering function**
 
@@ -262,13 +267,13 @@ git commit -m "feat: add filled geometry rendering with semi-transparent blue fi
 ## Task 4: Add Texture Loading and Display
 
 **Files:**
-- Modify: `src/assets/MeshLoader.cpp` (parseGLTF function)
-- Modify: `src/assets/MeshTypes.hpp` (add texture field to Mesh3D)
-- Modify: `src/editor/SceneViewport.cpp` (use texture data for coloring)
+- Modify: `src/caffeine/assets/MeshLoader.cpp` (parseGLTF function)
+- Modify: `src/caffeine/assets/MeshTypes.hpp` (add texture field to Mesh3D)
+- Modify: `doppio-archived/src/doppio/editor/SceneViewport.cpp` (use texture data for coloring)
 
 **Step 1: Extend Mesh3D to store texture data**
 
-In `src/assets/MeshTypes.hpp`, modify `Mesh3D` struct:
+In `src/caffeine/assets/MeshTypes.hpp`, modify `Mesh3D` struct:
 
 ```cpp
 struct Mesh3D {
@@ -292,7 +297,7 @@ struct Mesh3D {
 
 **Step 2: Load embedded textures in parseGLTF**
 
-Modify `src/assets/MeshLoader.cpp` parseGLTF function to extract base64 texture URIs from glTF:
+Modify `src/caffeine/assets/MeshLoader.cpp` parseGLTF function to extract base64 texture URIs from glTF:
 
 ```cpp
 // After successful model load, iterate textures:
@@ -311,7 +316,7 @@ for (const auto& texture : model.textures) {
 
 **Step 3: Use texture for coloring in viewport**
 
-In `src/editor/SceneViewport.cpp`, modify filled triangle rendering to sample texture color:
+In `doppio-archived/src/doppio/editor/SceneViewport.cpp`, modify filled triangle rendering to sample texture color:
 
 ```cpp
 // Inside filled triangle loop
@@ -366,9 +371,9 @@ git commit -m "feat: load and display embedded glTF textures in viewport"
 ## Task 5: Add LOD (Level of Detail) Generation
 
 **Files:**
-- Create: `src/assets/MeshLOD.hpp`
-- Create: `src/assets/MeshLOD.cpp`
-- Modify: `src/assets/MeshLoader.cpp` (call LOD generator)
+- Create: `src/caffeine/assets/MeshLOD.hpp`
+- Create: `src/caffeine/assets/MeshLOD.cpp`
+- Modify: `src/caffeine/assets/MeshLoader.cpp` (call LOD generator)
 
 **Step 1: Create LOD header**
 
@@ -438,7 +443,7 @@ void MeshLOD::simplifyMesh(const Mesh3D& source, Mesh3D& target, f32 targetRatio
 
 **Step 3: Integrate LOD into parseGLTF**
 
-In `src/assets/MeshLoader.cpp`, after mesh loading, call:
+In `src/caffeine/assets/MeshLoader.cpp`, after mesh loading, call:
 
 ```cpp
 // After mesh is fully loaded:
@@ -474,7 +479,7 @@ git commit -m "feat: add LOD level generation framework for mesh simplification"
 ## Task 6: Use LOD Based on Viewport Distance
 
 **Files:**
-- Modify: `src/editor/SceneViewport.cpp` (Custom mesh case)
+- Modify: `doppio-archived/src/doppio/editor/SceneViewport.cpp` (Custom mesh case)
 
 **Step 1: Calculate distance from camera to mesh**
 

@@ -1,11 +1,22 @@
 # UI kit composável
 
-A UI do Doppio é construída com **elementos** pequenos e reutilizáveis. Um painel
-não é um caso especial: é uma árvore de objetos, cards e controlos. O mesmo
-modelo está disponível para plugins, por isso um painel de plugin parece e
-comporta-se como um painel nativo do Doppio.
+<div class="doc-meta">
+  <span class="doc-badge doc-badge--reference">Reference</span>
+  <span>Last updated: <time datetime="2026-11-18">2026-11-18</time></span>
+</div>
 
-![UI Gallery com cards, controlos, texto, progresso e property rows](../images/captures/ui-gallery-elements.png)
+<p class="doc-lede">O kit imediato C++ composável usado pelo runtime e plugins legados.</p>
+
+Este kit pertence ao **runtime e ao host C++/ImGui legado**, não ao Doppio Rust
+ativo. Um painel é uma árvore de objetos, cards e controlos; os plugins usam o
+mesmo modelo para os seus painéis parecerem nativos do host. O editor Rust usa
+componentes Iced e `uikit/theme.rs`.
+
+<figure class="doc-figure">
+  <img src="../images/captures/ui-gallery-elements.png" alt="UI Gallery com cards, controlos, texto, progresso e property rows" loading="lazy">
+  <figcaption>UI Gallery com cards, controlos, texto, progresso e property rows</figcaption>
+</figure>
+
 
 ## Objetos → Cards → Painéis
 

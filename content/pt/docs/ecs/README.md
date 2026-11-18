@@ -1,5 +1,16 @@
 # Caffeine ECS Core Documentation
 
+<div class="doc-meta">
+  <span class="doc-badge doc-badge--reference">Reference</span>
+  <span class="doc-badge">Engine</span>
+  <span>Atualizado em: <time datetime="2026-11-18">2026-11-18</time></span>
+  <span>Fonte: <a href="https://github.com/devscafecommunity/caffeine/blob/main/src/caffeine/ecs/World.hpp"><code>ecs/World.hpp</code></a></span>
+</div>
+
+<p class="doc-lede">O Caffeine usa um ECS por arquétipos: entidades são ids numéricos,
+componentes são structs simples e todas as entidades com o mesmo conjunto de
+componentes partilham um arquétipo denso que as queries percorrem linearmente.</p>
+
 ## Table of Contents
 
 1. [Introduction](#introduction)
@@ -18,171 +29,178 @@
 
 ## Introduction
 
-The Caffeine ECS (Entity Component System) is a high-performance, thread-safe architecture for managing game entities and their behaviors. It solves the fundamental game development challenge: organizing entities (players, enemies, objects) and their behaviors (movement, rendering, physics) in a way that's efficient, maintainable, and scalable.
+O ECS guarda o estado do jogo como dados e executa comportamento em sistemas. Uma
+**entidade** é um id `u32` mais um `World*`; um **componente** é uma struct simples
+registada por tipo; um **sistema** é um objeto com `onUpdate(World&, f32)`.
 
 ### Why ECS?
 
-Traditional object-oriented game programming uses deep hierarchies and inheritance, which leads to:
-- **Fragile hierarchies**: Adding new behavior types requires modifying base classes
-- **Poor cache locality**: Game logic scatters across objects in memory
-- **Difficult parallelization**: Entity interdependencies prevent safe multi-threaded execution
+Código orientado a objetos coloca estado e comportamento em hierarquias profundas de
+classes. Isso dificulta a combinação de comportamentos, espalha dados relacionados
+pela memória e torna a iteração paralela segura difícil.
 
-The Caffeine ECS approach uses **composition over inheritance**:
-- **Components** are small data containers (e.g., Position, Velocity, Health)
-- **Entities** are just lightweight IDs that aggregate components
-- **Systems** are pure functions that operate on entities matching a query
-- **Queries** efficiently find entities with specific component combinations
+O ECS do Caffeine compõe em vez de herdar:
 
-Result: Better performance, easier to parallelize, and more flexible architecture.
+- **Componentes** guardam apenas dados (`Position2D`, `Velocity2D`, `Health`, as tuas structs).
+- **Entidades** são ids que agrupam componentes; não têm dados próprios.
+- **Queries** selecionam todas as entidades com uma assinatura de componentes.
+- **Sistemas** recebem os componentes correspondentes e alteram-nos.
 
-### Performance Targets (Achieved)
+Resultado: arrays de componentes contíguos, correspondência de arquétipos barata e um
+lugar claro para cada parte da lógica.
 
-- ✅ **100K entities** with 3 components each
-- ✅ **Query execution < 1.2ms** (frame budget at 60fps = 16.67ms)
-- ✅ **Parallel scaling 2.94x** on multi-core
-- ✅ **Zero-copy component access** with dense arrays
-- ✅ **Thread-safe by design** without locks or mutex contention
+### Design goals
+
+- Iteração de queries rápida sobre arrays densos.
+- Alterações estruturais explícitas (`add`, `remove`, `destroy`), nunca escondidas num getter.
+- Iteração paralela opcional, sem locks em torno do armazenamento de componentes.
+- Sem registo global de sistemas: o host decide que sistemas correm e por que ordem.
+
+A suite de correção está em `tests/test_phase2_3.cpp`; mede o orçamento de frame na
+tua própria cena em vez de confiar num número fixo.
 
 ---
 
 ## Architecture Overview
 
-> ┐
-> │ World │
-> │ (Manages entities, archetypes, and component storage) │
-> ┤
-> │ │
-> │ ┐ ┐ ┐ │
-> │ │ Archetype A │ │ Archetype B │ │ Archetype C │ │
-> │ │ [Pos, Vel] │ │ [Pos, Vel, │ │ [Pos] │ │
-> │ │ │ │ Health] │ │ │ │
-> │ │ Entity 0 → pos[0] │ │ Entity 5 → pos[0] │
-> │ │ Entity 1 → pos[1] │ │ │ │
-> │ │ Entity 2 → pos[2] │ │ │ │
-> │ │ │ │ vel[0] │ │ │ │
-> │ │ │ │ vel[1] │ │ │ │
-> │ │ │ │ vel[2] │ │ │ │
-> │ │ │ │ health[0] │ │ │ │
-> │ │ │ │ health[1] │ │ │ │
-> │ │ │ │ health[2] │ │ │ │
-> │ └ └ └ │
-> │ │
-> │ Queries efficiently find matching archetypes │
-> │ Systems operate on query results │
-> └
+```text
+World
+├── EntityData[]              one entry per id: archetype index + index in archetype
+└── Archetype[]               one archetype per distinct ComponentSet
+    ├── EntityID[]            dense entity ids
+    └── ComponentPool<T>[]    one dense array per component type
 
+Query (with Position2D, Velocity2D, without Disabled)
+    └── archetype.ComponentSet.matches(query) → iterate that archetype's arrays
+```
 
 ### Key Concepts
 
-**World**: Container for all entities and component data. Central to the ECS, handles:
-- Entity creation and destruction
-- Component addition/removal (with archetype migration)
-- Query execution (forEach, forEachParallel)
+**World**: detém os ids de entidades, os arquétipos e o armazenamento de componentes.
+Cria e destrói entidades, migra entidades entre arquétipos quando componentes são
+adicionados ou removidos e executa `forEach` / `forEachParallel`.
 
-**Archetype**: Groups entities with identical component signatures. For example:
-- Archetype [Position, Velocity]: Moving entities
-- Archetype [Position, Velocity, Health]: Moving entities with health
-- Archetype [Position]: Static entities
+**Archetype**: agrupa entidades com uma assinatura de componentes idêntica. Por exemplo:
 
-All entities in an archetype store components in dense arrays for cache efficiency.
+- `[Transform]`: objetos estáticos da cena
+- `[Transform, Position3D, Rotation3D, Scale3D]`: transforms 3D
+- `[Position2D, Velocity2D]`: entidades 2D em movimento
 
-**ComponentID**: Type-safe identifier for component types. Automatically assigned at compile-time via template specialization.
+Todas as entidades de um arquétipo guardam componentes em arrays densos, um array por tipo.
 
-**ComponentSet**: Bitmask representing which components an entity has. Used for:
-- Fast archetype matching (O(1))
-- Query filtering
-- Archetype lookups
+**ComponentID**: um `u32` atribuído na primeira chamada a `ComponentID::get<T>()`. O
+contador é atómico; o máximo é 256 tipos de componente (`ComponentID::MAX_COMPONENTS`).
 
-**Entity**: Lightweight handle (32-bit ID + World pointer). Provides methods to:
-- Query components: `entity.has<Position>()`
-- Get components: `entity.get<Position>()`
-- Defer operations: queue changes via CommandBuffer
+**ComponentSet**: um bitset de 256 bits com os ids dos componentes. A procura de
+arquétipos faz hash do conjunto; a correspondência de queries faz AND dos bitsets, pelo
+que é O(1) por arquétipo e não por entidade.
 
-**ComponentQuery**: Builder for specifying query patterns:
-- `with<A, B>()`: Require components A and B
-- `without<C>()`: Exclude component C
-- `any<D, E>()`: Require at least one of D or E
+**Entity**: um handle leve (`u32` id + `World*`). Pode consultar, adicionar, remover e
+destruir através do world que a criou.
 
-**System**: Implements ISystem interface, updates entities each frame. Example:
-- MovementSystem updates positions based on velocities
-- RenderSystem draws sprites to screen
-- PhysicsSystem resolves collisions
+**ComponentQuery**: um builder com `with<A, B>()`, `without<C>()` e `any<D, E>()`.
+`matches(const Archetype*)` é o que `World::forEach` usa.
+
+**System**: implementa `ISystem`; o host chama `onUpdate(World&, f32 deltaTime)`.
+Movimento, rendering e física são sistemas normais.
 
 ---
 
 ## Components
 
-Components are small POD (Plain Old Data) structures containing only state, no behavior.
+Componentes são structs simples que contêm apenas estado.
 
-### Predefined Components
+### Predefined components
 
-The ECS provides 8 predefined components for rapid game development:
+`ecs/Components.hpp` traz o transform partilhado e um pequeno conjunto 2D:
 
 ```cpp
-// Position in 2D space
+// Shared 3D transform, also used by the scene hierarchy.
+struct Transform {
+    Vec3 position = {0.0f, 0.0f, 0.0f};
+    Vec3 rotation = {0.0f, 0.0f, 0.0f};  // Euler degrees in the hierarchy helper
+    Vec3 scale    = {1.0f, 1.0f, 1.0f};
+};
+
+// Position in 2D space.
 struct Position2D {
     f32 x = 0.0f;
     f32 y = 0.0f;
+    Position2D() = default;
+    Position2D(f32 x_, f32 y_) : x(x_), y(y_) {}
 };
 
-// Velocity (rate of change)
+// Velocity (rate of change).
 struct Velocity2D {
     f32 x = 0.0f;
     f32 y = 0.0f;
+    Velocity2D() = default;
+    Velocity2D(f32 x_, f32 y_) : x(x_), y(y_) {}
 };
 
-// Acceleration
+// Acceleration.
 struct Acceleration2D {
     f32 x = 0.0f;
     f32 y = 0.0f;
 };
 
-// Rotation angle (radians)
+// Rotation angle (radians).
 struct Rotation {
     f32 angle = 0.0f;
+    Rotation() = default;
+    explicit Rotation(f32 angle_) : angle(angle_) {}
 };
 
-// Scale factors
+// Scale factors.
 struct Scale2D {
     f32 x = 1.0f;
     f32 y = 1.0f;
+    Scale2D() = default;
+    Scale2D(f32 x_, f32 y_) : x(x_), y(y_) {}
 };
 
-// Visual representation
+// Visual representation.
 struct Sprite {
-    std::string name;      // Texture/sprite name
-    u32 frameIndex = 0;    // For sprite sheets
+    std::string name;      // texture/sprite name
+    u32 frameIndex = 0;    // for sprite sheets
 };
 
-// Health system
+// Health system.
 struct Health {
     u32 current = 100;
-    u32 max = 100;
+    u32 max     = 100;
+    Health() = default;
+    Health(u32 current_, u32 max_) : current(current_), max(max_) {}
 };
 
-// Zero-cost marker component for tagging
+// Zero-cost marker component for tagging.
 struct Tag { };
 ```
 
-### Custom Components
+`Components.hpp` declara ainda `ParticleEmitterComponent`, `PersistentComponent` e
+`DisabledTag`, e inclui os headers de componentes 3D, câmara, luz, mesh, skybox e
+terreno. `Transform` é o componente que a hierarquia da cena compõe; `Position3D`,
+`Rotation3D` e `Scale3D` vivem em `ecs/Components3D.hpp`.
 
-Define your own components for game-specific data:
+### Custom components
+
+Define os teus componentes para dados específicos do jogo:
 
 ```cpp
-// Damage-dealing weapon
+// Damage-dealing weapon.
 struct DamageDealer {
     u32 damagePerHit = 10;
     f32 cooldownTime = 0.2f;
     f32 timeSinceLastHit = 0.0f;
 };
 
-// Inventory system
+// Inventory system.
 struct Inventory {
     std::vector<Item> items;
     u32 maxCapacity = 20;
 };
 
-// AI state machine
+// AI state machine.
 struct AIController {
     enum State { Idle, Chasing, Attacking } state = Idle;
     Entity target = Entity();
@@ -190,82 +208,90 @@ struct AIController {
 };
 ```
 
-### Component Guidelines
+### Component guidelines
 
-- **Keep it simple**: Components should contain only data (POD structures)
-- **No behavior**: Avoid methods; use systems instead
-- **Copyable**: Components must be trivially copyable
-- **Small**: Cache locality matters; aim for < 64 bytes per component
-- **Default-constructible**: Components need default values
+- **Apenas dados**: o comportamento pertence aos sistemas.
+- **Copiável**: os componentes são copiados quando uma entidade migra de arquétipo.
+- **Pequeno**: a localidade de cache importa; aponta para bem menos de 64 bytes.
+- **Default-constructible**: `Entity::getOrAdd<T>()` e `World::add<T>(e)` usam o default.
+- **Sem destrutores pesados nem ponteiros com posse**: prefere handles ou ids de assets.
 
 ---
 
 ## Entities
 
-Entities are the basic unit in the ECS. An entity is just a unique ID that aggregates components.
+Uma entidade é um id que agrega componentes.
 
 ### Entity Lifecycle
 
 ```cpp
-// Create entity with initial components
-Entity player = world.create<Position2D, Velocity2D>(
-    Position2D{10.0f, 20.0f},
-    Velocity2D{5.0f, 0.0f}
-);
+// Create an entity. The name argument is accepted but not stored by the
+// world; the editor keeps names in Editor::NameComponent.
+Entity player = world.create("Player");
 
-// Add component later
+// Add components later.
+world.add<Position2D>(player, Position2D{10.0f, 20.0f});
+world.add<Velocity2D>(player, Velocity2D{5.0f, 0.0f});
 world.add<Health>(player, Health{100, 100});
 
-// Check if entity has component
+// Check and read.
 if (world.has<Position2D>(player)) {
-    // ...
+    Position2D* pos = world.get<Position2D>(player);
+    pos->x += 5.0f;  // modify in place
 }
 
-// Get component reference
-Position2D* pos = world.get<Position2D>(player);
-if (pos) {
-    pos->x += 5.0f;  // Modify in-place
-}
+// Add-or-get through the handle.
+Health& health = player.getOrAdd<Health>();
+health.current = 80;
 
-// Remove component (entity moves to new archetype)
+// Remove a component (the entity migrates to a new archetype).
 world.remove<Velocity2D>(player);
 
-// Destroy entity
+// Destroy the entity.
 world.destroy(player);
 ```
 
 ### Important Notes
 
-- **Entity IDs are lightweight** (32-bit), copy them freely
-- **Component access is O(1)** after archetype lookup
-- **Archetype migration is transparent** when adding/removing components
-- **Entities are always valid** after creation (checked with assertions)
+- **Os ids de entidade são de 32 bits**; copia o handle livremente.
+- **`Entity::isValid()` apenas rejeita o id `INVALID` por omissão.** Não prova que a
+  entidade continua viva depois de `destroy`; volta a verificar com
+  `world.isEntityAlive(e)` após alterações estruturais.
+- **Os ids não são reciclados** (`World::create` incrementa um contador), mas handles
+  antigos continuam a apontar para o slot antigo; não guards handles depois de destruir.
+- **O acesso a componentes é O(1)** depois de conhecido o arquétipo da entidade.
+- **A migração de arquétipo é automática** em add/remove e invalida referências
+  devolvidas antes por `get<T>()`.
+- **`World::create()` não aceita componentes.** Cria a entidade e depois usa `add<T>`.
+- **O argumento de nome é ignorado.** `World::create("Player")` lê bem no local da
+  chamada, mas o world não guarda nome; o editor usa `Editor::NameComponent`.
 
 ---
 
 ## Queries
 
-Queries select entities matching specific component patterns, enabling efficient system updates.
+As queries selecionam entidades que correspondem a uma assinatura de componentes.
 
 ### Query Builder
 
 ```cpp
-// Require Position and Velocity
-ComponentQuery query1 = ComponentQuery()
-    .with<Position2D, Velocity2D>();
+// Require Position2D and Velocity2D.
+ComponentQuery moving;
+moving.with<Position2D, Velocity2D>();
 
-// Require Position, exclude Disabled
-ComponentQuery query2 = ComponentQuery()
-    .with<Position2D>()
-    .without<Disabled>();
+// Require Position2D, exclude a Disabled tag.
+ComponentQuery visible;
+visible.with<Position2D>().without<DisabledTag>();
 
-// Require one of several components
-ComponentQuery query3 = ComponentQuery()
-    .with<Position2D>()
-    .any<Health, Shield>();  // Require Health OR Shield
+// Require one of several components.
+ComponentQuery armed;
+armed.with<Health>().any<Shield, Armor>();  // Health AND (Shield OR Armor)
 ```
 
 ### Single-Threaded Iteration
+
+Os argumentos de template têm de corresponder aos parâmetros de componentes do
+callback (depois da entidade). A query pode ser mais restrita que a assinatura:
 
 ```cpp
 world.forEach<Position2D, Velocity2D>(
@@ -279,30 +305,34 @@ world.forEach<Position2D, Velocity2D>(
 
 ### Parallel Iteration
 
+`forEachParallel` recebe o job system por referência e depois o callback:
+
 ```cpp
 world.forEachParallel<Position2D, Velocity2D>(
     ComponentQuery().with<Position2D, Velocity2D>(),
+    jobSystem,
     [deltaTime](Entity e, Position2D& pos, Velocity2D& vel) {
-        pos.x += vel.x * deltaTime;  // Thread-safe: each entity processed by one thread
+        pos.x += vel.x * deltaTime;  // each entity is visited by one worker
         pos.y += vel.y * deltaTime;
-    },
-    &jobSystem  // Use JobSystem for parallelization
+    }
 );
 ```
 
+O callback tem de ser seguro em execução concorrente e não pode adicionar, remover ou
+destruir entidades.
+
 ### Query Performance
 
-Query execution is O(N) where N = number of matching entities:
-- **Archetype filtering** is O(1) per archetype
-- **Entity iteration** within archetype is dense array access (cache-efficient)
-- **No sorting or searching** required
-- **Parallel scaling**: Nearly linear on multi-core CPUs
+- **A filtragem por arquétipo** é uma comparação de bitsets por arquétipo.
+- **A iteração de entidades** dentro de um arquétipo é acesso a arrays densos.
+- **Não é necessário ordenar nem procurar.**
+- **O trabalho é dividido em lotes de 1000 entidades** por arquétipo nas queries paralelas.
 
 ---
 
 ## Systems
 
-Systems encapsulate game logic by operating on entities matching queries.
+Os sistemas encapsulam lógica de jogo sobre entidades correspondentes.
 
 ### Basic System
 
@@ -323,6 +353,9 @@ public:
 
 ### System Registry
 
+`SystemRegistry` é um proprietário de conveniência; a engine e o runtime não são
+obrigados a usá-lo.
+
 ```cpp
 SystemRegistry systems;
 systems.add(std::make_unique<MovementSystem>());
@@ -336,27 +369,29 @@ while (running) {
 }
 ```
 
+`ISystem` só tem `onUpdate`; não existe campo de prioridade. A ordem de registo é a
+ordem de execução.
+
 ### Deferred Operations in Systems
 
-Avoid modifying the world directly in forEach callbacks (breaks iteration). Use CommandBuffer instead:
+Não alteres o world diretamente dentro de callbacks `forEach`. Usa `CommandBuffer`:
 
 ```cpp
 class HealthSystem : public ISystem {
 public:
     void onUpdate(World& world, f32 deltaTime) override {
         CommandBuffer commands;
-        
+
         world.forEach<Health>(
             ComponentQuery().with<Health>(),
             [&commands](Entity e, Health& health) {
-                health.current--;
                 if (health.current == 0) {
-                    commands.destroy(e);  // Safe: deferred until after iteration
+                    commands.destroy(e);  // queued until after iteration
                 }
             }
         );
-        
-        commands.execute(world);  // Apply all changes
+
+        commands.execute(world);  // apply all changes
     }
 };
 ```
@@ -365,85 +400,89 @@ public:
 
 ## Command Buffer
 
-CommandBuffer defers entity modifications, enabling safe concurrent updates during query execution.
+`CommandBuffer` adia modificações de entidades, permitindo alterações seguras durante a
+iteração de queries.
 
 ### Operations
 
 ```cpp
 CommandBuffer commands;
 
-// Create entity with components
-Entity newEntity = commands.create<Position2D>(
-    Position2D{0.0f, 0.0f}
-);
+// Create an entity, optionally with one or two components.
+Entity empty  = commands.create();
+Entity mover  = commands.create(Position2D{0.0f, 0.0f});
+Entity walker = commands.create(Position2D{0.0f, 0.0f}, Velocity2D{10.0f, 0.0f});
 
-// Add component to existing entity
+// Add a component to an existing entity.
 commands.addComponent<Velocity2D>(myEntity, Velocity2D{10.0f, 0.0f});
 
-// Remove component
+// Remove a component.
 commands.removeComponent<Velocity2D>(myEntity);
 
-// Destroy entity
+// Destroy an entity.
 commands.destroy(myEntity);
 
-// Execute all queued operations (in order)
+// Execute all queued operations in order.
 commands.execute(world);
 ```
 
+`create` aceita zero, um ou dois componentes; adiciona os restantes com
+`addComponent<T>`.
+
+<div class="doc-callout doc-callout--warning">
+  <p><strong>Handle provisório.</strong> O <code>Entity</code> devolvido por
+  <code>CommandBuffer::create</code> não é remapeado por <code>execute</code>: a entidade
+  real é criada por <code>World::create()</code> e o id pendente é descartado. Não passes
+  esse handle a <code>addComponent</code> nem a <code>get</code>; usa as sobrecargas de um/dois
+  componentes, ou cria a entidade diretamente no world fora da iteração.</p>
+</div>
+
 ### Why CommandBuffer?
 
-Without deferred operations:
+Sem operações adiadas:
+
 ```cpp
-// DANGEROUS! Breaks forEach iteration
-world.forEach<Position>([&](Entity e, Position& pos) {
+// DANGEROUS: adding/removing components or destroying entities
+// while an archetype is being iterated invalidates the iteration.
+world.forEach<Position2D>([&](Entity e, Position2D& pos) {
     if (shouldDestroy(e)) {
-        world.destroy(e);  // Iteration undefined behavior!
+        world.destroy(e);
     }
 });
 ```
 
-With CommandBuffer:
+Com CommandBuffer:
+
 ```cpp
-// SAFE! Defers changes until after iteration
+// SAFE: changes are applied after the iteration completes.
 CommandBuffer commands;
-world.forEach<Position>([&](Entity e, Position& pos) {
+world.forEach<Position2D>([&](Entity e, Position2D& pos) {
     if (shouldDestroy(e)) {
-        commands.destroy(e);  // Queued, not executed yet
+        commands.destroy(e);
     }
 });
-commands.execute(world);  // All changes applied after iteration completes
+commands.execute(world);
 ```
 
 ---
 
 ## Performance
 
-### Benchmarks (100K entities with 3 components each)
+### Practical guidance
 
-| Operation | Time | Frame Budget (60fps) |
-|-----------|------|---------------------|
-| Query forEach (100K) | 1.15 ms | 93% remaining |
-| Query forEach (50K filtered) | 0.29 ms | 98% remaining |
-| System update (3 systems) | 0.34 ms | 98% remaining |
-| Component add/remove (10K ops) | 5.29 ms | 68% remaining |
-| Entity destruction (10K) | 63.4 ms | (batch operation) |
-| Parallel speedup | 2.94x | - |
-
-### Performance Tips
-
-1. **Use forEachParallel** for large datasets (1000+ entities)
-2. **Batch operations** to reduce archetype migrations
-3. **Keep components small** (< 64 bytes for cache efficiency)
-4. **Use ComponentQuery filters** to reduce iteration size
-5. **Profile with benchmarks** to identify bottlenecks
+1. **Usa `forEachParallel`** para lotes grandes e independentes (cerca de 1000+ entidades).
+2. **Agrupa alterações estruturais** para reduzir migrações de arquétipo.
+3. **Mantém os componentes pequenos** para eficiência de cache.
+4. **Restringe a query** com `with` / `without` para corresponder a menos arquétipos.
+5. **Mede a tua cena**: a suite (`tests/test_phase2_3.cpp`) cobre correção;
+   `tests/benchmarks.cpp` cobre allocators e containers, não o ECS.
 
 ### Parallel Scaling
 
-The ECS automatically scales to multi-core CPUs:
-- Work partitioned by archetype (no shared state between threads)
-- Each archetype processed by independent thread
-- No locks or mutex contention
-- Linear scaling up to CPU core count
+`forEachParallel` cria um item de trabalho por arquétipo, ou um por bloco de 1000
+entidades nos arquétipos maiores, e espera por uma `JobBarrier`. Cada bloco toca num
+intervalo de índices disjunto, pelo que as escritas de componentes não colidem.
+Alterações estruturais não são permitidas dentro do callback.
 
 ---
 
@@ -455,32 +494,78 @@ The ECS automatically scales to multi-core CPUs:
 class World {
 public:
     // Entity lifecycle
-    Entity create();  // Create empty entity
-    template<typename... Ts>
-    Entity create(const Ts&... components);  // Create with components
-    
-    bool destroy(Entity e);  // Destroy entity
-    
+    Entity create(const char* name = nullptr);
+    void   destroy(Entity e);
+    void   destroyAll();
+
+    // Counts and validity
+    u32 entityCount() const;
+    u32 archetypeCount() const;
+    bool isEntityAlive(Entity e) const;
+
+    struct EntityLocation {
+        u32 archetypeIndex = u32_max;
+        u32 indexInArchetype = u32_max;
+        bool alive = false;
+    };
+    EntityLocation getEntityLocation(Entity e) const;
+
     // Component access
+    template<typename T, typename... Args>
+    T& add(Entity e, Args&&... args);      // returns the stored component
+
     template<typename T>
-    bool has(Entity e) const;  // Check if entity has component
-    
+    void remove(Entity e);
+
     template<typename T>
-    T* get(Entity e);  // Get component reference (nullptr if not present)
-    
+    bool has(Entity e) const;
+
     template<typename T>
-    T* add(Entity e, const T& component);  // Add component
-    
+    T* get(Entity e);                      // nullptr if absent
+
     template<typename T>
-    bool remove(Entity e);  // Remove component
-    
+    const T* get(Entity e) const;
+
     // Query execution
     template<typename... Ts, typename Callback>
     void forEach(const ComponentQuery& query, Callback cb);
-    
+
     template<typename... Ts, typename Callback>
-    void forEachParallel(const ComponentQuery& query, Callback cb,
-                         Caffeine::Threading::JobSystem* jobSystem);
+    void forEachParallel(const ComponentQuery& query,
+                         Threading::JobSystem& jobSystem,
+                         Callback cb);
+};
+```
+
+### Entity Class
+
+```cpp
+class Entity {
+public:
+    static const Entity INVALID;
+
+    u32  id() const;
+    bool isValid() const;                  // id != u32_max
+
+    template<typename T, typename... Args>
+    T& add(Args&&... args);
+
+    template<typename T>
+    void remove();
+
+    template<typename T>
+    bool has() const;
+
+    template<typename T>
+    T* get();
+
+    template<typename T>
+    T& getOrAdd();                         // default-constructs when absent
+
+    void destroy();
+
+    explicit operator bool() const;
+    bool operator==(const Entity& other) const;
 };
 ```
 
@@ -489,16 +574,15 @@ public:
 ```cpp
 class ComponentQuery {
 public:
-    // Builder methods
-    template<typename... Ts>
-    ComponentQuery& with();  // Require components
-    
-    template<typename... Ts>
-    ComponentQuery& without();  // Exclude components
-    
-    template<typename... Ts>
-    ComponentQuery& any();  // Require at least one
-    
+    template<typename T, typename... Ts>
+    ComponentQuery& with();                // all required
+
+    template<typename T, typename... Ts>
+    ComponentQuery& without();             // none present
+
+    template<typename T, typename... Ts>
+    ComponentQuery& any();                 // at least one present per call
+
     bool matches(const Archetype* archetype) const;
 };
 ```
@@ -529,15 +613,16 @@ public:
 ```cpp
 class CommandBuffer {
 public:
-    Entity create();  // Queue entity creation
-    template<typename T>
-    void addComponent(Entity e, const T& component);  // Queue add
-    
-    template<typename T>
-    void removeComponent(Entity e);  // Queue remove
-    
-    void destroy(Entity e);  // Queue destroy
-    void execute(World& world);  // Execute all queued operations
+    Entity create();
+    template<typename T>   Entity create(const T& component);
+    template<typename T1, typename T2>
+    Entity create(const T1& c1, const T2& c2);
+
+    template<typename T> void addComponent(Entity e, const T& component);
+    template<typename T> void removeComponent(Entity e);
+
+    void destroy(Entity e);
+    void execute(World& world);
 };
 ```
 
@@ -567,7 +652,7 @@ class MovementSystem : public ISystem {
 class HealthSystem : public ISystem {
     void onUpdate(World& world, f32 deltaTime) override {
         CommandBuffer commands;
-        
+
         world.forEach<Health>(
             ComponentQuery().with<Health>(),
             [&commands](Entity e, Health& health) {
@@ -576,7 +661,7 @@ class HealthSystem : public ISystem {
                 }
             }
         );
-        
+
         commands.execute(world);
     }
 };
@@ -585,11 +670,11 @@ class HealthSystem : public ISystem {
 ### Pattern 3: Conditional Processing
 
 ```cpp
-// Only process entities with Health but optionally Shield
+// Process entities that have Health and at least one of Shield/Armor.
 world.forEach<Health>(
     ComponentQuery().with<Health>().any<Shield, Armor>(),
     [](Entity e, Health& health) {
-        // This entity has Health and at least one of Shield/Armor
+        // ...
     }
 );
 ```
@@ -597,11 +682,11 @@ world.forEach<Health>(
 ### Pattern 4: Filtering with Without
 
 ```cpp
-// Update only active entities (no Disabled tag)
+// Update only active entities (no DisabledTag).
 world.forEach<Position2D, Velocity2D>(
     ComponentQuery()
         .with<Position2D, Velocity2D>()
-        .without<Disabled>(),
+        .without<DisabledTag>(),
     [deltaTime](Entity e, Position2D& pos, Velocity2D& vel) {
         pos.x += vel.x * deltaTime;
         pos.y += vel.y * deltaTime;
@@ -615,64 +700,66 @@ world.forEach<Position2D, Velocity2D>(
 
 ### Issue: "Entity is not valid"
 
-**Cause**: Accessing an entity after it was destroyed.
+**Causa**: o handle foi construído por omissão (`Entity()` / `Entity::INVALID`).
 
-**Solution**: Check entity validity before access. Consider using CommandBuffer to defer destruction.
+**Solução**: verifica `isValid()` antes de usar. Depois de `destroy` ou de uma mudança
+de arquétipo, verifica também `world.isEntityAlive(entity)`.
 
 ```cpp
 if (entity.isValid()) {
-    // Safe to access
+    // Safe to query components; use isEntityAlive after structural changes.
 }
 ```
 
 ### Issue: "Component not found"
 
-**Cause**: Trying to access a component the entity doesn't have.
+**Causa**: a entidade não tem esse componente.
 
-**Solution**: Check with `has<T>()` first or use `get<T>()` which returns nullptr.
+**Solução**: verifica `has<T>()` ou usa `get<T>()`, que devolve `nullptr`.
 
 ```cpp
 if (world.has<Position2D>(entity)) {
-    auto pos = world.get<Position2D>(entity);
+    auto* pos = world.get<Position2D>(entity);
 }
 ```
 
-### Issue: "Iteration broken" / "Undefined behavior"
+### Issue: iteration breaks or crashes
 
-**Cause**: Modifying the world directly inside forEach.
+**Causa**: `add`, `remove`, `create` ou `destroy` dentro de `forEach`.
 
-**Solution**: Use CommandBuffer to queue changes.
+**Solução**: enfileira a alteração num `CommandBuffer` e executa-a depois do ciclo.
 
 ```cpp
 // WRONG:
-world.forEach<Position>([&](Entity e, Position& pos) {
-    if (condition) world.destroy(e);  // Breaks iteration!
+world.forEach<Position2D>([&](Entity e, Position2D& pos) {
+    if (condition) world.destroy(e);
 });
 
 // CORRECT:
 CommandBuffer commands;
-world.forEach<Position>([&](Entity e, Position& pos) {
-    if (condition) commands.destroy(e);  // Safe, deferred
+world.forEach<Position2D>([&](Entity e, Position2D& pos) {
+    if (condition) commands.destroy(e);
 });
 commands.execute(world);
 ```
 
-### Issue: "Performance degradation"
+### Issue: performance degradation
 
-**Cause**: Too many small queries or sequential iteration on large datasets.
+**Causa**: muitas queries pequenas, alterações estruturais frequentes ou iteração
+sequencial de um lote grande.
 
-**Solution**: 
-- Batch operations (reduce archetype migrations)
-- Use forEachParallel for 1000+ entities
-- Profile with benchmarks to find bottlenecks
+**Solução**:
+
+- Agrupa alterações estruturais para reduzir migrações de arquétipo.
+- Usa `forEachParallel` em lotes grandes e independentes.
+- Restringe as queries para visitar menos arquétipos.
+- Faz profiling da tua cena; não assumas um orçamento fixo.
 
 ---
 
 ## Next Steps
 
-- Read [ECS_EXAMPLES.md](ECS_EXAMPLES.md) for practical code examples
-- Check the benchmark suite (`tests/ecs/test_benchmarks.cpp`) for performance characteristics
-- Explore existing systems in your game project for inspiration
-- Join the Caffeine community for support and discussion
-
-Happy coding! 🚀
+- Lê [ECS examples](./examples.md) para programas completos.
+- Vê [ECS core](./core.md) para o resumo curto da API.
+- Vê [Scene manager](./scene.md) para a hierarquia e o serializador de cenas.
+- Consulta `tests/test_phase2_3.cpp` para a suite de correção.

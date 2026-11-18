@@ -1,21 +1,34 @@
 # Shadow Mapping (GPU)
 
-> **Namespace:** `Caffeine::Render`  
-> **Ficheiros:** `GpuDirectionalShadowMap.*`, `GpuPointShadowMap.*`, `GpuSceneRenderer.cpp`  
-> **Shaders:** `shadow_depth.*`, `scene_lit.frag`, `terrain_lit.frag`  
-> **Status:** ✅ Direcional CSM (4 cascatas, luz 0) + point + spot (até 2 cada)
+<div class="doc-meta">
+  <span class="doc-badge doc-badge--reference">Reference</span>
+  <span><strong>Namespace:</strong> `Caffeine::Render`</span>
+  <span>Last verified: <time datetime="2026-11-18">2026-11-18</time></span>
+  <span>Source: <a href="https://github.com/devscafecommunity/caffeine/blob/main/src/caffeine/render/GpuSceneRenderer.cpp"><code>render/GpuSceneRenderer.cpp</code></a></span>
+</div>
+
+<p class="doc-lede">Os três passes de sombra na GPU — cascatas direcionais, cubemaps
+pontuais e mapas de spot — como os shaders os amostram, e a regra do editor que mantém os
+samplers ligados.</p>
+
+> **Ficheiros:** `GpuDirectionalShadowMap.*`, `GpuPointShadowMap.*`, `GpuSpotShadowMap.*`,
+> `GpuSceneRenderer.cpp`
+> **Shaders:** `shadow_depth.vert` / `shadow_depth.frag`, `scene_lit.frag`, `terrain_lit.frag`
 
 ---
 
-## Visão geral
+## Visão Geral
 
-Sombras dinâmicas são renderizadas em passes separados antes do pass opaco principal. O fragment shader faz PCF 3×3 sobre mapas de profundidade.
+As sombras dinâmicas são renderizadas em passes separados antes do passe opaco principal. O
+fragment shader aplica um PCF Poisson rotativo (12 amostras) aos mapas de profundidade; o TAA
+média a rotação.
 
 ```mermaid
 flowchart TD
     L[Scene lights gather] --> D[Directional shadow pass]
     D --> P[Point shadow pass cubemap]
-    P --> O[Opaque Phong pass]
+    P --> S[Spot shadow pass]
+    S --> O[Opaque PBR pass]
     O --> V[Viewport / runtime]
 ```
 
@@ -23,85 +36,93 @@ flowchart TD
 
 ## Luzes suportadas
 
-| Tipo | Pass | Limite | Shader sample |
-|------|------|--------|---------------|
-| Direcional | Atlas 1024² (4×512 cascatas na luz 0) | 2 | `sampleDirShadowCSM()` PCF 3×3 |
-| Pontual | Cubemap depth | 2 | `samplePointShadow()` |
-| Spot | Perspective depth 2D | 2 | `sampleSpotShadow()` |
+| Tipo | Pass | Limite | Amostra no shader |
+|------|------|--------|-------------------|
+| Direcional | Atlas 4096² (4 cascatas de 2048² na luz 0) | 2 | `sampleDirShadow()` — PCF Poisson rotativo |
+| Pontual | Cubemap de profundidade, 512² por face | 2 | `samplePointShadow()` |
+| Spot | Profundidade perspectiva 2D, 1024² | 2 | `sampleSpotShadow()` |
 
-Apenas luzes com `castShadows == true` entram nos passes GPU.
+Só as luzes com `castShadows == true` entram nos passes GPU.
 
 ---
 
-## SceneShadowUBO (std140)
+## SceneShadowUBO
 
-Espelhado em C++ (`GpuSceneRenderer.cpp`) e GLSL:
+Espelhado em C++ (`GpuSceneRenderer.cpp`) e GLSL (`scene_lit.frag`, `terrain_lit.frag`):
 
 ```glsl
-// Direcional: mat4 view-projection × 2 + flags
-// Point: vec3 position × 2, float radius × 2, float valid × 2
+// Direcional: mat4 light VP × 8 (4 cascatas × 2 luzes) + splits + flags
+// Point: vec4 position × 2, vec4 radius, vec4 valid
+// Spot: mat4 light VP × 2, vec4 position × 2, vec4 params × 2, vec4 valid
+layout(set = 3, binding = 1) uniform ShadowUBO { ... } shadows;
 ```
 
-`uDirShadowValid` / `uPointShadowValid` permitem ao shader ignorar slots não atribuídos.
+`uDirShadowValid` / `uPointShadowValid` / `uSpotShadowValid` permitem ao shader ignorar
+slots não atribuídos.
 
 ---
 
 ## GpuPointShadowMap
 
-- `setSlot(index, position, radius)` após render do cubemap.
+- `setSlot(index, position, radius, isValid)` depois de renderizar o cubemap.
 - `clearSlot(index)` quando a luz deixa de projectar sombra.
-- Cubemap ligado nos slots 4–5 (meshes) ou 8–9 (terreno).
+- Ligado aos samplers 4–5 nas meshes e 8–9 no terreno.
 
 ---
 
 ## Editor vs runtime
 
-| Contexto | Shadow **passes** | Shadow **samplers** ligados |
-|----------|-------------------|----------------------------|
-| Editor Scene Viewport | ❌ `enableShadows=false` | ✅ sempre (`bindShadowTextures`) |
-| Editor previews | ❌ | ✅ |
-| Runtime (`RuntimeSceneRenderer`) | ✅ quando `enableShadows=true` | ✅ |
+| Contexto | **Passes** de sombra | **Samplers** de sombra ligados |
+|----------|----------------------|-------------------------------|
+| Viewport do editor (`caffeine_session_*`) | ❌ `enableShadows=false` | ✅ sempre (`bindShadowTextures`) |
+| Previews do editor | ❌ | ✅ |
+| Runtime / play mode | ✅ com `enableShadows=true` | ✅ |
 
 ### ⚠️ Regra de segurança (SIGSEGV NVIDIA)
 
-`enableShadows=false` **omite** `renderDirectionalShadows` / point / spot — não omite `bindShadowTextures()`.
+`enableShadows=false` **omite** `renderDirectionalShadows` / point / spot — não omitir
+`bindShadowTextures()`.
 
-Os fragment shaders declaram samplers de sombra mesmo quando `uDirShadowValid=0`. Slots não ligados podem causar **segmentation fault** no driver NVIDIA.
+Os fragment shaders declaram samplers de sombra mesmo quando `uDirShadowValid=0`. Slots sem
+textura podem causar **segmentation fault** no driver NVIDIA.
 
 ```cpp
 // GpuSceneRenderer::renderMeshes — padrão correcto
 if (options.enableShadows) {
     renderDirectionalShadows(...);
 }
-bindShadowTextures(2, 4, 6);  // obrigatório no início do pass opaco
+bindShadowTextures(2, 4, 6);  // meshes: dir 2–3, point 4–5, spot 6–7
+// passe do terreno: bindShadowTextures(6, 8, 10)
 ```
 
-Com GPU activo no editor, `gatherSceneLighting` com CPU shadow maps **não** corre para meshes (`gpuOwnsSceneMeshes`).
+Com a GPU a deter a cena, `gatherSceneLighting` com shadow maps de CPU não corre para meshes
+(`gpuOwnsSceneMeshes`).
 
 ---
 
 ## CSM (cascaded shadow maps)
 
-- **Luz direcional slot 0:** 4 cascatas em atlas 1024² (quadrantes 512²).
+- **Luz direcional slot 0:** até 4 cascatas num atlas 4096² (2048² cada).
 - Splits práticos (λ=0.5) entre `nearClip` e `shadowDistance`.
 - `SceneShadowUBO`: `uDirShadowVP[8]`, `uDirCascadeSplits[2]`, `uCameraView`.
 - **Luz slot 1:** mapa único (sem cascatas).
 
 ## Spot shadows GPU
 
-- `GpuSpotShadowMap` — até 2 luzes, 512², VP de `buildSpotLightVP()` (mesma matemática que CPU).
-- Iluminação spot no `scene_lit.frag` / `terrain_lit.frag` com cone + shadow map.
+- `GpuSpotShadowMap` — até 2 lâmpadas, 1024², `lightVP` + `cosHalfAngle` (mesma matemática
+  do fallback CPU).
+- Iluminação spot em `scene_lit.frag` / `terrain_lit.frag` com cone + shadow map.
 
-## Próximos passos (roadmap P4)
+## Próximos passos (roadmap)
 
-1. **PCSS** — soft shadows em cascatas.
+1. **PCSS** — sombras suaves nas cascatas.
 2. **CSM na luz secundária** — slot 1 com cascatas.
-3. **Inter-cascade blending** — reduzir seams entre cascatas.
+3. **Blending entre cascatas** — reduzir costuras entre cascatas.
 
 ---
 
 ## Referências
 
-- [`materials-phong.md`](materials-phong.md)
-- [`plans/2026-09-21-rendering-roadmap.md`](../plans/2026-09-21-rendering-roadmap.md) — fase P4
-- [`plans/2026-09-22-phong-gpu-handles-session.md`](../plans/2026-09-22-phong-gpu-handles-session.md)
+- [`materials-phong.md`](materials-phong.md) — passe forward e tabelas de samplers
+- [`../plans/2026-09-21-rendering-roadmap.md`](../plans/2026-09-21-rendering-roadmap.md) — fase P4
+- [`../plans/2026-09-22-phong-gpu-handles-session.md`](../plans/2026-09-22-phong-gpu-handles-session.md)

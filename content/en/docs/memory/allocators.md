@@ -1,12 +1,21 @@
 # Memory Module
 
-> Documentation for Caffeine Engine Memory module - Phase 1: Atomic Foundation
+<div class="doc-meta">
+  <span class="doc-badge doc-badge--reference">Reference</span>
+  <span class="doc-badge">Engine</span>
+  <span>Last verified: <time datetime="2026-11-18">2026-11-18</time></span>
+  <span>Source: <a href="https://github.com/devscafecommunity/caffeine/tree/main/src/caffeine/memory"><code>src/caffeine/memory</code></a></span>
+</div>
+
+<p class="doc-lede">Three custom allocators — linear, pool and stack — that
+share the <code>IAllocator</code> interface for frame scratch memory, fixed-size
+objects and nested scopes.</p>
 
 ## Overview
 
 The Memory module provides custom allocators for zero-dependency memory management. All allocators implement the `IAllocator` interface.
 
-**Location:** `src/memory/`
+**Location:** `src/caffeine/memory`
 
 **Namespace:** `Caffeine` (not `Caffeine::Memory` — allocators live directly in the root namespace).
 
@@ -14,10 +23,10 @@ The Memory module provides custom allocators for zero-dependency memory manageme
 
 | File | Description | Status |
 |------|-------------|--------|
-| [`Allocator.hpp`](../../src/memory/Allocator.hpp) | IAllocator interface | ✅ Complete |
-| [`LinearAllocator.hpp`](../../src/memory/LinearAllocator.hpp) | O(1) allocation, reset() clears all | ✅ Complete |
-| [`PoolAllocator.hpp`](../../src/memory/PoolAllocator.hpp) | Fixed-size slots, O(1) amortized | ✅ Complete |
-| [`StackAllocator.hpp`](../../src/memory/StackAllocator.hpp) | Markers, freeToMarker() | ✅ Complete |
+| [`Allocator.hpp`](https://github.com/devscafecommunity/caffeine/blob/main/src/caffeine/memory/Allocator.hpp) | IAllocator interface | ✅ Complete |
+| [`LinearAllocator.hpp`](https://github.com/devscafecommunity/caffeine/blob/main/src/caffeine/memory/LinearAllocator.hpp) | O(1) allocation, reset() clears all | ✅ Complete |
+| [`PoolAllocator.hpp`](https://github.com/devscafecommunity/caffeine/blob/main/src/caffeine/memory/PoolAllocator.hpp) | Fixed-size slots, O(1) alloc/free | ✅ Complete |
+| [`StackAllocator.hpp`](https://github.com/devscafecommunity/caffeine/blob/main/src/caffeine/memory/StackAllocator.hpp) | Markers, freeToMarker() | ✅ Complete |
 
 ## Architecture
 
@@ -89,7 +98,7 @@ alloc.reset();
 // Create pool for 100 particles of 64 bytes each
 Caffeine::PoolAllocator pool(64 * 100, 64);
 
-// Allocate (O(1) amortized)
+// Allocate (O(1))
 void* p1 = pool.alloc(64);
 void* p2 = pool.alloc(64);
 
@@ -124,7 +133,7 @@ stack.freeToMarker(marker);
 | Class | Complexity | Key Method |
 |-------|------------|------------|
 | `LinearAllocator` | O(1) alloc, O(1) reset | `reset()` clears all |
-| `PoolAllocator` | O(1) amortized | `free()` returns slot |
+| `PoolAllocator` | O(1) | `free()` returns slot |
 | `StackAllocator` | O(1) alloc | `freeToMarker()` |
 
 ## See Also
@@ -134,7 +143,7 @@ stack.freeToMarker(marker);
 - [HISTORY.md](../HISTORY.md) - Phase 1 requirements and development rules
 - [architecture_specs.md](../architecture_specs.md) - Technical specifications
 - [API Reference](../api/README.md) - Complete API documentation
-- [Test Documentation](../../tests/test_allocators.cpp) - Allocator tests
+- [Test Documentation](https://github.com/devscafecommunity/caffeine/blob/main/tests/test_allocators.cpp) - Allocator tests
 
 ### Related Modules
 - [Core Module](../core/types.md) - Foundation types (used by Memory)

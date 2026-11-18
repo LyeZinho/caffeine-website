@@ -1,45 +1,60 @@
 # Reflexos
 
-> **Resolver:** `Render::resolveForwardRenderFeatures`  
-> **GPU:** `GpuSceneRenderer` (planar, SSR, probes por objeto)  
+<div class="doc-meta">
+  <span class="doc-badge doc-badge--reference">Reference</span>
+  <span><strong>Namespace:</strong> `Caffeine::Render`</span>
+  <span>Last verified: <time datetime="2026-11-18">2026-11-18</time></span>
+  <span>Source: <a href="https://github.com/devscafecommunity/caffeine/blob/main/src/caffeine/render/RenderFeatures.hpp"><code>render/RenderFeatures.hpp</code></a></span>
+</div>
+
+<p class="doc-lede">Os quatro modos de reflexão que o passe forward suporta — off, planar,
+screen-space e probes por objecto — e como o renderer recorre ao céu.</p>
+
+> **Resolver:** `Render::resolveForwardRenderFeatures`
+> **GPU:** `GpuSceneRenderer` (planar, SSR, probes por objecto)
 > **Shader:** `scene_lit.frag` (slots environment + probe + SSR)
 
-Configura no componente **Forward Render Features** (Inspector) ou via `caffeine.forwardrender.*`.  
-**Sem componente na cena**, `budgetSafeForwardDefaults()` usa **Probe** + screen-space trace ligado.
+Configura-se no componente **Forward Render Features** (Inspector) ou via
+`caffeine.forwardrender.*`. **Sem componente na cena**, `budgetSafeForwardDefaults()` usa o
+modo **Probe** com screen-space tracing ligado.
 
 | Modo | O que faz | Custo |
-|------|-----------|--------|
-| **Off** | Apenas IBL / céu | Mínimo |
-| **Planar** | Redesenho espelhado em Y (`planeY`), alvo HDR, `resolutionScale` | +1 cena (sem sombras no espelho) |
+|------|-----------|-------|
+| **Off** | Apenas céu/IBL | Mínimo |
+| **Planar** | Redesenho espelhado em Y (`planeY`), alvo HDR, `resolutionScale` | +1 passe de cena (sem sombras no espelho) |
 | **Screen-space** | SSR no shader (histórico de cor/profundidade) | Taps por pixel |
-| **Probe** (default) | Cubemap HDR por objeto glossy (LRU, ≤ `maxReflectionProbes` por frame, 1 captura/frame) | 6 faces × resolução da probe |
+| **Probe** (default) | Cubemap HDR por objecto polido (LRU, ≤ `maxReflectionProbes` por frame, 1 captura/frame) | 6 faces × resolução do probe |
 
-**Only when camera settled** adia capturas caras enquanto a câmara move (TAA ainda converge).
+**Only when camera settled** adia as capturas caras enquanto a câmara se move (o TAA continua
+a convergir).
 
-## Probes por objeto
+## Probes por objecto
 
-- Objetos com roughness baixa entram na fila; os mais próximos da câmara recebem probe.
-- Cubemap `RGBA16F` com mips; amostragem no shader por draw (slot 9).
-- Entidade em captura excluída do cubemap (`excludeEntity`) para evitar auto-reflexo.
-- Faces do cubemap: projeção com flip Y para NDC SDL (top-left, y-up).
+- Objectos com roughness baixa entram na fila; os mais próximos da câmara recebem probe.
+- Cubemap `RGBA16F` com mips; amostragem por draw no shader (slot 9).
+- A entidade capturada é excluída do próprio cubemap (`excludeEntity`) para evitar
+  auto-reflexo.
+- As faces do cubemap usam a projecção NDC da SDL com Y invertido (top-left, y-up).
 
 ## SSR
 
-- Lê cor e profundidade do **frame anterior** (por `viewId`).
-- Parâmetros no `PostProcessComponent.screenSpaceReflections` ou no bloco Reflections do forward features.
+- Lê a cor e a profundidade do frame anterior (por `viewId`).
+- Os parâmetros vêm de `PostProcessComponent.screenSpaceReflections` ou do bloco Reflections
+  das forward features.
 
 ## Céu (environment map)
 
 `GpuEnvironmentMap` — equirectangular + mips (slot 11):
 
-- Fonte: `SkyboxComponent` ativo ou `GpuSceneRenderOptions::environmentPath`.
-- Especular: sempre que a skybox está ligada (metais). Difuso: só com IBL difuso ligado.
+- Fonte: um `SkyboxComponent` activo ou `GpuSceneRenderOptions::environmentPath`.
+- Especular: sempre que o skybox está ligado (metais). Difuso: só com IBL difuso activo.
 
-Onde probe/planar não têm geometria, cai para o céu.
+Onde o passe de probe/planar não tem geometria, o shader recorre ao céu.
 
 ## Material Editor
 
-`MaterialPreviewRenderer`: mundo mínimo + `GpuSceneRenderer` + 1 probe. Ver [`../editor/material-editor.md`](../editor/material-editor.md).
+`MaterialPreviewRenderer`: um mundo mínimo + `GpuSceneRenderer` + um probe. Ver
+[`../editor/material-editor.md`](../editor/material-editor.md).
 
 ## Ver também
 

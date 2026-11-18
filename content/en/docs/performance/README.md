@@ -1,5 +1,13 @@
 # Performance
 
+<div class="doc-meta">
+  <span class="doc-badge doc-badge--reference">Reference</span>
+  <span>Last verified: <time datetime="2026-11-18">2026-11-18</time></span>
+</div>
+
+<p class="doc-lede">Index of the performance notes: what was measured, what the renderer
+does per frame, and which optimisations are still open.</p>
+
 Profiling documentation and engine and editor optimizations.
 
 | Documento | Description |

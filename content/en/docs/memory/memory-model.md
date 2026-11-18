@@ -1,27 +1,39 @@
 # 🧠 Memory Model — Allocator Specification
 
-> ⚠️ **Status:** Revisado contra o código em 2026-09-21.
-> Sections A–B.1–B.3 and F describe real code ( `src/memory/` ). 
+<div class="doc-meta">
+  <span class="doc-badge doc-badge--reference">Reference</span>
+  <span class="doc-badge">Engine</span>
+  <span>Last verified: <time datetime="2026-11-18">2026-11-18</time></span>
+  <span>Source: <a href="https://github.com/devscafecommunity/caffeine/tree/main/src/caffeine/memory"><code>src/caffeine/memory</code></a></span>
+</div>
+
+<p class="doc-lede">The memory policy behind the engine's custom allocators:
+what is implemented today, which systems inject allocators, and which pieces
+remain design intent.</p>
+
+> ⚠️ **Status:** Reviewed against the code on 2026-11-18.
+> Sections A–B.1–B.3 and F describe real code (`src/caffeine/memory`).
 > **ProxyAllocator (§B.4) and AllocatorRegistry (§C) DO NOT exist in the code** —
-> They're marked as planned.
-> Para contexto completo, consulte [`../MASTER.md`](../MASTER.md) e
+> they are marked as planned.
+> For full context, see [`../MASTER.md`](../MASTER.md) and
 > [`../architecture_specs.md`](../architecture_specs.md).
 
-This document contains the detailed technical specifications** of Caffeine Engine memory management systems.
+This document contains the **detailed technical specification** of Caffeine
+Engine memory management systems.
 
 ---
 
 ## 📋 Contents
 
-| Allocator | Phase | Status | Uso |
+| Allocator | Phase | Status | Use |
 |---|---|---|---|
-| **IAllocator (Interface)** | 1 | ✅ Completo | Base para todos os allocators |
-| **Linear Allocator** | 1 | ✅ Completo | Scratch space por frame |
-| **Pool Allocator** | 1 | ✅ Completo | Blocos de tamanho fixo |
-| **Stack Allocator** | 1 | ✅ Completo | Escopos aninhados |
-| **Proxy Allocator** | 1 | 📅 Planejado | Wrappers com logging/debug |
-| **TLSF Allocator** | TBD | 💡 Ideia | Fallback for general allocations |
-| **Buddy Allocator** | TBD | 💡 Ideia | Para o sistema de levels |
+| **IAllocator (Interface)** | 1 | ✅ Complete | Base for every allocator |
+| **Linear Allocator** | 1 | ✅ Complete | Per-frame scratch space |
+| **Pool Allocator** | 1 | ✅ Complete | Fixed-size blocks |
+| **Stack Allocator** | 1 | ✅ Complete | Nested scopes |
+| **Proxy Allocator** | 1 | 📅 Planned | Wrappers with logging/debug |
+| **TLSF Allocator** | Planned | 💡 Idea | Fallback for general allocations |
+| **Buddy Allocator** | Planned | 💡 Idea | For the level system |
 
 ---
 
@@ -34,11 +46,12 @@ This document contains the detailed technical specifications** of Caffeine Engin
 
 
 > Verified reality: the rule applies to the core (ECS) `World` / `Archetype` /
-> `CommandBuffer` , `AssetManager` com `LinearAllocator` itself, `BlobLoader` ,
-> `Vector<T>` com `IAllocator*` opcional). `Vector` sem allocator usa
-> `new` / `delete` global, allocators themselves allocate the initial buffer with
-> `new u8[]` , e subsistemas de ferramenta/editor usam STL livremente. Ou seja:
-> the policy is "allocator injecting in the systems", not "zero" `new` in the repository."
+> `CommandBuffer`, `AssetManager` with its own `LinearAllocator`, `BlobLoader`
+> and `Vector<T>` with an optional `IAllocator*`. `Vector` without an allocator
+> uses global `new` / `delete`, the allocators themselves allocate their initial
+> buffer with `new u8[]`, and tool/editor subsystems use the STL freely. In other
+> words: the policy is "allocator injection into systems", not "zero `new` in the
+> repository".
 
 ### A.2 Map of Allocators by Use (target policy)
 
@@ -108,18 +121,18 @@ flowchart TB
     style S4 fill:#5a4a7f,stroke:#b8d,color:#fff
 ```
 
-### A.2b Actual verified use (code, 2026-09-21)
+### A.2b Actual verified use (code, 2026-11-18)
 
-| Sistema | Uso real | File |
+| System | Actual use | File |
 |---|---|---|
-| **ECS** | `World` , `Archetype` / `ComponentPool` , `CommandBuffer` aceitam `IAllocator*` (opcional, pode ser `nullptr` ) | `src/ecs/World.hpp` , `Archetype.hpp` , `CommandBuffer.hpp` |
-| **Assets** | `AssetManager` possui `LinearAllocator` own (asset arena) | `src/assets/AssetManager.hpp` |
-| **IO** | `BlobLoader::load(path, IAllocator*)` loads binary in given allocator | `src/core/io/BlobLoader.hpp` |
-| **Containers** | `Vector<T>` aceita `IAllocator*` ; sem allocator usa `new` / `delete` global | `src/containers/Vector.hpp` |
-| **Tests/bench** | `tests/test_allocators.cpp` , `BENCHMARK` s em `tests/benchmarks.cpp` | `tests/` |
+| **ECS** | `World`, `Archetype` / `ComponentPool` and `CommandBuffer` accept an optional `IAllocator*` (may be `nullptr`) | `src/caffeine/ecs/World.hpp`, `Archetype.hpp`, `CommandBuffer.hpp` |
+| **Assets** | `AssetManager` owns a `LinearAllocator` (asset arena) | `src/caffeine/assets/AssetManager.hpp` |
+| **IO** | `BlobLoader::load(path, IAllocator*)` loads a binary into the given allocator | `src/caffeine/core/io/BlobLoader.hpp` |
+| **Containers** | `Vector<T>` accepts an `IAllocator*`; without one it uses global `new` / `delete` | `src/caffeine/containers/Vector.hpp` |
+| **Tests/bench** | `tests/test_allocators.cpp`, `BENCHMARK`s in `tests/benchmarks.cpp` | `tests/` |
 
-Physics, EventBus, Render, JobSystem, Audio, UI and Debug ♪ Don't use these ♪
-allocators today (use std/malloc) — migration to the above target map is pending.
+Physics, EventBus, Render, JobSystem, Audio, UI and Debug do **not** use these
+allocators today (they use std/malloc) — migration to the target map above is pending.
 
 ### A.3 Interface Base
 
@@ -194,17 +207,17 @@ inline usize calculateAlignedSize(usize size, usize alignment);
 
 ---
 
-## B. Allocators Detalhados
+## B. Allocators in Detail
 
 ---
 
 ## 1. Linear Allocator
 
-**Phase:**1
+**Phase:** 1
 
 ### Purpose
 
-| Quando usar | When NOT to use |
+| When to use | When NOT to use |
 |---|---|
 | Volatile memory by frame | Persistence between frames |
 | Scratch space for calculations | Variable size allocations that need individual free |
@@ -231,7 +244,7 @@ namespace Caffeine {
 //
 //  Performance: O(1) para todas as operações.
 //
-//  Thread Safety: NÃO thread-safe. Usar apenas na main thread.
+//  Thread Safety: NOT thread-safe. Use on the main thread only.
 // ============================================================================
 class LinearAllocator final : public IAllocator {
 public:
@@ -309,27 +322,27 @@ void* LinearAllocator::alloc(usize size, usize alignment) {
 
 ### System Use (target — see §A.2b for actual current use)
 
-| Sistema | Uso | Typical size |
+| System | Use | Typical size |
 |---|---|---|
 | **Physics** | Contact manifolds, collision pairs | 64KB - 256KB |
 | **Events** | Temporary event | 32KB |
 | **Debug Draw** | Primitive lists | 128KB |
 | **Render** | Vertex buffer staging | 1MB |
-| **Job System** | Task scratch memory | 64KB por worker |
+| **Job System** | Task scratch memory | 64KB per worker |
 
 ---
 
 ## 2. Pool Allocator
 
-**Phase:**1
+**Phase:** 1
 
 ### Purpose
 
-| Quando usar | When NOT to use |
+| When to use | When NOT to use |
 |---|---|
-| Objetos de tamanho fixo | Variable sizes |
-| Common | Dados que precisam sobreviver ao reset |
-| Emitters, particles, audio voices | Assets carregados |
+| Fixed-size objects | Variable sizes |
+| Frequent allocations/frees | Data that must survive a reset |
+| Emitters, particles, audio voices | Loaded assets |
 
 ### Interface
 
@@ -351,7 +364,7 @@ namespace Caffeine {
 //                     o ponteiro do próximo; slot mínimo: 8 bytes)
 //
 //  Performance: O(1) para alloc e free.
-//  Thread Safety: NÃO thread-safe. Usar TLS se necessário.
+//  Thread Safety: NOT thread-safe. Use TLS if needed.
 // ============================================================================
 class PoolAllocator final : public IAllocator {
 public:
@@ -372,12 +385,12 @@ public:
     explicit PoolAllocator(usize poolSize, usize slotSize, usize alignment = 8);
     ~PoolAllocator() override;
 
-    // @note  alloc() IGNORA size/alignment e retorna sempre 1 slot fixo.
-    //        Em debug, CF_ASSERT(size <= m_slotSize). Retorna nullptr se
-    //        o pool estiver exausto.
+    // @note  alloc() IGNORES size/alignment and always returns one fixed slot.
+    //        In debug, CF_ASSERT(size <= m_slotSize). Returns nullptr when the
+    //        pool is exhausted.
     void* alloc(usize size, usize alignment = 8) override;
-    // @note  free(nullptr) é seguro (no-op). NÃO há detecção de double-free:
-    //        liberar 2x o mesmo slot corrompe silenciosamente a free list.
+    // @note  free(nullptr) is safe (no-op). There is NO double-free detection:
+    //        freeing the same slot twice silently corrupts the free list.
     void  free(void* ptr) override;
     void  reset() override;  // Reconstrói a free list, zera usados
 
@@ -450,7 +463,7 @@ void PoolAllocator::free(void* ptr) {
 
 ### System Use (target — see §A.2b for actual current use)
 
-| Sistema | Uso | Tamanho de slot |
+| System | Use | Slot size |
 |---|---|---|
 | **Audio** | AudioSource/voice instances | 128 bytes |
 | **Particles** | Particle instances | 64 bytes |
@@ -462,15 +475,15 @@ void PoolAllocator::free(void* ptr) {
 
 ## 3. Stack Allocator
 
-**Phase:**1
+**Phase:** 1
 
 ### Purpose
 
-| Quando usar | When NOT to use |
+| When to use | When NOT to use |
 |---|---|
-| Escopos aninhados (levels) | Reset Persistence |
-| Frames with allocations that need free order | Free fora de ordem |
-| Temporary task scopes | Different thread allocations |
+| Nested scopes (levels) | Persistence across reset |
+| Frames with allocations that need free order | Out-of-order frees |
+| Temporary task scopes | Allocations from different threads |
 
 ### Interface
 
@@ -498,7 +511,7 @@ using Marker = usize;
 //  └───────────────────────────────────────────────────────────┘
 //
 //  Performance: O(1) para todas as operações.
-//  Thread Safety: NÃO thread-safe.
+//  Thread Safety: NOT thread-safe.
 // ============================================================================
 class StackAllocator final : public IAllocator {
 public:
@@ -541,20 +554,20 @@ private:
 
 ### System Use (target — see §A.2b for actual current use)
 
-| Sistema | Uso | Typical size |
+| System | Use | Typical size |
 |---|---|---|
 | **Scene** | Level load/unload | 1MB - 16MB |
-| **Job System** | Task sub-scopes | 64KB por worker |
-| **Profiler** | Markers de escopo | 4KB |
+| **Job System** | Task sub-scopes | 64KB per worker |
+| **Profiler** | Scope markers | 4KB |
 | **Asset Manager** | Asset loading arena | 8MB |
 
 ---
 
 ## 4. Proxy Allocator
 
-> ** NOT IMPLEMENTED** — future specification section. None
-> `ProxyAllocator` em `src/memory/` (only) `Allocator` , `Linear` , `Pool` ,
-> `Stack` ). Kept here as design intent.
+> ** NOT IMPLEMENTED** — future specification section. There is no
+> `ProxyAllocator` in `src/caffeine/memory` (only `Allocator`, `Linear`, `Pool`,
+> `Stack`). Kept here as design intent.
 
 **Phase:**1 (planned)
 
@@ -570,8 +583,8 @@ and allocation tracking header.
 
 ## C. Allocator Registry
 
-> ** NOT IMPLEMENTED** — does not exist `AllocatorRegistry` in the code.
-> Sustained as design intent.
+> ** NOT IMPLEMENTED** — there is no `AllocatorRegistry` in the code.
+> Kept as design intent.
 
 **Phase:**1 (planned)
 
@@ -599,7 +612,7 @@ Total: 664.0 KB used, 3.3 MB peak, 1.2M allocs
 
 ## D. System Use — Complete Map (target policy)
 
-> ⚠️ Mapa desejado, não uso verificado — ver §A.2b.
+> ⚠️ Desired map, not verified use — see §A.2b.
 
 ```mermaid
 flowchart TB
@@ -699,12 +712,12 @@ flowchart TB
 
 ## F. Integration Checklist
 
-Antes de usar um allocator em um novo sistema:
+Before using an allocator in a new system:
 
-- [ ] Sistema usa `IAllocator*` as parameter (not hardcoded)
-- [ ] Linear allocators reset system at the beginning of each frame
-- [ ] Sistema usa Pool para objetos de tamanho fixo
-- [ ] Sistema usa Stack para escopos aninhados
-- [ ] Sistema verifica `alloc()` retornou `nullptr` (out-of-memory)
-- [ ] System DO NOT keep hands after `reset()` ou `freeToMarker()`
-- [ ] (Future) Statistical log system via AllocatorRegistry — not yet (§C)
+- [ ] The system takes `IAllocator*` as a parameter (not hardcoded)
+- [ ] Linear allocators are reset by the system at the start of each frame
+- [ ] The system uses Pool for fixed-size objects
+- [ ] The system uses Stack for nested scopes
+- [ ] The system checks that `alloc()` returned `nullptr` (out of memory)
+- [ ] The system does not keep pointers after `reset()` or `freeToMarker()`
+- [ ] (Future) Statistics/logging via AllocatorRegistry — not yet (§C)

@@ -1,5 +1,12 @@
 # Lua runtime APIs (core)
 
+<div class="doc-meta">
+  <span class="doc-badge doc-badge--reference">Reference</span>
+  <span>Last updated: <time datetime="2026-11-18">2026-11-18</time></span>
+</div>
+
+<p class="doc-lede">A tabela Lua caffeine: ciclo de vida, tempo, picking, desenho 2D, UI, assets, eventos, map, native, post-process e materiais.</p>
+
 > **VM:** `Script::ScriptEngine` (sol2)  
 > **Systems:** `ScriptSystem` (play mode)
 

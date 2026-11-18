@@ -1,21 +1,26 @@
-# 📦 Batch Renderer
+# Batch Renderer
 
-> **Phase:**3 — The Eye of Engine
-> **Namespace:** `Caffeine::Render` 
-> **Files:** `src/render/BatchRenderer.hpp` , `src/render/TextureAtlas.hpp` 
-> **Status: ** Implemented
-> **RFs:** RF3.3, RF3.4, RF3.5, RF3.6
+<div class="doc-meta">
+  <span class="doc-badge doc-badge--reference">Reference</span>
+  <span><strong>Namespace:</strong> `Caffeine::Render`</span>
+  <span>Last verified: <time datetime="2026-11-18">2026-11-18</time></span>
+  <span>Source: <a href="https://github.com/devscafecommunity/caffeine/blob/main/src/caffeine/render/BatchRenderer.hpp"><code>render/BatchRenderer.hpp</code></a></span>
+</div>
+
+<p class="doc-lede">A sprite batcher that sorts pending sprites and submits one indexed draw
+per frame, plus the shelf-packing texture atlas that feeds it.</p>
 
 ---
 
 ## Overview
 
-The Batch Renderer groups thousands of sprites into a single draw call**. Instead of 50,000 individual calls to the GPU, we send 1. That's the key to 60fps with lots of sprites.
+The batch renderer collects sprites, radix-sorts them by a 32-bit key and emits a **single**
+`drawIndexed` for the frame. Today it is a standalone component: only the tests exercise it,
+and the 3D scene renderer does not submit through it.
 
-**Técnicas utilizadas:**
-- **Instanced Rendering** — GPU draws N copies with different transforms
-- **Persistant Mapped Buffers** — shared buffer CPU↔GPU without memcpy
-- **Radix Sort** — orders sprites by layer → texture → depth before batch
+- **Batching** — all pending sprites become one quad buffer
+- **Radix sort** — orders sprites by layer → texture → depth before building the buffer
+- **Texture atlas** — one texture bind for every sprite that uses the packed atlas
 
 ---
 
@@ -24,117 +29,50 @@ The Batch Renderer groups thousands of sprites into a single draw call**. Instea
 ```cpp
 namespace Caffeine::Render {
 
-// ============================================================================
-// @brief  Formato de vértice de sprite (24 bytes — alinhado para GPU).
-//
-//  offset  0: Vec3  position  (12 bytes)  — x, y, depth(z)
-//  offset 12: Vec2  texcoord  ( 8 bytes)  — UV coordinates
-//  offset 20: u32   tint      ( 4 bytes)  — RGBA8 packed
-//                                TOTAL: 24 bytes (align 4)
-// ============================================================================
-struct SpriteVertex {
-    Vec3 position;   // x, y, z (z = depth/layer)
-    Vec2 texcoord;   // UV from TextureAtlas
-    u32  tint;       // RGBA8 packed: (r<<24)|(g<<16)|(b<<8)|a
+struct SpriteVertex {   // 24 bytes
+    Vec3 position;
+    Vec2 texcoord;
+    u32  tint;          // RGBA8 packed
 };
 
-// ============================================================================
-// @brief  Sistema de Batch Rendering para sprites 2D.
-//
-//  Limite:
-//  - 32K sprites por batch (max por draw call)
-//  - Batches ilimitados por frame (novo batch quando textura/pipeline muda)
-//
-//  Fluxo:
-//  1. beginFrame()         — reseta buffers
-//  2. submitSprite(...)    — acumula sprites (ECS SpriteSystem chama aqui)
-//  3. endFrame(cmd)        — sort → upload → drawInstanced()
-// ============================================================================
 class BatchRenderer {
 public:
+    static constexpr u32 MAX_SPRITES_PER_BATCH = 32768;
+
     explicit BatchRenderer(RHI::RenderDevice* device);
-    ~BatchRenderer();
 
-    // ── Frame lifecycle ────────────────────────────────────────
-    void beginFrame();
-    void endFrame(RHI::CommandBuffer* cmd);
-
-    // ── Submit sprites (chamado pelo ECS SpriteSystem) ─────────
-    void submitSprite(const Mat4& worldTransform, const Sprite& sprite);
-
-    // ── Camera (view-projection matrix) ────────────────────────
+    void beginFrame();                                   // clears pending sprites + stats
     void setCamera(const Camera2D& camera);
+    void setAtlas(const TextureAtlas* atlas);
+    void submitSprite(const Mat4& worldTransform, const ECS::Sprite& sprite);
+    void endFrame(RHI::CommandBuffer* cmd);              // sort → build → upload → draw
 
-    // ── Estatísticas do último frame ───────────────────────────
     struct FrameStats {
-        u32 totalSprites;
-        u32 totalBatches;
-        u32 drawCalls;
-        u32 verticesUploaded;
+        u32 totalSprites     = 0;
+        u32 totalBatches     = 0;
+        u32 drawCalls        = 0;
+        u32 verticesUploaded = 0;
     };
-    FrameStats lastFrameStats() const { return m_stats; }
-
-private:
-    // ── Batch interno ──────────────────────────────────────────
-    struct Batch {
-        RHI::Pipeline*  pipeline   = nullptr;
-        RHI::Texture*   texture    = nullptr;
-        i32             layer      = 0;
-        std::vector<SpriteVertex> vertices;
-        std::vector<u32>          indices;
-    };
-
-    void flushBatch(RHI::CommandBuffer* cmd, Batch& batch);
-    void sortBatches();   // Radix Sort por layer → textureId → depth
-
-    RHI::RenderDevice*     m_device;
-    Camera2D               m_camera;
-    HashMap<u64, Batch>    m_batches;    // key = hash(pipelineId + textureId + layer)
-    RHI::Buffer*            m_vertexBuf = nullptr;  // Persistent Mapped Buffer
-    RHI::Buffer*            m_indexBuf  = nullptr;  // Persistent Mapped Buffer
-    FrameStats              m_stats;
+    FrameStats lastFrameStats() const;
 };
 
-// ============================================================================
-// @brief  Texture Atlas — agrupa múltiplas texturas em uma só imagem.
-//
-//  Benefício: apenas 1 texture bind por batch, mesmo com 100+ sprites diferentes.
-//
-//  Fluxo:
-//  1. add(name, region) — registra sprite sheet region
-//  2. pack()             — organiza regiões com bin-packing
-//  3. getUV(name)        — retorna Vec4(u0, v0, u1, v1) para o shader
-// ============================================================================
 class TextureAtlas {
 public:
-    TextureAtlas(u32 width, u32 height);
-    ~TextureAtlas();
+    explicit TextureAtlas(u32 width, u32 height);
 
-    // Registra uma região (recorte de sprite sheet)
-    bool add(const char* name, Rect2D region);
+    bool add(const char* name, Rect2D sourceRegion);  // only width/height are used
+    void pack();                                      // shelf packing, tallest first
+    bool isPacked() const;
 
-    // Executa bin-packing (deve ser chamado antes de getUV)
-    void pack();
+    Vec4 getUV(const char* name) const;               // Vec4(u0, v0, u1, v1)
 
-    // Exporta como imagem para upload à GPU
-    Buffer exportImage() const;
+    struct PixelData { const u8* pixels; u32 width; u32 height; u32 byteSize; };
+    PixelData exportImage() const;
 
-    // Retorna UV normalizado: Vec4(u0, v0, u1, v1)
-    Vec4 getUV(const char* name) const;
-
-    u32 usedArea() const;
-    u32 totalArea() const { return m_width * m_height; }
-    f32 utilization() const { return (f32)usedArea() / (f32)totalArea(); }
-
-private:
-    struct Region {
-        FixedString<64> name;
-        Rect2D          rect;        // em pixels
-        Vec4            uv;          // normalizado [0,1]
-    };
-
-    std::vector<Region> m_regions;
-    u32 m_width, m_height;
+    u32  count() const;
+    u32  usedArea() const;
+    u32  totalArea() const;
+    f32  utilization() const;
 };
 
 }  // namespace Caffeine::Render
@@ -142,122 +80,89 @@ private:
 
 ---
 
-## Persistent Mapped Buffers (RF3.4)
+## Buffers
 
-- `CPU GPU`
-    - `Persistent Mapped Buffer │`
-    - `◄──────────────────────────►│`
-    - `(mesma memória física) │`
-    - `CPU escreve vértices │ GPU lê vértices`
-    - `sem memcpy │ sem esperar CPU`
+There is no persistent mapped buffer. `endFrame` builds CPU vertex and index vectors, creates
+a `BufferUsage::Vertex` and a `BufferUsage::Index` buffer, binds them, draws, and destroys
+both buffers before returning. Sprites that share a draw therefore avoid per-sprite draws,
+but the upload still happens every frame.
 
+---
 
-* *Implementation:**
+## Sort key
+
 ```cpp
-// Criado uma vez no init:
-m_vertexBuf = m_device->createBuffer(
-    { .size = MAX_SPRITES * 4 * sizeof(SpriteVertex) },
-    BufferUsage::Vertex | BufferUsage::PersistentMapped
-);
-
-// Por frame — sem memcpy, escrita direta:
-SpriteVertex* mapped = (SpriteVertex*)m_vertexBuf->mappedData();
-for (auto& sprite : m_pendingSprites) {
-    buildQuad(sprite, mapped + writeOffset);
-    writeOffset += 4;
-}
-// GPU já tem acesso — sem upload explícito
+sortKey = ((layer + 128) & 0xFF) << 24
+        | (textureId & 0xFFF) << 12
+        | (depth * 0xFFF)
 ```
+
+The field split exists so layer dominates, then texture, then depth. `submitSprite` currently
+passes layer `0` and texture `0` and takes depth from `worldTransform(2, 3)`, so in practice
+the sort orders sprites by depth only. The key is consumed by a 4-pass LSD radix sort.
 
 ---
 
-## Radix Sort Layer Sorting (RF3.5)
-
-```mermaid
-flowchart TD
-  sortKey____layer____24_____textureId____["sortKey = (layer << 24) | (textureId << 12) | depth"] --> _______________________________________["────────┘   └──────────────┘   └──────┘"]
-  _______________________________________["────────┘   └──────────────┘   └──────┘"] --> 8_bits__________12_bits___________12_bit["8 bits          12 bits           12 bits"]
-  8_bits__________12_bits___________12_bit["8 bits          12 bits           12 bits"] --> Prioridade__Layer_primeiro["Prioridade: Layer primeiro"]
-  Prioridade__Layer_primeiro["Prioridade: Layer primeiro"] --> evita_overdraw_por_Z["evita overdraw por Z"]
-  evita_overdraw_por_Z["evita overdraw por Z"] --> Texture_segundo["Texture segundo"]
-  Texture_segundo["Texture segundo"] --> minimiza_binds_de_textura["minimiza binds de textura"]
-  minimiza_binds_de_textura["minimiza binds de textura"] --> Depth_terceiro["Depth terceiro"]
-  Depth_terceiro["Depth terceiro"] --> ordem_visual_correta_dentro_da_layer["ordem visual correta dentro da layer"]
-```
-
-
----
-
-## Exemplo de Uso
+## Usage
 
 ```cpp
 // ── Setup ──────────────────────────────────────────────────────
 Caffeine::Render::BatchRenderer renderer(&device);
 Caffeine::Render::TextureAtlas atlas(2048, 2048);
 
-atlas.add("hero_idle",   { {0,   0},   {64, 64} });
-atlas.add("hero_walk_0", { {64,  0},   {64, 64} });
-atlas.add("tile_grass",  { {128, 0},   {16, 16} });
+atlas.add("hero_idle",   { {0,   0}, {64, 64} });
+atlas.add("hero_walk_0", { {64,  0}, {64, 64} });
+atlas.add("tile_grass",  { {128, 0}, {16, 16} });
 atlas.pack();
 
-// ── Por frame (via ECS SpriteSystem) ──────────────────────────
+// ── Per frame ─────────────────────────────────────────────────
 renderer.beginFrame();
+renderer.setAtlas(&atlas);
 renderer.setCamera(camera2D);
 
-world.query(spriteQuery, [&](Position2D& pos, Sprite& sprite) {
-    Mat4 transform = Mat4::translate(pos.x, pos.y);
-    renderer.submitSprite(transform, sprite);
+ECS::ComponentQuery spriteQuery;
+spriteQuery.with<ECS::Sprite>();
+world.forEach<ECS::Sprite>(spriteQuery, [&](ECS::Entity, ECS::Sprite& sprite) {
+    renderer.submitSprite(Mat4::translation(0, 0, 0), sprite);
 });
 
 auto* cmd = device.beginFrame();
-renderer.endFrame(cmd);   // sort → upload → 1 drawInstanced call
-device.present(cmd);
+renderer.endFrame(cmd);
+device.endFrame(cmd);
 
 // ── Stats ─────────────────────────────────────────────────────
 auto stats = renderer.lastFrameStats();
-// stats.drawCalls == 1 para 50K sprites da mesma textura/layer
+// stats.drawCalls == 1 when at least one sprite was submitted
 ```
 
----
-
-## Design Decisions
-
-| Decision | Justificativa |
-|---------|-------------|
-| Instanced rendering | 1 draw call vs N chamadas individuais |
-| Persistent mapped buffers | Zero memcpy elimina o maior bottleneck |
-| Radix Sort | O(n) vs O(n log n) — essential for 50K sprites |
-| Batching por (pipeline + texture + layer) | Minimum state changes in GPU |
-| `SpriteVertex` 24 bytes | Aligned to 4 bytes — no wasted padding |
+A sprite is a unit quad centred on the origin, transformed by `worldTransform`. Its UVs come
+from the atlas when one is set and packed, otherwise they cover the whole texture.
 
 ---
 
-## Acceptance Criteria
+## Design decisions
 
-- [x] 50K sprites em 1 draw call (verificado com GPU profiler)
-- [x] 60fps stable mid-range hardware
-- [x] GPU time < 2ms para 50K sprites
-- [x] Zero `memcpy` por frame (Persistent Mapped Buffers)
-- [x] Radix sort correto: layer menor renderiza antes
-
----
-
-## Dependencies
-
-- **Upstream:** [RHI](rhi.md), [Camera](camera.md), [Asset Manager](asset-manager.md)
-- **Downstream:** [Phase 4 — ECS SpriteSystem](../ecs/core.md), [Phase 5 — 3D Rendering](../assets/mesh-loading.md)
+| Decision | Rationale |
+|----------|-----------|
+| One quad buffer per frame | A single indexed draw instead of one per sprite |
+| Radix sort | O(n) for the per-frame sprite order |
+| Texture atlas | One bind for every sprite in the batch |
+| `SpriteVertex` 24 bytes | Packed RGBA8 tint, no padding |
 
 ---
 
-## 🔗 Related Topics
+## Current limits
 
-| Topic | Description |
-|--------|-----------|
-| [Rendering & Pipeline]() | Batch Renderer no centro da pipeline 2D |
+- The batch is not split by texture or layer: everything goes into one draw, so a sprite atlas
+  is required to see more than one image.
+- No persistent mapping and no double buffering; buffers are created and destroyed each frame.
+- `tint` is fixed to white in `submitSprite`.
+- Not integrated with the 3D scene renderer or the ECS sprite system yet.
 
-## References
+---
 
-- [`docs/architecture_specs.md`](../architecture specs.md) — §9 Batch Renderer
-- [`docs/fase3/rhi.md`](rhi.md) — CommandBuffer used in endFrame()
-- [`docs/rendering/camera-2d.md`](camera-2d.md) — viewProjectionMatrix for shader
-- [Transversal Topic Index]()
+## Related
+
+- [RHI](rhi.md)
+- [Camera 2D](camera-2d.md)
+- [Asset Manager](../assets/asset-manager.md)

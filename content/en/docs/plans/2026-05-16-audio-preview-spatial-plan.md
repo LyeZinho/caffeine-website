@@ -1,5 +1,10 @@
 # Audio Preview & Spatial Placement Implementation Plan
 
+<div class="doc-meta">
+  <span class="doc-badge doc-badge--historical">Historical</span>
+  <span>Last updated: <time datetime="2026-11-18">2026-11-18</time></span>
+</div>
+
 > **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
 
 **Goal:** Add audio asset preview (playback + waveform) and spatial audio gizmos/editor to the Caffeine Studio IDE.
@@ -13,10 +18,10 @@
 ### Task 1: Register Audio::AudioEmitter as ECS Component
 
 **Files:**
-- Modify: `src/editor/SceneSerializer.cpp` — serialize AudioEmitter clipPath, volume, maxDistance, loop, playOnSpawn, spatial
-- Modify: `src/editor/InspectorPanel.cpp` — already includes AudioComponents. hpp? check; the stub already compiles
+- Modify: `src/caffeine/scene/SceneSerializer.hpp` — serialize AudioEmitter clipPath, volume, maxDistance, loop, playOnSpawn, spatial
+- Modify: `doppio-archived/src/doppio/editor/InspectorPanel.cpp` — already includes AudioComponents. hpp? check; the stub already compiles
 
-**Context:** `Audio::AudioEmitter` is defined in `src/audio/AudioComponents.hpp` in namespace `Caffeine::Audio` . The ECS uses `world.add<ComponentType>()` — any structure works as an ECS component automatically via ComponentID system. No explicit registration needed. However, the SceneSerializer needs to handle AudioEmitter fields.
+**Context:** `Audio::AudioEmitter` is defined in `src/caffeine/audio/AudioComponents.hpp` in namespace `Caffeine::Audio` . The ECS uses `world.add<ComponentType>()` — any structure works as an ECS component automatically via ComponentID system. No explicit registration needed. However, the SceneSerializer needs to handle AudioEmitter fields.
 
 **Step 1: Verify AudioEmitter compiles as ECS component**
 
@@ -56,7 +61,7 @@ git commit -m "feat(audio): register AudioEmitter as ECS component with serializ
 ### Task 2: Implement drawAudioSource in InspectorPanel
 
 **Files:**
-- Modify: `src/editor/InspectorPanel.cpp` — implementation the stub at line 184
+- Modify: `doppio-archived/src/doppio/editor/InspectorPanel.cpp` — implementation the stub at line 184
 
 **Step 1: Read InspectorPanel.cpp around line 180-186**
 
@@ -143,8 +148,8 @@ git commit -m "feat(editor): implement AudioEmitter inspector panel"
 ### Task 3: Create AudioPreviewPanel
 
 **Files:**
-- Create: `src/editor/AudioPreviewPanel.hpp`
-- Create: `src/editor/AudioPreviewPanel.cpp`
+- Create: `doppio-archived/src/doppio/editor/AudioPreviewPanel.hpp`
+- Create: `doppio-archived/src/doppio/editor/AudioPreviewPanel.cpp`
 
 **Step 1: Create AudioPreviewPanel.hpp**
 
@@ -504,8 +509,8 @@ git commit -m "feat(editor): add AudioPreviewPanel with waveform and playback co
 ### Task 4: Add AudioSource Gizmo to SceneViewport
 
 **Files:**
-- Modify: `src/editor/SceneViewport.cpp` — extend drawGizmo
-- Modify: `src/editor/SceneViewport.hpp` — no change needed (already includes Components.hpp)
+- Modify: `doppio-archived/src/doppio/editor/SceneViewport.cpp` — extend drawGizmo
+- Modify: `doppio-archived/src/doppio/editor/SceneViewport.hpp` — no change needed (already includes Components.hpp)
 
 **Step 1: Add AudioComponents.hpp include**
 
@@ -566,9 +571,9 @@ git commit -m "feat(editor): add AudioEmitter spatial gizmo to viewport"
 ### Task 5: Integrate AudioPreviewPanel with SceneEditor
 
 **Files:**
-- Modify: `src/editor/SceneEditor.hpp` — add member
-- Modify: `src/editor/SceneEditor.cpp` — init, render, shutdown
-- Modify: `src/editor/SceneSerializer.cpp` — add AudioEmitter serialization
+- Modify: `doppio-archived/src/doppio/editor/SceneEditor.hpp` — add member
+- Modify: `doppio-archived/src/doppio/editor/SceneEditor.cpp` — init, render, shutdown
+- Modify: `src/caffeine/scene/SceneSerializer.hpp` — add AudioEmitter serialization
 
 **Step 1: Add member to SceneEditor.hpp**
 
@@ -651,7 +656,7 @@ git commit -m "build: add AudioPreviewPanel to doppio target"
 ### Task 7: Asset Drop Integration for Audio
 
 **Files:**
-- Modify: `src/editor/SceneViewport.cpp` — handle Audio asset drops
+- Modify: `doppio-archived/src/doppio/editor/SceneViewport.cpp` — handle Audio asset drops
 
 **Step 1: Extend asset drop handler**
 

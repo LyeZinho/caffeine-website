@@ -1,8 +1,14 @@
 # Cafpack — Unified Asset Layer
 
-> **Namespace:** `CafPack` 
-> ** Repository:** [`caf-pack/`](../../caf-pack/) (submodule)
-> **Status:** 
+<div class="doc-meta">
+  <span class="doc-badge doc-badge--reference">Reference</span>
+  <span><strong>Namespace:</strong> `CafPack`</span>
+  <span>Last updated: <time datetime="2026-11-18">2026-11-18</time></span>
+</div>
+
+<p class="doc-lede">How caf-pack turns raw assets into aligned .caf files and .cap packs, and how the engine consumes them.</p>
+
+> **Repository:** [caf-pack](https://github.com/devscafecommunity/caf-pack) (submodule)
 
 ---
 
@@ -26,8 +32,8 @@ The **Cafpack** is the driver wire of the Caffeine Studio ecosystem (Adobe Creat
 |-----|------------------|-------------|
 | **External art tools** | Edit textures/meshes (optional) | `caf-pack` CLI or `caf-pack-lib` |
 | **External audio tools** | Edit audio (optional) | `caf-pack` CLI or `caf-pack-lib` |
-| **Doppio** | IDE / preview / pack projeto | `Packer` , `Reader` , `HeaderGenerator` |
-| **Runtime** | Carregar jogo | `Reader::loadCap` (zero parsing) |
+| **Doppio** | IDE / preview / pack projeto | `Packer`, `HeaderGenerator` e os processors |
+| **Runtime** | Carregar jogo | `Packer` / asset manager (zero parsing) |
 | **caf-pack CLI** | CI / batch | `caf-pack --input raw --output game.cap` |
 
 ---
@@ -37,23 +43,22 @@ The **Cafpack** is the driver wire of the Caffeine Studio ecosystem (Adobe Creat
 - `caf-pack/`
   - `include/`
     - `caffeine/CafTypes.hpp ← fonte de verdade (.caf + .cap)`
-    - `cafpack/Types.hpp ← alias público`
+    - `caf-pack/AssetProcessor.hpp ← interface base dos processors`
     - `caf-pack/`
-    - `Reader.hpp ← ler .caf / .cap`
-    - `Registry.hpp ← registo de processors`
-    - `Packer.hpp ← agregar → .cap`
+    - `Packer.hpp ← descobrir, processar e escrever .cap`
+    - `TextureProcessor / AudioProcessor / MeshProcessor ← conversores`
     - `HeaderGenerator.hpp ← IDs hash para C++`
     - `*Processor.hpp ← PNG, WAV, OBJ → .caf`
-  - `src/`
+  - `caf-pack/src/`
 
 
 ### Adicionar um novo tipo de asset
 
 1. Adicionar valor em `CafAssetType` ( `include/caffeine/CafTypes.hpp` )
 2. Definir struct de metadata no mesmo ficheiro
-3. Implementar `AssetProcessor` em `src/MyProcessor.cpp`
-4. Registar em `makeDefaultRegistry()` ( `Registry.cpp` )
-5. Consumir em Doppio/Runtime via `Reader` — **No bypass**
+3. Implementar `AssetProcessor` em `caf-pack/src/TextureProcessor.cpp`
+4. Registar em `Packer::registerProcessors()` (`caf-pack/src/Packer.cpp`)
+5. Consumir no asset manager da engine — **No bypass**
 
 ---
 
@@ -64,14 +69,14 @@ The **Cafpack** is the driver wire of the Caffeine Studio ecosystem (Adobe Creat
 | `.caf` | Asset individual binary | `0x43414621` ("CAF!") |
 | `.cap` | Pack de assets (mmap) | `0x4341502F` ("CAP/") |
 
-Detailed package documentation: [`caf-pack/README.md`](../../caf-pack/README.md).
+Detailed package documentation: [`caf-pack/README.md`](https://github.com/devscafecommunity/caf-pack/blob/main/README.md).
 
 ### Two CAF heads (migration)
 
 | Header | Magic | Uso |
 |--------|-------|-----|
 | `caf-pack/include/caffeine/CafTypes.hpp` | `CAF!` | Assets importados + `.cap` |
-| `src/core/io/CafTypes.hpp` | `0xCAFECAFE` | Scene/Prefab engine-internal (legado) |
+| `src/caffeine/core/io/CafTypes.hpp` | `0xCAFECAFE` | Scene/Prefab engine-internal (legado) |
 
 **Phase 2** unifies in a single schema; until then, runtime assets always use caf-pack.
 

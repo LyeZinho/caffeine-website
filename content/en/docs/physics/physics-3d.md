@@ -1,27 +1,54 @@
 # Physics 3D (Bullet3)
 
-> **Namespace:** `Caffeine::Physics3D` 
-> **Ficheiros:** `src/physics/PhysicsComponents3D.hpp` , `PhysicsWorld3D.cpp` , `PhysicsSystem3D.hpp` 
-> **Estado:** 🟡 Primeira fatia — box, sphere, capsule, sync ECS no play mode
-> **Pilar:** [`plans/2026-09-22-engine-pillars-roadmap.md`](.../plans/2026-09-22-engine-pillars-roadmap.md) §3
+<div class="doc-meta">
+  <span class="doc-badge doc-badge--planned">Planned</span>
+  <span><strong>Namespace:</strong> `Caffeine::Physics3D`</span>
+  <span>Last verified: <time datetime="2026-11-18">2026-11-18</time></span>
+  <span>Source: <a href="https://github.com/devscafecommunity/caffeine/blob/main/src/caffeine/physics/PhysicsWorld3D.hpp"><code>physics/PhysicsWorld3D.hpp</code></a></span>
+</div>
 
-ECS does not include Bullet headers. `RigidBody3D` e `Collider3D` They're serializable PDs. The `btRigidBody` vivem em `PhysicsWorld3D` , indexados pelo id da entidade.
+<p class="doc-lede">The rigid-body components and the Bullet3 world exist, but no play-mode
+system steps them yet: the page records the implemented slice and what is still missing.</p>
 
-## Componentes
+> **Files:** `src/caffeine/physics/PhysicsComponents3D.hpp`, `PhysicsWorld3D.cpp`,
+> `PhysicsSystem3D.hpp`
+> **State:** components + Bullet backend implemented; runtime integration planned
 
-| Componente | Campos |
-|------------|--------|
-| `RigidBody3D` | `mass` , damping, `friction` , `restitution` , `bodyType` (Dynamic / Kinematic / Static), `lockRotation` |
-| `Collider3D` | `Box` (half extents), `Sphere` ( `halfExtents.x` = raio), `Capsule` ( `x` raio, `y` altura total), `offset` , `isTrigger` |
+The ECS does not include Bullet headers. `RigidBody3D` and `Collider3D` are serializable PODs.
+The `btRigidBody` instances live in `PhysicsWorld3D`, indexed by entity id.
 
-Both are necessary. In Doppio: **Add Component → Physics 3D**. Step runs only in play mode ( `SceneEditor::tickSystems` ), at 1/60 s with a maximum of 4 substeps. When leaving the play mode the Bullet world is destroyed; the scene edited back by the already existing snapshot.
+## Components
+
+| Component | Fields |
+|-----------|--------|
+| `RigidBody3D` | `mass`, linear/angular damping, `friction`, `restitution`, `bodyType` (Dynamic / Kinematic / Static), `lockRotation` |
+| `Collider3D` | `Box` (half extents), `Sphere` (`halfExtents.x` = radius), `Capsule` (`x` radius, `y` total height), `offset`, `isTrigger` |
+
+Both are required for a body. In Doppio: **Add Component → Physics 3D**. The components are
+reflected (type ids 8 and 9) and serialized in the scene blob, so they survive save/load.
+
+## Integration status
+
+`PhysicsSystem3D` is a plain `ECS::ISystem` that upserts bodies, calls `PhysicsWorld3D::step`
+and writes the results back to `Position3D`, `Transform`, `Rotation3D` and `WorldTransform`.
+Nothing registers it yet: neither the Doppio play mode nor `caffeine-runtime` creates a 3D
+physics system, so editing a `RigidBody3D` in the Inspector does not simulate.
+
+| Piece | Status |
+|-------|--------|
+| Components, reflection, serialization | Implemented |
+| Bullet3 world (`upsertBody`, `step`, `stateOf`) | Implemented |
+| `PhysicsSystem3D` ECS driver | Implemented, not registered |
+| Play-mode tick, debug draw, joints, heightfield/mesh colliders | Not implemented |
 
 ## Policy
 
-- Gravidade por defeito: `(0, -9.81, 0)` .
-- Dynamic bodies: physics writes `Position3D` , `Transform` e `Rotation3D` .
-- Static and kinematic bodies: ECS pose is pushed into Bullet in each frame.
-- Escala de `Scale3D` / `Transform.scale` entra no tamanho do collider.
-- Ground heightfield, mesh convex, debug draw and joints are still not connected.
+- Default gravity: `(0, -9.81, 0)`.
+- Dynamic bodies: physics writes `Position3D`, `Transform` and `Rotation3D`.
+- Static and kinematic bodies: the ECS pose is pushed into Bullet every step.
+- `Scale3D` / `Transform.scale` feed the collider size.
+- `PhysicsWorld3D::step` uses Bullet's `stepSimulation(dt, 4, 1/60)` — at most 4 substeps of
+  1/60 s.
 
-Build: `CAFFEINE_ENABLE_BULLET3=ON` (defeito). Sem a flag, `PhysicsWorld3D::isAvailable()` It returns false and the system is no-op.
+Build: `CAFFEINE_ENABLE_BULLET3=ON` (default). Without the flag, `PhysicsWorld3D::isAvailable()`
+returns false and the system is a no-op.

@@ -1,5 +1,10 @@
 # Script Editor Implementation Plan
 
+<div class="doc-meta">
+  <span class="doc-badge doc-badge--historical">Historical</span>
+  <span>Last updated: <time datetime="2026-11-18">2026-11-18</time></span>
+</div>
+
 > **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
 
 **Goal:** Add a native Text Script Editor tab to the Caffeine Studio editor for editing .lua scripts directly within the IDE, integrated with the existing ScriptEngine.
@@ -13,11 +18,11 @@
 ### Task 1: Create ScriptEditorWindow Header
 
 **Files:**
-- Create: `src/editor/ScriptEditorWindow.hpp`
+- Create: `doppio-archived/src/doppio/editor/ScriptEditorWindow.hpp`
 
 **Step 1: Create the header file with class declaration**
 
-Create `src/editor/ScriptEditorWindow.hpp` :
+Create `doppio-archived/src/doppio/editor/ScriptEditorWindow.hpp` :
 
 ```cpp
 #pragma once
@@ -86,11 +91,11 @@ git commit -m "feat(editor): add ScriptEditorWindow header"
 ### Task 2: Create ScriptEditorWindow Implementation
 
 **Files:**
-- Create: `src/editor/ScriptEditorWindow.cpp`
+- Create: `doppio-archived/src/doppio/editor/ScriptEditorWindow.cpp`
 
 **Step 1: Create implementation with basic text editing**
 
-Create `src/editor/ScriptEditorWindow.cpp` :
+Create `doppio-archived/src/doppio/editor/ScriptEditorWindow.cpp` :
 
 ```cpp
 #include "editor/ScriptEditorWindow.hpp"
@@ -273,12 +278,12 @@ git commit -m "feat(editor): add ScriptEditorWindow implementation"
 ### Task 3: Integrate ScriptEditorWindow into SceneEditor
 
 **Files:**
-- Modify: `src/editor/SceneEditor.hpp`
-- Modify: `src/editor/SceneEditor.cpp`
+- Modify: `doppio-archived/src/doppio/editor/SceneEditor.hpp`
+- Modify: `doppio-archived/src/doppio/editor/SceneEditor.cpp`
 
 **Step 1: Add include and member to SceneEditor.hpp**
 
-In `src/editor/SceneEditor.hpp` , add after line 10:
+In `doppio-archived/src/doppio/editor/SceneEditor.hpp` , add after line 10:
 ```cpp
 #include "editor/ScriptEditorWindow.hpp"
 ```
@@ -295,7 +300,7 @@ ScriptEditorWindow& scriptEditor() { return m_scriptEditor; }
 
 **Step 2: Add render call in SceneEditor.cpp**
 
-In `src/editor/SceneEditor.cpp` , find where other panels are rendered and add the script editor render. Look for where `m_console.render()` is called and add near it:
+In `doppio-archived/src/doppio/editor/SceneEditor.cpp` , find where other panels are rendered and add the script editor render. Look for where `m_console.render()` is called and add near it:
 
 ```cpp
 m_scriptEditor.render();
@@ -313,12 +318,12 @@ git commit -m "feat(editor): integrate ScriptEditorWindow into SceneEditor"
 ### Task 4: Add .lua file handling to AssetBrowser
 
 **Files:**
-- Modify: `src/editor/AssetBrowser.hpp`
-- Modify: `src/editor/AssetBrowser.cpp`
+- Modify: `doppio-archived/src/doppio/editor/AssetBrowser.hpp`
+- Modify: `doppio-archived/src/doppio/editor/AssetBrowser.cpp`
 
 **Step 1: Add Script asset type**
 
-In `src/editor/AssetBrowser.hpp` , add to the AssetType enum:
+In `doppio-archived/src/doppio/editor/AssetBrowser.hpp` , add to the AssetType enum:
 ```cpp
 Script,  // .lua files
 ```

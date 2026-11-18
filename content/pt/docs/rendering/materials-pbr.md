@@ -1,8 +1,17 @@
 # Materiais PBR (forward)
 
-> **Ficheiro:** `.mat` (`CAFMAT2`, `CAFMAT1` ainda lê o cabeçalho)  
-> **Core:** `MaterialSurface`, `MaterialFile`, `MaterialCache`  
-> **Shader:** `scene_lit.frag`  
+<div class="doc-meta">
+  <span class="doc-badge doc-badge--reference">Reference</span>
+  <span><strong>Ficheiro:</strong> `.mat` (`CAFMAT3`; `CAFMAT1`/`CAFMAT2` ainda carregam)</span>
+  <span><strong>Core:</strong> `MaterialSurface`, `MaterialFile`, `MaterialCache`</span>
+  <span><strong>Shader:</strong> `scene_lit.frag`</span>
+  <span>Last verified: <time datetime="2026-11-18">2026-11-18</time></span>
+  <span>Source: <a href="https://github.com/devscafecommunity/caffeine/blob/main/src/caffeine/assets/MaterialTypes.hpp"><code>assets/MaterialTypes.hpp</code></a></span>
+</div>
+
+<p class="doc-lede">A superfície <code>.mat</code> que o passe forward consome — metallic,
+roughness, emission, mapas e os lóbulos avançados — e onde a editar.</p>
+
 > **Editor:** Material Editor
 
 O viewport deixa de ignorar o material atribuído ao mesh. O `.mat` é a superfície que o passe forward já consome: albedo, metallic, roughness, emissão e mapas. O grafo de nós antigo compilava GLSL que o `GpuSceneRenderer` nunca executava.
@@ -27,13 +36,13 @@ O viewport deixa de ignorar o material atribuído ao mesh. O `.mat` é a superf�
 
 O mapa do mesh (Albedo Texture / Normal Map no inspector) continua à frente do mapa do material. Metallic e roughness do ficheiro ganham ao material embutido do glTF.
 
-Presets nomeados: `src/assets/MaterialPresets.hpp` (Mirror, Chrome, Clear Glass, …).
+Presets nomeados: `src/caffeine/assets/MaterialPresets.hpp` (Mirror, Chrome, Clear Glass, …).
 
 ## Onde editar
 
 - Asset Browser → criar Material, abrir o `.mat`.
 - Inspector → Mesh Filter → Material, em primitivas e em meshes custom. **Edit Material** abre o painel.
-- Os sliders publicam no `MaterialCache` na hora. **File → Save** grava o `CAFMAT2`. O carimbo da cena inclui a revisão do cache, por isso o viewport redesenha sem órbita da câmara.
+- Os sliders publicam no `MaterialCache` na hora. **File → Save** grava o `CAFMAT3`. O carimbo da cena inclui a revisão do cache, por isso o viewport redesenha sem órbita da câmara.
 
 Ficheiros `CAFMAT1` abrem com albedo, metallic e roughness do cabeçalho. O grafo deixa de ser avaliado.
 

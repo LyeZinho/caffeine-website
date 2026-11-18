@@ -1,5 +1,10 @@
 # BuildSystem Integration Design Document
 
+<div class="doc-meta">
+  <span class="doc-badge doc-badge--historical">Historical</span>
+  <span>Last updated: <time datetime="2026-11-18">2026-11-18</time></span>
+</div>
+
 **Date:** May 16, 2026
 ** Status:** Approved
 **Milestone:**M4 — Advanced Tools & Polish
@@ -316,22 +321,22 @@ static bool CleanupOnFailure(const std::string& outputDir) {
 
 ## Files to Create
 
-1. `src/editor/BuildSystem.hpp` - Core coordinator class
-2. `src/editor/BuildSystem.cpp` - Pipeline implementation
-3. `src/editor/BuildDialog.hpp` - ImGui panel
-4. `src/editor/BuildDialog.cpp` - Panel rendering
-5. `src/editor/AssetCooker.hpp` - Texture/shader cooking
-6. `src/editor/AssetCooker.cpp` - Asset processing
+1. `doppio-archived/src/doppio/editor/BuildSystem.hpp` - Core coordinator class
+2. `doppio-archived/src/doppio/editor/BuildSystem.cpp` - Pipeline implementation
+3. `doppio-archived/src/doppio/editor/BuildDialog.hpp` - ImGui panel
+4. `doppio-archived/src/doppio/editor/BuildDialog.cpp` - Panel rendering
+5. `doppio-archived/src/doppio/editor/AssetCooker.hpp` - Texture/shader cooking
+6. `doppio-archived/src/doppio/editor/AssetCooker.cpp` - Asset processing
 
 ---
 
 ## Dependencies
 
-- **Upstream:** `src/editor/ProjectManager.hpp` (project config)
-- **Upstream:** `src/assets/TextureCompiler.hpp` (texture cooking)
-- **Upstream:** `src/threading/JobSystem.hpp` (background execution)
-- **Upstream:** `src/editor/ConsoleWindow.hpp` (log display)
-- **New:** `src/render/ShaderCompiler.hpp` (shader cooking)
+- **Upstream:** `src/caffeine/project/ProjectManager.hpp` (project config)
+- **Upstream:** `src/caffeine/assets/TextureCompiler.hpp` (texture cooking)
+- **Upstream:** `src/caffeine/threading/JobSystem.hpp` (background execution)
+- **Upstream:** `doppio-archived/src/doppio/editor/ConsoleWindow.hpp` (log display)
+- **New:** `src/caffeine/render/ShaderCompiler.hpp` (shader cooking)
 - **New:** `src/script/LuaValidator.hpp` (script validation)
 
 ---

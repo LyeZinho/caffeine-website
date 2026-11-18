@@ -1,5 +1,10 @@
 # Arquivo de sessões
 
+<div class="doc-meta">
+  <span class="doc-badge doc-badge--historical">Historical</span>
+  <span>Last updated: <time datetime="2026-11-18">2026-11-18</time></span>
+</div>
+
 Sessões de implementação longas mantidas como contexto histórico. Não são
 tutoriais; use a referência dos módulos para as APIs atuais.
 

@@ -1,10 +1,20 @@
 # Performance — Viewport & GPU Scene Editor
 
+<div class="doc-meta">
+  <span class="doc-badge doc-badge--historical">Historical</span>
+  <span>Last updated: <time datetime="2026-11-18">2026-11-18</time></span>
+</div>
+
+<p class="doc-lede">Historical record of the C++ editor viewport optimisation session: the
+measurements, the GPU/CPU rules it produced, and which constraints still apply.</p>
+
 > **Data:** 2026-09-23
 > **Context:** Research of FPS falls in Doppio (~12 FPS, ~77 ms in `SceneEditor::render` ) 
-> ** Status:** 
-
 ---
+
+<div class="doc-callout doc-callout--note">
+  <p><strong>Historical.</strong> This page records the C++ editor optimisation session. The current Rust viewport uses offscreen <code>render_begin</code>/<code>render_poll</code> readback; see <a href="../editor/scene-viewport.md">Scene viewport</a>.</p>
+</div>
 
 ## Resumo
 
@@ -203,14 +213,14 @@ Scopes added for diagnosis in the panel **Profiler**:
 
 | Ficheiro | Amendments |
 |----------|------------|
-| `src/render/GpuSceneRenderer.cpp` | Shadow UBO 1×, ground cache, mandatory binds |
-| `src/render/GpuSceneRenderer.hpp` | `terrainLodDistanceScale` |
-| `src/editor/SceneViewport.cpp` | GPU-only meshes, editor options, scopes |
-| `src/editor/CameraPreviewPanel.cpp` | GPU-only / CPU fallback, throttle |
-| `src/editor/GameplayPreviewPanel.cpp` | Idem + resizeCanvas seguro |
-| `src/editor/EditorPanelUtils.hpp` | `editorPanelWorthGpuRender()` |
-| `src/render/SkyboxRenderer.cpp` | Cap resolution; raster synchronized with camera |
-| `src/terrain/TerrainLodSystem.cpp` | `lodDistanceScale` no gather |
+| `src/caffeine/render/GpuSceneRenderer.cpp` | Shadow UBO 1×, ground cache, mandatory binds |
+| `src/caffeine/render/GpuSceneRenderer.hpp` | `terrainLodDistanceScale` |
+| `doppio-archived/src/doppio/editor/SceneViewport.cpp` | GPU-only meshes, editor options, scopes |
+| `doppio-archived/src/doppio/editor/CameraPreviewPanel.cpp` | GPU-only / CPU fallback, throttle |
+| `doppio-archived/src/doppio/editor/GameplayPreviewPanel.cpp` | Idem + resizeCanvas seguro |
+| `doppio-archived/src/doppio/editor/EditorPanelUtils.hpp` | `editorPanelWorthGpuRender()` |
+| `src/caffeine/render/SkyboxRenderer.cpp` | Cap resolution; raster synchronized with camera |
+| `src/caffeine/terrain/TerrainLodSystem.cpp` | `lodDistanceScale` no gather |
 
 ---
 

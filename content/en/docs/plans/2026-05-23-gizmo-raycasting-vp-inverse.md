@@ -1,5 +1,10 @@
 # Transform Gizmo Raycasting with VP−1 Implementation Plan
 
+<div class="doc-meta">
+  <span class="doc-badge doc-badge--historical">Historical</span>
+  <span>Last updated: <time datetime="2026-11-18">2026-11-18</time></span>
+</div>
+
 > **For Claude:** REQUIRED SUB-SKILL: Use superpowers/executing-plans to implement this plan task-by-task.
 
 **Goal:** Upgrade gizmo Axis Picking from screen-space distance to 3D raycasting via VP−1 inverse matrix, eliminating forehortening-related picking errors across all viewing angles.
@@ -23,8 +28,8 @@
 ## Task 1: Add `screenToWorldRay()` Helper Function
 
 **Files:**
-- Modify: `src/editor/TransformGizmo.hpp` (add function declaration)
-- Modify: `src/editor/TransformGizmo.cpp` (add function implementation)
+- Modify: `doppio-archived/src/doppio/editor/TransformGizmo.hpp` (add function declaration)
+- Modify: `doppio-archived/src/doppio/editor/TransformGizmo.cpp` (add function implementation)
 
 **Step 1: Add function declaration to header**
 
@@ -96,7 +101,7 @@ git commit -m "feat(gizmo): add screenToWorldRay helper for VP-inverse raycastin
 ## Task 2: Add `rayToAxisSegmentDistance()` Function
 
 **Files:**
-- Modify: `src/editor/TransformGizmo.cpp` (new function)
+- Modify: `doppio-archived/src/doppio/editor/TransformGizmo.cpp` (new function)
 
 **Step 1: Understand the algorithm**
 
@@ -195,7 +200,7 @@ git commit -m "feat(gizmo): add rayToAxisSegmentDistance for finite axis picking
 ## Task 3: Refactor `intersectTest()` to Use Raycasting
 
 **Files:**
-- Modify: `src/editor/TransformGizmo.cpp` lines 389-416
+- Modify: `doppio-archived/src/doppio/editor/TransformGizmo.cpp` lines 389-416
 
 **Step 1: Understand current `intersectTest()` signature**
 
@@ -381,7 +386,7 @@ Write down:
 ## Task 5: Handle Edge Cases & Debug
 
 **Files:**
-- Modify: `src/editor/TransformGizmo.cpp` (debugging & fixes)
+- Modify: `doppio-archived/src/doppio/editor/TransformGizmo.cpp` (debugging & fixes)
 
 **Step 1: Verify perspective divide correctness**
 
@@ -449,7 +454,7 @@ git commit -m "fix(gizmo): add edge case handling for VP inverse and threshold v
 ## Task 6: Performance & Threshold Tuning
 
 **Files:**
-- Modify: `src/editor/TransformGizmo.cpp` (constants)
+- Modify: `doppio-archived/src/doppio/editor/TransformGizmo.cpp` (constants)
 
 **Step 1: Measure performance impact**
 
@@ -493,8 +498,8 @@ git commit -m "perf(gizmo): tune raycasting threshold and verify performance"
 ## Task 7: (Follow-up) Cache VP−1 in EditorContext
 
 **Files:**
-- Modify: `src/editor/EditorContext.hpp` (add fields)
-- Modify: `src/editor/SceneViewport.cpp` (populate cache)
+- Modify: `src/caffeine/scene/EditorContext.hpp` (add fields)
+- Modify: `doppio-archived/src/doppio/editor/SceneViewport.cpp` (populate cache)
 
 **Context:**The VP and VP−1 matrixes are rebuild for every chalkmo frame (and grid, mesh, etc.). Caching them in EditorContext avoids rehabilitation.
 

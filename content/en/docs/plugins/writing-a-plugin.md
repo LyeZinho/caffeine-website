@@ -1,6 +1,25 @@
 # Writing a plugin
 
-Doppio plugins are **shared libraries** that implement a small C ABI. The host (`doppio`) loads them with `dlopen` / `LoadLibrary` and calls into your code through `PluginHostApi` function pointers.
+<div class="doc-meta">
+  <span class="doc-badge doc-badge--reference">Reference</span>
+  <span>Last updated: <time datetime="2026-11-18">2026-11-18</time></span>
+</div>
+
+<div class="doc-callout doc-callout--warning">
+  <p><strong>Legacy host.</strong> The active Rust/Iced Doppio does not load C++ plugins.
+  These pages document the C++/ImGui plugin SDK and its host in the archived C++ editor
+  (<code>doppio-archived/</code>). The engine still builds every plugin from the submodule
+  so the SDK stays compile-tested.</p>
+</div>
+
+
+<p class="doc-lede">The C ABI, lifecycle and host callbacks a plugin implements for the
+legacy C++/ImGui editor.</p>
+
+Plugins are **shared libraries** that implement a small C ABI. The legacy C++ host
+loads them with `dlopen` / `LoadLibrary` and calls into your code through
+`PluginHostApi` function pointers. The active Rust Doppio does not load these
+libraries.
 
 ## Minimal plugin
 
@@ -50,17 +69,20 @@ Defined in `include/caffeine/plugin/PluginAPI.hpp`:
 | Callback | Use |
 |----------|-----|
 | `registerPanel` | ImGui dockable / floating panel |
+| `registerPanelEx` | Panel with `PluginPanelInfo` layout metadata (preferred for new plugins) |
 | `openPanel` | Focus an already registered panel |
 | `registerMenuAction` | Menu path like `Tools/My Action` |
 | `registerComponentDrawer` | Custom Inspector UI for an ECS component |
 | `registerEntityPresetManifest` | Add entity presets to the create menu |
 | `registerService` | Expose a named capability to other plugins |
 | `invokeService` | Call a host or plugin service by name |
-| `getActiveWorld` | Current ECS world in editor |
-| `getSelectedEntityId` | Hierarchy selection |
+| `getActiveWorld` | Current ECS world in the editor |
+| `getSelectedEntityId` / `setSelectedEntityId` | Read or change the hierarchy selection |
 | `getProjectRootPath` | Open project root (parent of `scenes/`) |
-| `markSceneDirty` | Prompt save on scene change |
+| `getCurrentScenePath` | Path of the open scene |
+| `markSceneDirty` / `markAssetBrowserDirty` | Notify the host that state changed |
 | `getComponentTypeId` | Resolve component name → type id for drawers |
+| `getTerrainBrush` / `setTerrainBrush` | Read or edit the viewport terrain brush |
 | `logInfo` / `logError` | Editor console output |
 
 ## Component drawers
@@ -89,8 +111,11 @@ Plugins can register additional services for aggregators or tooling. See [servic
 
 - **Output name** = plugin id (e.g. `terrain_plugin.so` → id `terrain_plugin`)
 - **No `lib` prefix** on Unix (`PREFIX ""` in CMake)
-- **Link only** against ImGui + your own deps — do **not** link `caffeine-core` into the `.so` (ABI is callback-based)
-- Define `CAFFEINE_PLUGIN_EXPORTS=1` when building the plugin
+- **Do not link `caffeine-core` or ImGui** into the `.so`. The host exports those symbols
+  and the SDK is callback-based; link extra system libraries (for example CMake's
+  `${CMAKE_DL_LIBS}`) only when your plugin needs them.
+- Define `CAFFEINE_PLUGIN_EXPORTS=1` (and `CF_HAS_IMGUI=1`) when building the plugin;
+  `doppio_add_plugin()` sets both
 
 Use `cmake/DoppioPlugin.cmake`:
 
@@ -103,12 +128,12 @@ doppio_add_plugin(my_plugin OUTPUT_NAME my_plugin SOURCES src/main.cpp)
 | Style | Headers | Best for |
 |-------|---------|----------|
 | SDK-only | `caffeine/plugin/*.hpp` + ImGui | Panels, menus, lightweight tools |
-| Engine-coupled | `src/editor/*`, `src/ecs/*` | Terrain, post-process, deep Inspector integration |
+| Engine-coupled | `doppio-archived/src/doppio/editor/`, `src/caffeine/ecs/` | Terrain, post-process, deep Inspector integration |
 
 Engine-coupled plugins must be rebuilt when Caffeine internals change. Prefer services and the public SDK when possible.
 
 ## Further reading
 
-- [Caffeine Plugin SDK](https://github.com/caffeine-engine/caffeine/blob/main/docs/editor/plugin-sdk.md) (upstream)
+- [Plugin SDK reference](../editor/plugin-sdk.md)
 - [Installing plugins](installing-plugins.md)
 - [Hello template](https://github.com/devscafecommunity/doppio-plugins/tree/main/templates/hello-plugin)

@@ -1,10 +1,22 @@
 # Photon — native hybrid radiance-cascade GI
 
-Photon is a **native Doppio and runtime system**: it is compiled into the editor and
-runtime binaries, not loaded as a plugin. It provides real-time global illumination
+<div class="doc-meta">
+  <span class="doc-badge doc-badge--beta">Beta</span>
+  <span class="doc-badge">Engine</span>
+  <span>Last updated: <time datetime="2026-11-18">2026-11-18</time></span>
+</div>
+
+<p class="doc-lede">Real-time global illumination without hardware ray tracing: screen-anchored radiance cascades, interval merge and a sky/ambient far field.</p>
+
+Photon is a **native engine system**: it is compiled into `caffeine-core` and used by
+the editor and runtime. It is not loaded as a plugin. It provides real-time global illumination
 without hardware ray tracing.
 
-![Photon indirect lighting in the runtime](../images/captures/photon-gi.png)
+<figure class="doc-figure">
+  <img src="../images/captures/photon-gi.png" alt="Photon indirect lighting in the runtime" loading="lazy">
+  <figcaption>Photon indirect lighting in the runtime</figcaption>
+</figure>
+
 
 ## v0.1 scope
 

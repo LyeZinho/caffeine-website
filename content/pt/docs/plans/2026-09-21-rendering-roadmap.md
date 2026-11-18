@@ -1,5 +1,10 @@
 # 🎨 Rendering Roadmap — 3D de Alto Volume
 
+<div class="doc-meta">
+  <span class="doc-badge doc-badge--historical">Historical</span>
+  <span>Last updated: <time datetime="2026-11-18">2026-11-18</time></span>
+</div>
+
 > **Objetivo:** renderizar ambientes 3D com alto volume de polígonos e texturas de forma **otimizada, consistente e estável** (sem spikes de FPS).  
 > **Critério de “completo”:** cena densa (terreno + centenas de meshes texturizados + iluminação dinâmica + sombras) a 60 FPS estáveis no editor e no runtime.  
 > **Estado atual (2026-10-02):** viewport GPU; cap editor 1280 px; mesh LOD; GGX + ACES; sombras no editor só com a câmara parada e **1 cascata**. Instancing e IBL estão no passe principal (ligados por defeito). Oclusão coarse, reflexos (planar / screen-space / probe) e volumétricos são opcionais e ficam desligados — reflexos e probes só correm com a câmara parada. Cena `assets/benchmarks/dense_outdoor.caf`. O gate p95 < 16.6 ms ainda não foi medido no editor.
@@ -64,7 +69,7 @@ Cada fase tem entregável testável. **Não avançar** para reflexos/volumétric
 
 | Tarefa | Descrição | Ficheiros |
 |--------|-----------|-----------|
-| P1.1 | `GpuTextureCache` central (path → `GPUTexture`, refcount) | `src/render/GpuTextureCache.*` | ✅ |
+| P1.1 | `GpuTextureCache` central (path → `GPUTexture`, refcount) | `src/caffeine/render/GpuTextureCache.hpp` | ✅ |
 | P1.2 | Geração de mipmaps no upload | `GpuTextureCache.cpp`, `RenderDevice.cpp` | ✅ |
 | P1.3 | Bind albedo + normal + ORM no `scene_lit` | `scene_lit.frag`, `MaterialFile`, Material Editor | ✅ albedo, normal, ORM, emissão; o `.mat` alimenta o passe |
 | P1.4 | Async decode (job system) + upload no frame N+1 | `JobSystem`, `AssetManager` |

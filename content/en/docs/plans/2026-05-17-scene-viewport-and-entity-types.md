@@ -1,5 +1,10 @@
 # Scene Viewport Fix & Entity Type System Expansion
 
+<div class="doc-meta">
+  <span class="doc-badge doc-badge--historical">Historical</span>
+  <span>Last updated: <time datetime="2026-11-18">2026-11-18</time></span>
+</div>
+
 > **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
 
 **Goal:** Fix empty Scene Viewport by adding grid rendering and expand entity type system with Camera, Light, and Mesh components for professional game editor.
@@ -19,12 +24,12 @@
 ## Task 1: Add Grid Drawing to Scene Viewport
 
 **Files:**
-- Modify: `src/editor/SceneViewport.cpp` (add grid drawing function)
-- Modify: `src/editor/SceneViewport.hpp` (add grid drawing method)
+- Modify: `doppio-archived/src/doppio/editor/SceneViewport.cpp` (add grid drawing function)
+- Modify: `doppio-archived/src/doppio/editor/SceneViewport.hpp` (add grid drawing method)
 
 **Step 1: Add grid drawing method declaration**
 
-In `src/editor/SceneViewport.hpp` , add to private methods:
+In `doppio-archived/src/doppio/editor/SceneViewport.hpp` , add to private methods:
 
 ```cpp
 #ifdef CF_HAS_IMGUI
@@ -34,7 +39,7 @@ In `src/editor/SceneViewport.hpp` , add to private methods:
 
 **Step 2: Implement grid drawing function**
 
-In `src/editor/SceneViewport.cpp` , after the `drawGizmo` function, add:
+In `doppio-archived/src/doppio/editor/SceneViewport.cpp` , after the `drawGizmo` function, add:
 
 ```cpp
 void SceneViewport::drawGrid(ImDrawList* drawList, ImVec2 origin, ImVec2 viewportSize, const EditorContext& ctx) {
@@ -79,7 +84,7 @@ void SceneViewport::drawGrid(ImDrawList* drawList, ImVec2 origin, ImVec2 viewpor
 
 **Step 3: Call grid drawing in render method**
 
-In `src/editor/SceneViewport.cpp` , in the `render()` function after line 142 where gizmo text is drawn, add:
+In `doppio-archived/src/doppio/editor/SceneViewport.cpp` , in the `render()` function after line 142 where gizmo text is drawn, add:
 
 ```cpp
 drawGrid(drawList, origin, viewportSize, ctx);
@@ -125,12 +130,12 @@ cd /home/pedro/repo/caffeine && git add src/editor/SceneViewport.hpp src/editor/
 ## Task 2: Create Camera Component System
 
 **Files:**
-- Create: `src/ecs/CameraComponents.hpp`
-- Modify: `src/ecs/Components.hpp` (add include)
+- Create: `src/caffeine/ecs/CameraComponents.hpp`
+- Modify: `src/caffeine/ecs/Components.hpp` (add include)
 
 **Step 1: Create Camera components header**
 
-Create `src/ecs/CameraComponents.hpp` :
+Create `src/caffeine/ecs/CameraComponents.hpp` :
 
 ```cpp
 #pragma once
@@ -163,7 +168,7 @@ struct CameraActive {
 
 **Step 2: Include in Components.hpp**
 
-At the end of `src/ecs/Components.hpp` before the closing namespace, add:
+At the end of `src/caffeine/ecs/Components.hpp` before the closing namespace, add:
 
 ```cpp
 #include "ecs/CameraComponents.hpp"
@@ -194,12 +199,12 @@ cd /home/pedro/repo/caffeine && git add src/ecs/CameraComponents.hpp src/ecs/Com
 ## Task 3: Create Light Component System
 
 **Files:**
-- Create: `src/ecs/LightComponents.hpp`
-- Modify: `src/ecs/Components.hpp` (add include)
+- Create: `src/caffeine/ecs/LightComponents.hpp`
+- Modify: `src/caffeine/ecs/Components.hpp` (add include)
 
 **Step 1: Create Light components header**
 
-Create `src/ecs/LightComponents.hpp` :
+Create `src/caffeine/ecs/LightComponents.hpp` :
 
 ```cpp
 #pragma once
@@ -236,7 +241,7 @@ struct SpotLight {
 
 **Step 2: Include in Components.hpp**
 
-At the end of `src/ecs/Components.hpp` , add:
+At the end of `src/caffeine/ecs/Components.hpp` , add:
 
 ```cpp
 #include "ecs/LightComponents.hpp"
@@ -267,12 +272,12 @@ cd /home/pedro/repo/caffeine && git add src/ecs/LightComponents.hpp src/ecs/Comp
 ## Task 4: Create Mesh Renderer Component
 
 **Files:**
-- Create: `src/ecs/MeshComponents.hpp`
-- Modify: `src/ecs/Components.hpp` (add include)
+- Create: `src/caffeine/ecs/MeshComponents.hpp`
+- Modify: `src/caffeine/ecs/Components.hpp` (add include)
 
 **Step 1: Create Mesh components header**
 
-Create `src/ecs/MeshComponents.hpp` :
+Create `src/caffeine/ecs/MeshComponents.hpp` :
 
 ```cpp
 #pragma once
@@ -302,7 +307,7 @@ struct SkinnedMeshRenderer {
 
 **Step 2: Include in Components.hpp**
 
-At the end of `src/ecs/Components.hpp` , add:
+At the end of `src/caffeine/ecs/Components.hpp` , add:
 
 ```cpp
 #include "ecs/MeshComponents.hpp"
@@ -332,12 +337,12 @@ cd /home/pedro/repo/caffeine && git add src/ecs/MeshComponents.hpp src/ecs/Compo
 ## Task 5: Add Entity Type Selector to Hierarchy Panel
 
 **Files:**
-- Modify: `src/editor/HierarchyPanel.cpp` (expand entity creation menu)
-- Modify: `src/editor/HierarchyPanel.hpp` (add helper methods)
+- Modify: `doppio-archived/src/doppio/editor/HierarchyPanel.cpp` (expand entity creation menu)
+- Modify: `doppio-archived/src/doppio/editor/HierarchyPanel.hpp` (add helper methods)
 
 **Step 1: Add helper methods to header**
 
-In `src/editor/HierarchyPanel.hpp` , add to private section:
+In `doppio-archived/src/doppio/editor/HierarchyPanel.hpp` , add to private section:
 
 ```cpp
 private:
@@ -346,7 +351,7 @@ private:
 
 **Step 2: Implement helper in cpp**
 
-In `src/editor/HierarchyPanel.cpp` , add before the `onImGuiRender()` function:
+In `doppio-archived/src/doppio/editor/HierarchyPanel.cpp` , add before the `onImGuiRender()` function:
 
 ```cpp
 void HierarchyPanel::createEntityWithType(ECS::World& world, const char* name, const char* componentType) {

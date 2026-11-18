@@ -1,5 +1,10 @@
 # Session archive
 
+<div class="doc-meta">
+  <span class="doc-badge doc-badge--historical">Historical</span>
+  <span>Last updated: <time datetime="2026-11-18">2026-11-18</time></span>
+</div>
+
 Long-form implementation sessions kept for historical context. These are not
 tutorials; use the module reference for current APIs.
 

@@ -1,8 +1,14 @@
 # Caffeine documentation
 
+<div class="doc-meta">
+  <span class="doc-badge doc-badge--stable">Stable</span>
+  <span class="doc-badge">Docs</span>
+  <span>Last verified: <time datetime="2026-11-18">2026-11-18</time></span>
+</div>
+
 Documentation, plans, screenshots and books for the **Caffeine Engine** and
 **Doppio** editor. This repository is included in the engine as the
-`caffeine-website` submodule; the engine tree contains no Markdown docs.
+`caffeine-website` submodule; the engine tree contains no user-facing Markdown.
 
 ## Layout
 
@@ -11,8 +17,9 @@ Documentation, plans, screenshots and books for the **Caffeine Engine** and
 | `content/en/docs/` | English documentation (canonical) |
 | `content/pt/docs/` | Portuguese mirror of the English tree |
 | `tex/` | LaTeX books and PDF sources |
-| `captures/` | Screenshot manifest and fixture project |
-| `scripts/` | i18n audit, translation and diagram helpers |
+| `captures/` | Legacy screenshot manifest and fixture project |
+| `scripts/` | Docs audits, translation and diagram helpers |
+| `DOCS_STYLE.md` | Authoring standard (HTML-first Markdown) |
 
 ## Where to write
 
@@ -21,6 +28,7 @@ Documentation, plans, screenshots and books for the **Caffeine Engine** and
 | Build, install, first project | `content/en/docs/getting-started/` |
 | Editor UI, panels, viewport | `content/en/docs/editor/` |
 | Engine modules (ECS, rendering, audio…) | matching module folder |
+| Doppio generators | `doppio/docs/` in the engine, linked from the site |
 | Roadmaps and historical plans | `content/en/docs/plans/` |
 | Book-length material | `tex/` |
 | Plugins | `content/en/docs/plugins/` and `doppio-plugins/docs/` |
@@ -28,42 +36,63 @@ Documentation, plans, screenshots and books for the **Caffeine Engine** and
 ## Adding a page
 
 1. Create the Markdown file under `content/en/docs/<section>/`.
-2. Add it to the section index (`content/en/docs/README.md`) when relevant.
-3. Mirror the structure to `content/pt/docs/<section>/`.
-4. Run the i18n audit:
+2. Follow [`DOCS_STYLE.md`](DOCS_STYLE.md): title, `doc-meta` strip, lede, HTML figures and
+   callouts where they add meaning.
+3. Add it to the section index (`content/en/docs/README.md`) when relevant.
+4. Mirror the structure to `content/pt/docs/<section>/` and translate the prose.
+5. Run both audits:
 
-   ```bash
-   python3 scripts/audit-docs-i18n.py
-   ```
+```bash
+python3 scripts/audit-docs.py --include-engine
+python3 scripts/audit-docs-i18n.py
+```
 
-5. Include images with a relative path:
-
-   ```markdown
-   ![Viewport toolbar](../images/captures/doppio-scene.png)
-   ```
-
-## Images and diagrams
+## Images and recordings
 
 | Kind | Location |
 |------|----------|
-| Screenshots | `content/en/docs/images/captures/` |
-| Diagrams | `content/en/docs/images/diagrams/` |
-| Portuguese copies | `content/pt/docs/images/` |
+| Screenshots | `content/{en,pt}/docs/images/` |
+| Diagrams | `content/{en,pt}/docs/images/diagrams/` (SVG when hand-drawn) |
+| GIF/MP4 | `content/{en,pt}/docs/images/editor/` (recorded by the headless driver) |
 
-Generate screenshots from the engine checkout:
+Generate editor images from the engine checkout, not from a desktop screenshot:
 
 ```bash
-python3 scripts/capture_doppio_ui.py
+./scripts/capture-editor-docs.sh
+./scripts/capture-editor-tour.sh
 ```
 
-The shot list lives in [`captures/shots.json`](captures/shots.json). Prefer SVG for
-diagrams so they stay sharp and diff-friendly.
+The flows live in `doppio/docs/flows/capture-editor-docs.json` and
+`capture-editor-tour.json`; copy the resulting PNGs, GIFs and MP4s into both
+language trees. For generator captures, use
+`capture-material-docs.sh`, `capture-nature-docs.sh`, `capture-terrain-docs.sh`,
+`capture-texture-docs.sh`, `capture-water-docs.sh` or `capture-gizmo-docs.sh`.
+
+Embed images with a `<figure>` and a caption that explains what to look at:
+
+```html
+<figure class="doc-figure">
+  <img src="../images/editor/workspace-scene.png" alt="Doppio workspace with the five panes" loading="lazy">
+  <figcaption>The default workspace with an engine-backed scene.</figcaption>
+</figure>
+```
+
+## Audits
+
+`audit-docs.py` checks links, images, stale source paths, HTML rules and the required
+metadata. `audit-docs-i18n.py` checks that EN and PT have the same page set, heading
+levels, code-fence languages and image names. Both must exit 0 before publishing.
+
+`fix-doc-paths.py` repairs moved source references, and `modernize-docs.py` can add
+metadata strips and convert standalone images to figures; run them with `--apply`
+only after reviewing the dry run.
 
 ## Translation
 
-`content/pt/docs/` mirrors `content/en/docs/`. Keep heading levels and code fences
-aligned; the audit checks structure and reports mismatches. New English pages should
-get a Portuguese counterpart, even if the first pass is a summary.
+`content/pt/docs/` mirrors `content/en/docs/`. Keep heading levels, code-fence languages
+and image names aligned; translate prose, captions and `alt` text. Identifiers, paths,
+CLI flags and code are never translated. New English pages get a Portuguese
+counterpart in the same change.
 
 ## Books
 
@@ -80,3 +109,4 @@ Build them with your LaTeX toolchain of choice (`pdflatex`/`latexmk`).
 - Engine and Doppio: <https://github.com/devscafecommunity/caffeine>
 - Editor plugins: <https://github.com/devscafecommunity/doppio-plugins>
 - Launcher: <https://github.com/devscafecommunity/caffeine-launcher>
+- Asset packer: <https://github.com/devscafecommunity/caf-pack>

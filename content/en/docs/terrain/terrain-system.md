@@ -1,25 +1,39 @@
-# 🏔️ Terrain System
+# Terrain System
 
-> **Namespace:** `Caffeine::Terrain` , `Caffeine::ECS::TerrainComponent` 
-> **Files:** `src/terrain/*` , `src/ecs/TerrainComponents.hpp` 
-> ** Status:** 
-> * *Procedural generation:** plugin — see [`terrain-plugin.md`](terrain-plugin.md)
+<div class="doc-meta">
+  <span class="doc-badge doc-badge--stable">Stable</span>
+  <span><strong>Namespace:</strong> `Caffeine::Terrain`, `Caffeine::ECS::TerrainComponent`</span>
+  <span><strong>Files:</strong> `src/caffeine/terrain/`, `src/caffeine/ecs/TerrainComponents.hpp`</span>
+  <span>Last verified: <time datetime="2026-11-18">2026-11-18</time></span>
+  <span>Source: <a href="https://github.com/devscafecommunity/caffeine/blob/main/src/caffeine/ecs/TerrainComponents.hpp"><code>ecs/TerrainComponents.hpp</code></a></span>
+</div>
+
+<p class="doc-lede">The editable heightfield: chunked mesh and LOD, splat painting, coarse
+collision, the native Terrain Editor and the <code>.cterrain</code> format.</p>
+
+> **Procedural generation:** the Doppio Terrain Generator (C ABI v8); the legacy
+> `terrain_plugin` is documented in [`terrain-plugin.md`](terrain-plugin.md)
 
 ---
 
 ## Overview
 
-The land in Caffeine is an editable ** heightfield**: data in `TerrainHeightmap` , rendering via `TerrainMeshBuilder` + LOD por chunks, pintura de splat em `TerrainSplatmap` . The engine **don't**combut more procedural generation in the core — this stayed in the plugin **Terrain Generator**, which uses the algorithm in `assets/general-ultra-realistic-terrain-algorithm` .
+Terrain in Caffeine is an editable **heightfield**: data in `TerrainHeightmap`, rendering via
+`TerrainMeshBuilder` + per-chunk LOD, splat painting in `TerrainSplatmap`. The engine **does
+not** ship procedural generation in the core. Doppio's **Terrain** tab builds heightfields
+with a node graph and places them through the C ABI v8; the legacy `terrain_plugin` remains
+for the C++ host.
 
-**Separation of responsibilities:** the Terrain Editor, sculpt/paint tools and
-`.cterrain` I/O are native engine features. Only procedural generation lives in
-a plugin.
+**Separation of responsibilities:** the Terrain Editor, sculpt/paint tools and `.cterrain` I/O
+are native engine features. Procedural generation lives in Doppio's Terrain tab; the
+legacy `terrain_plugin` keeps the C++ host version.
 
-| Camada | Responsabilidade |
-|--------|------------------|
+| Layer | Responsibility |
+|-------|----------------|
 | **Core** | Heightmap, mesh, LOD, coarse collision, sculpt/paint, `.cterrain` |
 | **Terrain Editor (native)** | Sculpt, splat paint, undo and `.cterrain` import/export |
-| **Terrain Generator (plugin)** | Presets, Node.js, import de heightmap |
+| **Terrain Generator (Doppio tab)** | Presets, node graph, splat layers, Place in scene |
+| **terrain_plugin (legacy)** | Node.js algorithm and heightmap import for the C++ host |
 
 ---
 
@@ -29,65 +43,85 @@ a plugin.
 struct TerrainComponent {
     u32 resolutionX = 257;
     u32 resolutionZ = 257;
-    f32 worldSizeX, worldSizeZ;   // metros (1 u = 1 m)
-    f32 maxHeight;                // altura 0–1 do heightmap → metros
+    u32 splatResolutionScale = 2;          // splatmap is coarser than the heightmap
+    f32 worldSizeX = WorldUnits::kDefaultTerrainSizeM; // metres (1 u = 1 m)
+    f32 worldSizeZ = WorldUnits::kDefaultTerrainSizeM;
+    f32 maxHeight = WorldUnits::kDefaultTerrainHeightM;
+
+    u32 dataRevision = 1;                  // bumped when heights/splat change
+    u32 meshRevision = 0;
+    u32 splatRevision = 1;
+    bool castShadows = true;
+    bool receiveShadows = true;
+
+    char texturePath[256];                 // default ground albedo
+    char normalMapPath[256];               // triplanar normal map (GPU)
+    f32  textureTileSize = 8.0f;
+    f32  shininess = 16.0f;                // legacy; terrain shading has no specular
+    Vec3 tint{1.0f, 1.0f, 1.0f};           // multiplies the sampled albedo
+
+    bool useSplatmap = true;
+    char splatLayerPaths[4][256];          // Grass, Rock, Sand, Dirt defaults
+    f32  splatTileSize = 8.0f;
 
     bool useChunks = true;
     u32 chunkVertexCount = 33;
     u32 maxLodLevels = 2;
+    bool frustumCull = true;
     f32 lodDistanceScale = 520.0f;
+    f32 lodHysteresis = 0.25f;
 
-    u32 collisionSampleStep = 4;  // passo do mesh de colisão
+    u32 collisionSampleStep = 4;           // 4 = ~16x fewer triangles
     bool buildCollisionMesh = true;
 
-    bool castShadows = true;
-    bool receiveShadows = true;
-    char texturePath[256];        // albedo legacy / fallback
-    char normalMapPath[256];      // normal map triplanar (GPU)
-    f32  shininess = 16.0f;       // Phong specular
-
-    char terrainDataPath[256];    // caminho .cterrain no projeto
+    char terrainDataPath[256];             // .cterrain path in the project
 };
 ```
 
-O heightmap interno guarda valores **normalizados** `[0, 1]` . Na mesh, `y = sample * maxHeight` .
+The internal heightmap stores **normalised** values `[0, 1]`. In the mesh, `y = sample *
+maxHeight`.
 
 ---
 
-## Pipeline de Dados
+## Data pipeline
 
 - `TerrainComponent (ECS)`
 - `▼`
 - `TerrainCache::initializeEntity / syncEntity`
-  - `TerrainHeightmap (CPU, editável)`
-  - `TerrainSplatmap (4 camadas)`
-  - `Mesh3D render (TerrainMeshBuilder + tangentes)`
-  - `Mesh3D collision (TerrainCollisionMeshBuilder, decimado)`
+  - `TerrainHeightmap (CPU, editable)`
+  - `TerrainSplatmap (4 layers)`
+  - `Mesh3D render (TerrainMeshBuilder + tangents)`
+  - `Mesh3D collision (TerrainCollisionMeshBuilder, decimated)`
   - `TerrainChunk[] (LOD + frustum cull)`
 
 
 ### TerrainMeshBuilder
 
-- Generates vertices with normal heightmap ( `sampleNormalBilinear` ).
-- UVs em tiling conforme `textureTileSize` / `splatTileSize` .
-- **Tangents** calculated by triangle (base for normal mapping).
+- Generates vertices with the heightmap normal (`sampleNormalBilinear`).
+- UVs tiled according to `textureTileSize` / `splatTileSize`.
+- **Tangents** calculated per triangle (base for normal mapping).
 
 ### Collision
 
-`TerrainCollisionMeshBuilder` reutiliza `buildRegion` com `collisionSampleStep` (e.g.: 4 → ~16× less triangles). Access via `TerrainCache::collisionMeshFor(entity)` .
+`TerrainCollisionMeshBuilder` reuses `buildRegion` with `collisionSampleStep` (for example 4 →
+~16× fewer triangles). Access it through `TerrainCache::collisionMeshFor(entity)`.
 
 ---
 
 ## Editor
 
-| Painel | Function |
-|--------|--------|
+| Panel | Function |
+|-------|----------|
 | **Inspector → Terrain** | Resolution, size, LOD, splat, collision, Normal Map, Shininess |
 | **Terrain Editor (native)** | Sculpt (raise/lower/smooth/flatten/noise), splat paint, import/export `.cterrain` |
 
 ### Native Terrain Editor
 
-![Terrain with natural ground textures](../images/captures/terrain-native.png)
+<figure class="doc-figure">
+  <img src="../images/captures/terrain-native.png" alt="Terrain with natural ground textures" loading="lazy">
+  <figcaption>Terrain with natural ground textures</figcaption>
+</figure>
+
 
 
 Open it from **View → Terrain Editor**, the command palette (**Terrain Editor**),
@@ -122,22 +156,28 @@ own sculpting or painting.
 
 ---
 
-## GPU Rendering (Phong)
+## GPU rendering
 
-Com `CF_HAS_SDL3` , o terreno usa `terrain_lit.frag` :
+With `CF_HAS_SDL3`, terrain uses `terrain_lit.frag`:
 
-- Phong lighting (ambient + diffuse + specular) with `shininess` .
-- Normal map **triplanar** via `TerrainGpuTextureCache::normalMap` (sampler slot 5).
-- Directional shadows (slots 6–7) and point cubemap (slots 8–9).
-- `castShadows` / `receiveShadows` respeitados em `GpuSceneRenderer::gatherMeshDraws` .
+- Lambert diffuse plus sky IBL; the surface is a rough dielectric, with no specular lobe.
+- Normal map **triplanar** via the terrain GPU texture cache (sampler slot 5).
+- Directional shadows (slots 6–7), point cubemaps (slots 8–9) and spot maps (slots 10–11).
+- Splat map on slot 0, the four layers on slots 1–4.
+- `castShadows` / `receiveShadows` are read in `GpuSceneRenderer::gatherMeshDraws`.
 
-Ver [`rendering/materials-phong.md`](../rendering/materials-phong.md) e [`rendering/shadow-mapping.md`](../rendering/shadow-mapping.md).
+See [`rendering/materials-phong.md`](../rendering/materials-phong.md) and
+[`rendering/shadow-mapping.md`](../rendering/shadow-mapping.md).
 
 ---
 
 ## Serialization
 
-`SceneSerializer` grava `TerrainComponent` in the scene blob (version **10**). Version 9 added `collisionSampleStep` e `buildCollisionMesh` ; version 10 adds `normalMapPath` e `shininess` . Legacy generation fields (v2–v8) are read and discarded for compatibility. Heavy height/splat data live in `.cterrain` referenciado por `terrainDataPath` .
+`SceneSerializer` writes `TerrainComponent` into the scene blob (terrain blob version **11**).
+Version 9 added `collisionSampleStep` and `buildCollisionMesh`; version 10 added
+`normalMapPath` and `shininess`; version 11 added `tint`. Legacy generation fields (v2–v8) are
+read and discarded for compatibility. Heavy height/splat data live in the `.cterrain`
+referenced by `terrainDataPath`.
 
 ---
 

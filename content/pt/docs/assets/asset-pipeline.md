@@ -1,35 +1,48 @@
-# 🔧 Asset Pipeline
+# Asset Pipeline
 
-> **Fase:** 6 — O Olimpo  
-> **Namespace:** `Caffeine::Tools`  
-> **Status:** ✅ Implementado  
-> **RFs:** RF6.5
+<div class="doc-meta">
+  <span class="doc-badge doc-badge--stable">Stable</span>
+  <span><strong>Namespace:</strong> `Caffeine::Tools`</span>
+  <span>Last verified: <time datetime="2026-11-18">2026-11-18</time></span>
+  <span>Source: <a href="https://github.com/devscafecommunity/caffeine/blob/main/src/caffeine/tools/AssetPipeline.hpp"><code>tools/AssetPipeline.hpp</code></a></span>
+</div>
+
+<p class="doc-lede">A ferramenta de linha de comandos <code>caf-encode</code> e os encoders que
+transformam PNG, WAV, OBJ e glTF em ficheiros <code>.caf</code>, incluindo o manifesto de
+batch.</p>
 
 ---
 
 ## Visão Geral
 
-O **Asset Pipeline** é a ferramenta de linha de comando (CLI) responsável por converter assets em formato bruto (PNG, WAV, OBJ, GLTF) para o formato binário optimizado `.caf` — o formato nativo da Caffeine Engine.
+A **Asset Pipeline** é a ferramenta de linha de comandos (CLI) que converte assets de origem
+(PNG, WAV, OBJ, glTF) para o formato binário `.caf` do engine.
 
-O pipeline opera **fora do runtime** — é executado antes do jogo, durante o build. Em modo editor (Fase 6), pode ser invocado automaticamente ao detectar mudanças em assets.
+A pipeline corre **fora do runtime** — antes do jogo, durante o build. Pode ser invocada a
+partir do CMake como passo de build.
 
-**Fluxo geral:**
 ```mermaid
 flowchart TD
   assets_raw_["assets/raw/"] --> __caf_encode_CLI_____________assets_["[ caf-encode CLI ]     →     assets/"]
 ```
 
+<div class="doc-callout doc-callout--note">
+  <p><strong>Estado.</strong> O CMake marca o <code>caf-encode</code> como legado e aponta as
+  pipelines novas para a CLI <code>caf-pack</code> (packs <code>.caf</code> /
+  <code>.cap</code>). Os encoders abaixo continuam a ser a referência para o formato interno do
+  engine e continuam a ser construídos.</p>
+</div>
 
 ---
 
-## API Planejada
+## API
+
+Os headers da ferramenta vivem em `src/caffeine/tools/` (`TextureEncoder.hpp`,
+`AudioEncoder.hpp`, `MeshEncoder.hpp`, `AssetPipeline.hpp`, `AssetManifest.hpp`).
 
 ```cpp
 namespace Caffeine::Tools {
 
-// ============================================================================
-// @brief  Resultado de uma operação de conversão.
-// ============================================================================
 struct ConversionResult {
     bool        success = false;
     std::string errorMessage;
@@ -38,112 +51,64 @@ struct ConversionResult {
     f32         compressionRatio = 0.0f;  // outputBytes / inputBytes
 };
 
-// ============================================================================
-// @brief  Opções de conversão de textura.
-// ============================================================================
 struct TextureEncodeOptions {
     enum class Format { RGBA8, RGB8, BC1, BC3, BC7 } format = Format::RGBA8;
     bool generateMipmaps = true;
-    u32  maxMipLevels    = 0;    // 0 = automático (log2 da dimensão maior)
+    u32  maxMipLevels    = 0;    // 0 = automático (log2 da maior dimensão)
     bool premultiplyAlpha = false;
     bool flipVertically   = false;
 };
 
-// ============================================================================
-// @brief  Opções de conversão de áudio.
-// ============================================================================
 struct AudioEncodeOptions {
     enum class Format { PCM16, OGG_VORBIS } format = Format::PCM16;
     u32  targetSampleRate = 44100;
-    bool mono             = false;   // mixar para mono (reduz tamanho)
-    f32  normalizeGain    = 0.0f;    // 0 = sem normalização
+    bool mono             = false;
+    f32  normalizeGain    = 0.0f;
 };
 
-// ============================================================================
-// @brief  Opções de conversão de mesh.
-// ============================================================================
 struct MeshEncodeOptions {
-    bool optimizeVertexCache = true;    // overdraw reduction
+    bool optimizeVertexCache = true;
     bool generateTangents    = true;
-    bool compressVertices    = false;   // quantização de vértices
-    f32  lodReductionRatio   = 0.0f;    // 0 = sem LOD, 0.5 = 50% redução
+    bool compressVertices    = false;
+    f32  lodReductionRatio   = 0.0f;
 };
 
-// ============================================================================
-// @brief  Conversor de textura PNG/BMP/TGA → .caf
-// ============================================================================
 class TextureEncoder {
 public:
-    // Converte um único arquivo de textura
-    ConversionResult encode(std::string_view inputPath,
-                            std::string_view outputPath,
+    ConversionResult encode(std::string_view inputPath, std::string_view outputPath,
                             const TextureEncodeOptions& opts = {});
-
-    // Gera apenas os dados de mipmaps (sem reescrever o arquivo)
-    std::vector<Assets::MipLevel> generateMipmaps(const u8* pixels,
-                                                   u32 width, u32 height,
-                                                   u32 channels);
-private:
-    ConversionResult writeCafTexture(std::string_view outputPath,
-                                     const Assets::CafHeader& header,
-                                     const std::vector<u8>& data,
-                                     const TextureEncodeOptions& opts);
+    static ConversionResult encodeRaw(std::string_view outputPath, const u8* pixels,
+                                      u32 width, u32 height, u32 channels,
+                                      const TextureEncodeOptions& opts = {});
 };
 
-// ============================================================================
-// @brief  Conversor de áudio WAV/MP3/OGG → .caf
-// ============================================================================
 class AudioEncoder {
 public:
-    ConversionResult encode(std::string_view inputPath,
-                            std::string_view outputPath,
+    ConversionResult encode(std::string_view inputPath, std::string_view outputPath,
                             const AudioEncodeOptions& opts = {});
-private:
-    ConversionResult encodeWav(std::string_view inputPath,
-                               std::string_view outputPath,
-                               const AudioEncodeOptions& opts);
+    ConversionResult encodeWav(std::string_view inputPath, std::string_view outputPath,
+                               const AudioEncodeOptions& opts = {});
+    static ConversionResult encodeRaw(std::string_view outputPath, const i16* samples,
+                                      u32 sampleCount, u32 sampleRate, u16 channels,
+                                      const AudioEncodeOptions& opts = {});
 };
 
-// ============================================================================
-// @brief  Conversor de mesh OBJ/GLTF → .caf
-// ============================================================================
 class MeshEncoder {
 public:
-    ConversionResult encode(std::string_view inputPath,
-                            std::string_view outputPath,
+    ConversionResult encode(std::string_view inputPath, std::string_view outputPath,
                             const MeshEncodeOptions& opts = {});
-private:
-    ConversionResult encodeObj(std::string_view inputPath,
-                               std::string_view outputPath,
-                               const MeshEncodeOptions& opts);
-    ConversionResult encodeGltf(std::string_view inputPath,
-                                std::string_view outputPath,
-                                const MeshEncodeOptions& opts);
+    ConversionResult encodeObj(std::string_view inputPath, std::string_view outputPath,
+                               const MeshEncodeOptions& opts = {});
+    ConversionResult encodeGltf(std::string_view inputPath, std::string_view outputPath,
+                                const MeshEncodeOptions& opts = {});
 };
 
-// ============================================================================
-// @brief  Manifesto de assets do projeto.
-//
-//  O AssetManifest é um ficheiro JSON que lista todos os assets do projeto
-//  com metadados (tipo, caminho, hash, tamanho). Permite ao AssetManager
-//  da engine encontrar e carregar assets por nome lógico.
-//
-//  Exemplo de manifesto gerado:
-//  {
-//    "version": 1,
-//    "assets": [
-//      { "id": "hero",    "path": "sprites/hero.caf",    "type": "Texture" },
-//      { "id": "bgm",     "path": "audio/bgm.caf",       "type": "Audio"   },
-//      { "id": "level01", "path": "meshes/level01.caf",  "type": "Mesh"    }
-//    ]
-//  }
-// ============================================================================
 struct AssetManifestEntry {
     std::string         id;       // nome lógico (sem extensão)
-    std::string         path;     // caminho relativo ao /assets/
+    std::string         path;     // relativo à pasta de saída
     Assets::AssetType   type;
     u64                 sizeBytes = 0;
-    u32                 crc32     = 0;     // para detecção de mudanças
+    u32                 crc32     = 0;
 };
 
 class AssetManifest {
@@ -155,36 +120,24 @@ public:
     void removeEntry(std::string_view id);
 
     const AssetManifestEntry* find(std::string_view id) const;
-    const std::vector<AssetManifestEntry>& entries() const { return m_entries; }
-
-private:
-    std::vector<AssetManifestEntry> m_entries;
+    const std::vector<AssetManifestEntry>& entries() const;
+    usize entryCount() const;
 };
 
-// ============================================================================
-// @brief  Pipeline de batch — converte uma pasta inteira de assets.
-//
-//  Comportamento:
-//  1. Descobre todos os assets suportados em inputDir (recursivo)
-//  2. Para cada asset, verifica se output .caf está desatualizado (via CRC)
-//  3. Converte apenas os assets desatualizados (build incremental)
-//  4. Atualiza o AssetManifest com as novas entradas
-//  5. Gera relatório final (N convertidos, M ignorados, K erros)
-// ============================================================================
 class AssetPipeline {
 public:
     struct BatchOptions {
         std::string inputDir;
         std::string outputDir;
-        std::string manifestPath;   // se vazio, não gera manifesto
-        bool        forceRebuild    = false;  // ignorar CRC, reconverter tudo
+        std::string manifestPath;   // vazio = sem manifesto
+        bool        forceRebuild    = false;
         bool        verbose         = false;
-        u32         threadCount     = 4;      // conversões em paralelo
+        u32         threadCount     = 4;
     };
 
     struct BatchReport {
         u32 converted = 0;
-        u32 skipped   = 0;   // sem mudanças (CRC igual)
+        u32 skipped   = 0;   // sem alterações (mesmo CRC/timestamp)
         u32 errors    = 0;
         std::vector<std::string> errorMessages;
         f64 totalTimeSeconds = 0.0;
@@ -193,50 +146,55 @@ public:
     };
 
     BatchReport run(const BatchOptions& opts);
-
-private:
-    TextureEncoder m_textureEncoder;
-    AudioEncoder   m_audioEncoder;
-    MeshEncoder    m_meshEncoder;
-
-    Assets::AssetType detectAssetType(const std::filesystem::path& path) const;
-    bool isOutdated(const std::filesystem::path& src,
-                    const std::filesystem::path& dst) const;
 };
 
 }  // namespace Caffeine::Tools
 ```
+
+`threadCount` é aceite mas o ciclo de batch converte actualmente em série.
 
 ---
 
 ## CLI: caf-encode
 
 ```bash
-# Converter um único arquivo:
-caf-encode texture hero.png assets/sprites/hero.caf --mipmaps --format BC3
+# Uma textura (precisa de pixels: ver encodeRaw abaixo):
+caf-encode texture hero.png assets/sprites/hero.caf --mipmaps
 
-# Converter áudio:
-caf-encode audio bgm.wav assets/audio/bgm.caf --format ogg --sample-rate 44100
+# Áudio:
+caf-encode audio bgm.wav assets/audio/bgm.caf
 
-# Converter mesh:
-caf-encode mesh level01.gltf assets/meshes/level01.caf --optimize --tangents
+# Mesh (OBJ / glTF / GLB):
+caf-encode mesh level01.gltf assets/meshes/level01.caf
 
-# Processar pasta inteira (build incremental):
+# Pasta inteira (incremental):
 caf-encode batch ./raw/ ./assets/ --manifest assets/manifest.json --jobs 8
 
-# Forçar reconversão de tudo:
+# Reconstruir tudo:
 caf-encode batch ./raw/ ./assets/ --force-rebuild
 
-# Apenas verificar o que seria convertido (dry-run):
-caf-encode batch ./raw/ ./assets/ --dry-run
+# Log detalhado:
+caf-encode batch ./raw/ ./assets/ --verbose
 ```
+
+`caf-encode --help` imprime as opções aceites no build que tens. A conversão de texturas aceita
+`--mipmaps` / `--no-mipmaps`; a conversão em batch aceita `--manifest`, `--force-rebuild`,
+`--jobs` e `--verbose`.
+
+<div class="doc-callout doc-callout--warning">
+  <p><strong>A codificação de texturas está em stub.</strong>
+  <code>TextureEncoder::encode(inputPath, …)</code> devolve “stb_image not linked - file-based
+  encoding unavailable”; só <code>TextureEncoder::encodeRaw(...)</code>, que recebe pixels já
+  descodificados, escreve uma textura. A codificação de áudio (WAV) e de mesh (OBJ/glTF) a
+  partir de ficheiro funciona.</p>
+</div>
 
 ---
 
-## Estrutura de Diretórios
+## Estrutura de pastas
 
 - `project/`
-  - `raw/                    ← assets originais (não vão no build final)`
+  - `raw/ ← assets originais (não vão no build)`
     - `sprites/`
       - `hero.png`
       - `enemy.png`
@@ -244,47 +202,42 @@ caf-encode batch ./raw/ ./assets/ --dry-run
       - `bgm.wav`
       - `jump.wav`
     - `meshes/`
-    - `level01.gltf`
-    - `level01_textures/`
-    - `diffuse.png`
-  - `assets/                 ← assets convertidos (incluídos no build)`
-    - `sprites/`
-      - `hero.caf        ← textura RGBA8 + mipmaps`
-      - `enemy.caf`
-    - `audio/`
-      - `bgm.caf         ← OGG Vorbis`
-      - `jump.caf        ← PCM16`
-    - `meshes/`
-      - `level01.caf     ← Mesh3D + materiais + texturas embutidas`
-    - `manifest.json       ← índice de todos os assets`
-  - `build.sh / CMakeLists   ← invoca caf-encode batch antes do link`
+      - `level01.gltf`
+      - `level01_textures/diffuse.png`
+  - `assets/ ← assets convertidos (incluídos no build)`
+    - `sprites/hero.caf ← RGBA8 + mipmaps`
+    - `audio/bgm.caf ← PCM16`
+    - `meshes/level01.caf ← Mesh3D + materiais + texturas embutidas`
+    - `manifest.json ← índice de assets`
+  - `build.sh / CMakeLists ← invoca caf-encode batch antes do link`
 
 
 ---
 
-## Formato .caf — Estrutura do Header
+## Formato .caf — cabeçalho
 
 ```cpp
-// Header de 32 bytes (definido em assets/caf-format.md):
+// Cabeçalho de 32 bytes (especificação completa em assets/caf-format.md):
 struct CafHeader {
-    u32  magic;        // 0xCAFECAFE
-    u8   version;      // 1
-    u8   assetType;    // Texture=0, Audio=1, Mesh=2, etc.
-    u16  flags;        // COMPRESSED=0x01, MIPMAPS=0x02, etc.
-    u32  dataSize;     // tamanho do payload em bytes
-    u32  crc32;        // checksum do payload
-    u32  reserved[4];  // alinhamento + uso futuro
+    u32       magic;         // 0xCAFECAFE
+    u16       versionMajor;  // 1
+    u16       versionMinor;  // 0
+    AssetType type;          // Texture=0, Audio=1, Mesh=2, ...
+    u16       flags;         // COMPRESSED=0x01, MIPCHAIN=0x08, ...
+    u32       crc32;         // CRC32 do payload
+    u64       metadataSize;  // bytes de metadata
+    u64       dataSize;      // bytes de payload
 };
 ```
 
-Para a especificação completa do formato, ver [`assets/caf-format.md`](../assets/caf-format.md).
+Para a especificação completa, ver [`assets/caf-format.md`](caf-format.md).
 
 ---
 
-## Integração com o Build (CMake)
+## Integração com o build (CMake)
 
 ```cmake
-# CMakeLists.txt — executar pipeline antes de compilar o jogo:
+# CMakeLists.txt — correr a pipeline antes de compilar o jogo:
 add_custom_command(
     OUTPUT  ${CMAKE_BINARY_DIR}/assets/manifest.json
     COMMAND caf-encode batch
@@ -303,7 +256,7 @@ add_dependencies(${GAME_TARGET} assets)
 
 ---
 
-## Build Incremental (CRC-based)
+## Build incremental
 
 ```mermaid
 flowchart TD
@@ -324,67 +277,56 @@ flowchart TD
 
 ---
 
-## Geração de Mipmaps
+## Geração de mipmaps
 
 - `Textura original: 512×512 (RGBA8, 1MB)`
   - `Mip 0: 512×512 (1MB)`
   - `Mip 1: 256×256 (256KB)`
   - `Mip 2: 128×128 (64KB)`
-  - `Mip 3:  64×64  (16KB)`
-  - `Mip 4:  32×32  (4KB)`
-  - `Mip 5:  16×16  (1KB)`
-  - `Mip 6:   8×8   (256B)`
-  - `Mip 7:   4×4   (64B)`
-  - `Mip 8:   2×2   (16B)`
-  - `Mip 9:   1×1   (4B)`
-- `Total: ~1.33MB (apenas 33% de overhead)`
-- `Algoritmo de filtragem: Lanczos-3 (alta qualidade) ou Box (rápido)`
-- `Configurável via --mip-filter lanczos|box`
+  - `Mip 3: 64×64 (16KB)`
+  - `Mip 4: 32×32 (4KB)`
+  - `Mip 5: 16×16 (1KB)`
+  - `Mip 6: 8×8 (256B)`
+  - `Mip 7: 4×4 (64B)`
+  - `Mip 8: 2×2 (16B)`
+  - `Mip 9: 1×1 (4B)`
+- `Total: ~1.33MB (33% de overhead)`
+- `Filtragem: downscale box do nível anterior`
 
 
 ---
 
-## Critério de Aceitação
+## Limites actuais
 
-- [x] `caf-encode texture` converte PNG → .caf com mipmaps correctos
-- [x] `caf-encode audio` converte WAV → .caf PCM16 ou OGG
-- [x] `caf-encode mesh` converte OBJ e GLTF → .caf Mesh3D
-- [x] `caf-encode batch` processa pasta inteira em paralelo
-- [x] Build incremental: só reconverte assets modificados (CRC)
-- [x] Manifesto JSON gerado com todos os assets convertidos
-- [ ] AssetManager da engine consegue carregar assets pelo manifesto
-- [ ] Hot-reload (RF6.6): mudança em raw/ → re-conversão automática → reload no editor
+- [ ] O caminho de ficheiro do `caf-encode texture` está em stub (`encodeRaw` funciona com pixels descodificados)
+- [x] `caf-encode audio` converte WAV → .caf PCM16
+- [x] `caf-encode mesh` converte OBJ e glTF → .caf Mesh3D
+- [x] `caf-encode batch` converte uma pasta e escreve um manifesto JSON
+- [x] Build incremental: só converte assets alterados
+- [ ] O `AssetManager` ainda não lê o manifesto
+- [ ] Hot-reload de fontes em bruto (RF6.6) não está ligado à pipeline
+- [ ] A saída OGG Vorbis (`AudioEncodeOptions::Format`) está declarada mas não é codificada
 
 ---
 
 ## Dependências
 
 - **Upstream:**
-  - [Asset Manager](../assets/asset-manager.md) — formato CafHeader, AssetType
-  - [CAF Format](../assets/caf-format.md) — especificação binária do .caf
-  - [Mesh Loading](../assets/mesh-loading.md) — Vertex3D, Mesh3D, SubMesh
-  - [Audio System](../audio/audio-system.md) — AudioClip, AudioFormat
-- **Downstream:**
-  - — (executado antes do runtime, não há downstream em runtime)
+  - [Asset Manager](asset-manager.md) — formato `CafHeader`, `AssetType`
+  - [CAF Format](caf-format.md) — especificação binária do `.caf`
+  - [Mesh Loading](mesh-loading.md) — `Vertex3D`, `Mesh3D`, `SubMesh`
+  - [Audio System](../audio/audio-system.md) — `AudioClip`, formatos de áudio
+- **Downstream:** nenhum — a ferramenta corre antes do runtime
 
 ---
 
-## 🔗 Tópicos Relacionados
-
-| Tópico | Descrição |
-|--------|-----------|
-| [Assets & Pipeline]() | Pipeline CLI como ferramenta de build |
-| [Editor & Debug]() | Integração com hot-reload no editor |
-
 ## Referências
 
-- [`assets/caf-format.md`](../assets/caf-format.md) — Formato binário .caf
-- [`assets/asset-manager.md`](../assets/asset-manager.md) — AssetManager + AssetHandle
-- [`assets/mesh-loading.md`](../assets/mesh-loading.md) — Mesh3D + Vertex3D
-- [Índice de Tópicos Transversais]()
-- [`docs/MASTER.md`](../MASTER.md) — Documentação unificada
-- [stb_image](https://github.com/nothings/stb) — decodificação de PNG/JPG/BMP
-- [dr_wav](https://github.com/mackron/dr_libs) — decodificação de WAV
-- [cgltf](https://github.com/jkuhlmann/cgltf) — parser de GLTF
+- [`caf-format.md`](caf-format.md) — formato binário `.caf`
+- [`asset-manager.md`](asset-manager.md) — `AssetManager` + `AssetHandle`
+- [`mesh-loading.md`](mesh-loading.md) — `Mesh3D` + `Vertex3D`
+- [stb image](https://github.com/nothings/stb) — descodificação PNG/JPG/BMP
+- [dr_wav](https://github.com/mackron/dr_libs) — descodificação WAV
+- [cgltf](https://github.com/jkuhlmann/cgltf) — parser de glTF
 - [meshoptimizer](https://github.com/zeux/meshoptimizer) — optimização de vertex cache
-- [BC7Enc](https://github.com/richgel999/bc7enc) — compressão de texturas BC1/BC3/BC7
+- [bc7enc](https://github.com/richgel999/bc7enc) — compressão de textura BC1/BC3/BC7

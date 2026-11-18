@@ -1,6 +1,15 @@
 # 🎲 Procedural Tools Plugin
 
-> **Plugin:** `procedural_tools_plugin.so` 
+<div class="doc-meta">
+  <span class="doc-badge doc-badge--reference">Reference</span>
+  <span class="doc-badge">Plugin</span>
+  <span><strong>Plugin:</strong> `procedural_tools_plugin.so`</span>
+  <span>Last verified: <time datetime="2026-11-18">2026-11-18</time></span>
+  <span>Source: <a href="https://github.com/devscafecommunity/caffeine/blob/main/src/caffeine/procedural/ProceduralWorldSystem.hpp"><code>procedural/ProceduralWorldSystem.hpp</code></a></span>
+</div>
+
+<p class="doc-lede">Streaming tools for endless worlds: chunk terrain heights, optional
+structures, a Lua director and a noise API over the <code>ProceduralWorldComponent</code>.</p>
 > **Scripts:** `assets/plugins/procedural/scripts/` 
 > **Runtime API:** `caffeine.procedural.*` (Lua)
 
@@ -27,9 +36,10 @@ Exploration, backrooms and endless running are **benchmarks** (reference example
 2. Configurar **Streaming** (seed, chunk size, view radius)
 3. Escolher **Terrain height** e **Structure spawner** (ou `none` + Lua)
 4. Definir **Script path** (default: `custom_director.lua` )
-5. **Install Lua scripts** → copies templates for `scripts/procedural/`
-6. **Create Streaming Setup** → creates `ProceduralTerrain` + `ProceduralDirector`
-7. **Play** — Chunks carry around the camera
+5. **Install Lua scripts** → copies templates to `scripts/procedural/`
+6. **Create Streaming Setup** → creates a terrain entity plus a director entity with
+   `ProceduralWorldComponent` and a `ScriptComponent`
+7. **Play** — chunks stream around the camera
 
 ### Benchmarks
 
@@ -86,15 +96,18 @@ end
 
 ---
 
-## Componentes ECS
+## ECS components
 
-| Campo | Function |
-|-------|--------|
-| `terrainProfile` | `flat` , `hills` , `fbm` |
-| `structureProfile` | `none` , `markers` , `rooms` , `track` |
+`ProceduralWorldComponent` on the director entity:
+
+| Field | Function |
+|-------|----------|
+| `terrainProfile` | `flat`, `hills`, `fbm` |
+| `structureProfile` | `none`, `markers`, `rooms`, `track` |
 | `customScriptPath` | Lua director |
-| `seed` , `chunkSize` , `viewRadius` | Streaming |
-| `ProceduralSpawnTag` | Entidades removidas no unload |
+| `seed`, `chunkSize`, `viewRadius` | Streaming |
+| `terrainEntityId`, `focusEntityId` | Bindings to the terrain and the follow target |
+| `ProceduralSpawnTag` | Marks entities removed on unload |
 
 ---
 
@@ -112,8 +125,8 @@ end
 
 | Module | Ficheiro |
 |--------|----------|
-| Profiles | `src/procedural/ProceduralProfiles.*` |
-| Noise | `src/procedural/ProceduralNoise.*` |
-| Geradores | `src/procedural/ProceduralGenerator.*` |
-| Streaming | `src/procedural/ProceduralStreamer.*` |
-| Tick play mode | `src/procedural/ProceduralWorldSystem.*` |
+| Profiles | `src/caffeine/procedural/ProceduralProfiles.hpp` |
+| Noise | `src/caffeine/procedural/ProceduralNoise.hpp` |
+| Geradores | `src/caffeine/procedural/ProceduralGenerator.hpp` |
+| Streaming | `src/caffeine/procedural/ProceduralStreamer.hpp` |
+| Tick play mode | `src/caffeine/procedural/ProceduralWorldSystem.hpp` |

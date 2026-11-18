@@ -1,27 +1,39 @@
-# Materiais Phong (3D)
+# Materials in the 3D forward pass
 
-> **Namespace:** `Caffeine::Render` , `Caffeine::ECS` 
-> **Shaders:** `src/render/shaders/scene_lit.{vert,frag}` , `terrain_lit.frag` 
-> **Renderer:** `GpuSceneRenderer` 
-> ** Status:** 
+<div class="doc-meta">
+  <span class="doc-badge doc-badge--reference">Reference</span>
+  <span><strong>Namespace:</strong> `Caffeine::Render`, `Caffeine::ECS`</span>
+  <span>Last verified: <time datetime="2026-11-18">2026-11-18</time></span>
+  <span>Source: <a href="https://github.com/devscafecommunity/caffeine/blob/main/src/caffeine/render/shaders/scene_lit.frag"><code>render/shaders/scene_lit.frag</code></a></span>
+</div>
+
+<p class="doc-lede">What the forward shader actually evaluates for meshes and terrain, the
+sampler slots behind it, and why the old “Phong” fields are now legacy data.</p>
+
+> **Shaders:** `src/caffeine/render/shaders/scene_lit.vert` / `.frag`, `terrain_lit.frag`
+> **Renderer:** `GpuSceneRenderer`
 
 ---
 
 ## Overview
 
-Meshes com um `.mat` They use metallic, roughness, ORM and emission. See [`materials-pbr.md`](materials-pbr.md). O passe GPU avalia:
+Meshes with a `.mat` use metallic, roughness, ORM and emission. See
+[`materials-pbr.md`](materials-pbr.md). The GPU pass evaluates a GGX specular lobe:
 
-```
-final = ambient + Σ (diffuse Lambert + specular GGX) × shadow
+```text
+final = ambient/IBL + Σ (diffuse Lambert + specular GGX) × shadow
 ```
 
 - **Diffuse:** `max(dot(N, L), 0) × albedo × lightColor × (1 - metallic)`
-- **Specular:** GGX com roughness e metallic
-- **Normal mapping:** `N` via TBN e textura normal (meshes) ou triplanar (terreno)
+- **Specular:** GGX with roughness and metallic
+- **Normal mapping:** `N` via TBN and normal texture (meshes) or triplanar (terrain)
+
+Terrain (`terrain_lit.frag`) is a rough dielectric: Lambert diffuse plus sky IBL, with a
+triplanar normal map. It has no specular lobe.
 
 ---
 
-## Componentes ECS
+## ECS components
 
 ### MeshFilterComponent
 
@@ -30,19 +42,22 @@ struct MeshFilterComponent {
     MeshPrimitive primitive = MeshPrimitive::Cube;
     std::string   customMeshPath;
     std::string   customTexturePath;
-    std::string   customNormalPath;   // caminho relativo ao projeto
+    std::string   customNormalPath;   // project-relative
     std::string   customMaterialPath;
-    f32           shininess = 32.0f;  // expoente especular
+    f32           shininess = 32.0f;  // legacy; kept for serialization
 };
 ```
 
-**Inspector (Doppio):**Albedo Texture, Normal Map, Shininess (slider 1–128).
+**Inspector (Doppio):** Albedo Texture, Normal Map, Shininess.
+
+`shininess` is no longer read by the shader: the forward pass takes roughness and metallic
+from the `.mat` or the embedded glTF material.
 
 ### TerrainComponent
 
 ```cpp
 char normalMapPath[256] = {};
-f32  shininess = 16.0f;
+f32  shininess = 16.0f;   // legacy; terrain lighting has no specular term
 bool castShadows = true;
 bool receiveShadows = true;
 ```
@@ -51,7 +66,7 @@ bool receiveShadows = true;
 
 ---
 
-## Pipeline GPU
+## GPU pipeline
 
 ```mermaid
 flowchart LR
@@ -60,51 +75,55 @@ flowchart LR
     C --> D[Framebuffer viewport]
 ```
 
-1. `renderDirectionalShadows()` — up to 2 directional lamps with `castShadows` .
-2. `renderPointShadows()` — up to 2 point lamps (cubéap Depth).
-3. Pass principal com UBO de luzes + UBO de sombras + materiais.
+1. `renderDirectionalShadows()` — up to 2 directional lamps with `castShadows`.
+2. `renderPointShadows()` / `renderSpotShadows()` — up to 2 point and 2 spot lamps.
+3. Main pass with the lighting UBO, shadow UBO and material uniforms.
 
-### Samplers (meshes — `scene_lit.frag` )
+### Samplers (meshes — `scene_lit.frag`)
 
-| Slot | Textura |
+| Slot | Texture |
 |------|---------|
 | 0 | Albedo |
 | 1 | Normal map |
-| 2–3 | Shadow maps direcionais |
-| 4–5 | Cubemaps sombra pontual |
+| 2–3 | Directional shadow maps |
+| 4–5 | Point shadow cubemaps |
+| 6–7 | Spot shadow maps |
+| 8 | Planar reflection |
+| 9 | Reflection probe cubemap |
+| 10 | ORM map |
+| 11 | Environment (sky) |
+| 12–13 | Previous colour / depth (SSR, TAA) |
+| 14 | Emission map |
+| 15 | Opaque scene copy (blend) |
 
-### Samplers (land — `terrain_lit.frag` )
+### Samplers (terrain — `terrain_lit.frag`)
 
-| Slot | Textura |
+| Slot | Texture |
 |------|---------|
-| 0–4 | Splat + camadas |
-| 5 | Normal map triplanar |
-| 6–7 | Shadow maps direcionais |
-| 8–9 | Cubemaps sombra pontual |
+| 0 | Splat map |
+| 1–4 | Splat layers |
+| 5 | Triplanar normal map |
+| 6–7 | Directional shadow maps |
+| 8–9 | Point shadow cubemaps |
+| 10–11 | Spot shadow maps |
 
 ---
 
-## Tangentes
+## Tangents
 
-`MeshLoader::computeMeshTangents()` calculates tangents by vertex (MikkTSpace simplified) after import OBJ/glTF. Vertex shader builds the TBN matrix:
+`MeshLoader::computeMeshTangents()` calculates per-vertex tangents (simplified MikkTSpace)
+after an OBJ/glTF import. The vertex shader builds the TBN matrix:
 
-```
+```text
 TBN = mat3(normalize(T), normalize(B), normalize(N))
-N'  = normalize(TBN * (sample(normalMap) * 2 - 1)))
+N'  = normalize(TBN * (sample(normalMap) * 2 - 1))
 ```
 
 ---
 
-## Caminho CPU (legado)
+## See also
 
-In the editor, when viewport 3D does not** use textured GPU ( `gpuTextured3D == false` ), the CPU raster can still evaluate diffuse lighting with shadow maps CPU. The default shadow path with active GPU ** does not** build shadows CPU.
-
-Ver [`shadow-mapping.md`](shadow-mapping.md) e [`plans/2026-09-21-rendering-roadmap.md`](../plans/2026-09-21-rendering-roadmap.md) P0.
-
----
-
-## References
-
-- [`assets/mesh-loading.md`](../assets/mesh-loading.md) — tangents and import
-- [`terrain/terrain-system.md`](../terrain/terrain-system.md) — normal map on the ground
-- [`shadow-mapping.md`](shadow-mapping.md) — GPU shadow passes
+- [`materials-pbr.md`](materials-pbr.md) — the `.mat` parameters and the material editor
+- [`shadow-mapping.md`](shadow-mapping.md) — GPU shadow passes and the sampler rule
+- [`../assets/mesh-loading.md`](../assets/mesh-loading.md) — tangents and import
+- [`../terrain/terrain-system.md`](../terrain/terrain-system.md) — terrain shading

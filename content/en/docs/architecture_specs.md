@@ -1,5 +1,16 @@
 # 🏗️ Architecture Specifications
 
+<div class="doc-meta">
+  <span class="doc-badge doc-badge--historical">Historical</span>
+  <span>Last updated: <time datetime="2026-11-18">2026-11-18</time></span>
+</div>
+
+<div class="doc-callout doc-callout--warning">
+  <p><strong>Historical specification.</strong> This document records the pre-Rust editor design and the Phase 1–6 architecture. It is not current API documentation; start from <a href="README.md">the documentation index</a>.</p>
+</div>
+
+
+
 > ⚠️ **Status:** Versão 1.0 — Completo para as Fases 1-6.
 > For full context, see [`docs/MASTER.md`](../docs/MASTER.md) §3.
 

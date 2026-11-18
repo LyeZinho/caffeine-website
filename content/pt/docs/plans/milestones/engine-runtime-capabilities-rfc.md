@@ -1,6 +1,9 @@
 # Capacidades de runtime (RFC) — lacunas genéricas
 
-> **Status:** Aprovado (direção) — implementação por fases  
+<div class="doc-meta">
+  <span class="doc-badge doc-badge--historical">Historical</span>
+  <span>Last updated: <time datetime="2026-11-18">2026-11-18</time></span>
+</div>
 > **Âmbito:** Caffeine runtime + core (Doppio fora de scope)  
 > **Origem:** feedback de migração de jogo 2D complexo; refinado com princípio **engine neutra**
 
@@ -41,7 +44,7 @@
 
 **Não fazer:** misturar com plugins do Doppio.
 
-**Pastas sugeridas:** `src/script/` (bridge), `docs/scripting/native-modules.md`.
+**Pastas sugeridas:** `src/caffeine/script` (bridge), `docs/scripting/native-modules.md`.
 
 ---
 
@@ -75,7 +78,7 @@
 - Ordem de desenho documentada relativamente a sprites e UI.
 - Implementar sobre **RHI/render 2D**, não depender de ImGui `ImDrawList` no runtime de produção (ImGui pode permanecer no editor/preview).
 
-**Pastas:** `src/render/Overlay2D.*`, bindings em `src/script/`.
+**Pastas:** `src/caffeine/render/Overlay2D.hpp` / `.cpp`, bindings em `src/caffeine/script`.
 
 ---
 
@@ -87,7 +90,7 @@
 - Entregar: contrato play-mode, exposição Lua (criar/ligar widgets ou consumir HUD serializado do Doppio), input routing e foco.
 - Documentar relação `HudEditorPanel` → runtime.
 
-**Pastas:** `src/ui/`, `docs/scripting/runtime-apis.md`.
+**Pastas:** `src/caffeine/ui`, `docs/scripting/runtime-apis.md`.
 
 ---
 
@@ -99,7 +102,7 @@
 - Refatorar lógica útil do editor (`SceneViewport`) para core reutilizável; runtime não depende do viewport do Doppio.
 - Colisão ECS permanece caminho opcional, não o único.
 
-**Pastas:** `src/scene/PickQuery.hpp` ou `src/input/`.
+**Pastas:** `src/caffeine/scene/PickQuery.hpp` ou `src/caffeine/input`.
 
 ---
 
@@ -112,7 +115,7 @@
 - Reutilizar ideias de `Octree` onde fizer sentido; não forçar 3D em jogos 2D.
 - Budgets documentados (orientação, não limites rígidos no core).
 
-**Pastas:** `src/spatial/`, ligação opcional em `src/map/` e render.
+**Pastas:** `src/caffeine/spatial`, ligação opcional em `src/map/` e render.
 
 ---
 
@@ -124,7 +127,7 @@
 - `AssetText.load` (ou equivalente) para JSON/CSV/texto em `assets/`, cache e hot-reload opcional no editor.
 - Não duplicar APIs de asset já existentes; consolidar na doc.
 
-**Pastas:** `src/script/`, `docs/scripting/`.
+**Pastas:** `src/caffeine/script`, `docs/scripting/`.
 
 ---
 
@@ -136,7 +139,7 @@
 - Relógio pausável, `timeScale`; `fixedUpdate(dt)` alinhado ao passo de física quando existir timestep fixo.
 - Hook de seed/replay para testes — sem impor arquitetura de jogo completa.
 
-**Pastas:** `src/core/` ou `src/runtime/`, doc em `runtime-apis.md`.
+**Pastas:** `src/caffeine/core` ou `src/caffeine/runtime`, doc em `runtime-apis.md`.
 
 ---
 

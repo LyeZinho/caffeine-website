@@ -1,5 +1,15 @@
 # Runtime capabilities — patch notes
 
+<div class="doc-meta">
+  <span class="doc-badge doc-badge--historical">Historical</span>
+  <span>Session record: 2026-10-14</span>
+  <span>Last updated: <time datetime="2026-11-18">2026-11-18</time></span>
+</div>
+
+<p class="doc-lede">Uma patch note de 2026-10-14 que descreve o trabalho de picking,
+overlay, map surface, sprite LOD e módulos nativos desse período, com a sua checklist de
+migração.</p>
+
 **Date:** 2026-10-14  
 **Scope:** Caffeine engine core + scripting (Doppio consumes the same APIs)  
 **RFC:** [planning/engine-runtime-capabilities-rfc.md](../plans/milestones/engine-runtime-capabilities-rfc.md)
@@ -100,13 +110,13 @@ Older `.caf` files load unchanged; new components are opt-in.
 
 ## Files touched (high level)
 
-- `src/scene/PickQuery.*`, `PickRaycast.*`, `MapSurfaceSystem.*`, `SpriteLod2DSystem.*`
-- `src/render/Overlay2D.*`, `src/render/shaders/overlay2d.*`
-- `src/script/RuntimeScriptBindings.cpp`, `NativeModuleHost.*`, `AssetTextLoader.*`
-- `src/runtime/PlayClock.*`, `GameStateStack.*`
-- `src/ecs/MapComponents.hpp`, `LodComponents.hpp`
+- `src/caffeine/scene/PickQuery.hpp`, `PickRaycast.*`, `MapSurfaceSystem.*`, `SpriteLod2DSystem.*`
+- `src/caffeine/render/Overlay2D.hpp` / `.cpp`, `src/caffeine/render/shaders/overlay2d.vert` / `.frag`
+- `src/caffeine/script/RuntimeScriptBindings.cpp`, `NativeModuleHost.*`, `AssetTextLoader.*`
+- `src/caffeine/runtime/PlayClock.hpp` / `.cpp`, `GameStateStack.*`
+- `src/caffeine/ecs/MapComponents.hpp`, `LodComponents.hpp`
 - `include/caffeine/runtime/NativeModuleAPI.h`
-- `src/editor/SceneSerializer.*`, `ComponentRegistry.cpp`
+- `src/caffeine/scene/SceneSerializer.hpp`, `ComponentRegistry.cpp`
 - `docs/scripting/*`, `docs/rendering/overlay-2d-rhi.md`, this file
 
 ---

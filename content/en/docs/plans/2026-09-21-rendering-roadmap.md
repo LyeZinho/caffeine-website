@@ -1,5 +1,10 @@
 # 🎨 Rendering Roadmap — High Volume 3D
 
+<div class="doc-meta">
+  <span class="doc-badge doc-badge--historical">Historical</span>
+  <span>Last updated: <time datetime="2026-11-18">2026-11-18</time></span>
+</div>
+
 > * *Objective:** render 3D environments with high polygon volume and textures in an optimized, consistent and stable way** (without FPS spikes).
 > **Criteria of “complete”: **Dense scene (earth + hundreds of textured meshes + dynamic lighting + shadows) at 60 FPS stable in the editor and runtime.
 > **Current state (2026-10-02):**viewport GPU; cap editor 1280 px; mesh LOD; GGX + ACES; shadows in the editor only with the camera stopped and **1 cascade**. Installing and IBL are in the main pass. Coarse occlusion, reflexes (planar / screen-space / probe) and volumetrics are optional and are turned off — reflexes and probes only run with the camera still. Scene `assets/benchmarks/dense_outdoor.caf` . Gate p95 < 16.6 ms has not yet been measured in the editor.
@@ -64,7 +69,7 @@ Each phase has testable delivery. **Do not advance** to reflexes/volumetric befo
 
 | Tarefa | Description | Ficheiros |
 |--------|-----------|-----------|
-| P1.1 | `GpuTextureCache` central (path → `GPUTexture` , refcount) | `src/render/GpuTextureCache.*` | ✅ |
+| P1.1 | `GpuTextureCache` central (path → `GPUTexture` , refcount) | `src/caffeine/render/GpuTextureCache.hpp` | ✅ |
 | P1.2 | Generation of mipmaps in upload | `GpuTextureCache.cpp` , `RenderDevice.cpp` | ✅ |
 | P1.3 | Bind albedo + normal + ORM no `scene_lit` | `scene_lit.frag` , `MaterialFile` , Material Editor | ✅ albedo, normal, ORM, emissão; o `.mat` alimenta o passe |
 | P1.4 | Async decode (job system) + upload no frame N+1 | `JobSystem` , `AssetManager` |

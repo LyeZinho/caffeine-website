@@ -1,7 +1,11 @@
 # Terrain System — Roadmap
 
-> **Namespace:** `Caffeine::Terrain`
-> **Diretório:** `src/terrain/`, `src/terrain/generation/`
+<div class="doc-meta">
+  <span class="doc-badge doc-badge--historical">Historical</span>
+  <span><strong>Namespace:</strong> `Caffeine::Terrain`</span>
+  <span>Last updated: <time datetime="2026-11-18">2026-11-18</time></span>
+</div>
+> **Diretório:** `src/caffeine/terrain`, `src/caffeine/terrain/`
 > **Status geral:** Fases 1–6 concluídas · Fases 7–13 planeadas
 
 ---
@@ -42,15 +46,15 @@ SceneViewport / GpuSceneRenderer
 
 | Área | Ficheiros |
 |------|-----------|
-| ECS | `src/ecs/TerrainComponents.hpp` |
-| Dados | `src/terrain/TerrainHeightmap.*`, `TerrainSplatmap.*` |
-| Cache | `src/terrain/TerrainCache.*` |
-| Mesh/LOD | `src/terrain/TerrainMeshBuilder.*`, `TerrainLodSystem.*` |
-| Edição | `src/terrain/TerrainSculptor.*`, `TerrainSplatPainter.*` |
-| Persistência | `src/terrain/TerrainSerializer.*` |
-| GPU | `src/terrain/TerrainGpuTextures.*`, `src/render/shaders/terrain_lit.frag` |
+| ECS | `src/caffeine/ecs/TerrainComponents.hpp` |
+| Dados | `src/caffeine/terrain/TerrainHeightmap.hpp`, `TerrainSplatmap.*` |
+| Cache | `src/caffeine/terrain/TerrainCache.hpp` |
+| Mesh/LOD | `src/caffeine/terrain/TerrainMeshBuilder.hpp`, `TerrainLodSystem.*` |
+| Edição | `src/caffeine/terrain/TerrainSculptor.hpp`, `TerrainSplatPainter.*` |
+| Persistência | `src/caffeine/terrain/TerrainSerializer.hpp` |
+| GPU | `src/caffeine/terrain/TerrainGpuTextures.hpp`, `src/caffeine/render/shaders/terrain_lit.frag` |
 | Geração | `src/terrain/generation/TerrainNoise.*`, `TerrainGenerator.*` |
-| Editor | `src/editor/InspectorPanel.cpp` (drawTerrain), `SceneViewport.cpp` |
+| Editor | `doppio-archived/src/doppio/editor/InspectorPanel.cpp` (drawTerrain), `SceneViewport.cpp` |
 
 ---
 
@@ -96,7 +100,7 @@ SceneViewport / GpuSceneRenderer
 
 ## Referências
 
-- Geração procedural: `src/terrain/generation/`
-- Formato `.cterrain`: `src/terrain/TerrainSerializer.hpp`
-- Shader terreno: `src/render/shaders/terrain_lit.frag`
+- Geração procedural: `src/caffeine/terrain/`
+- Formato `.cterrain`: `src/caffeine/terrain/TerrainSerializer.hpp`
+- Shader terreno: `src/caffeine/render/shaders/terrain_lit.frag`
 - Inspector: secção **Procedural Generation** em `drawTerrain()`

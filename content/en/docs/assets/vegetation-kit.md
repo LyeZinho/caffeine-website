@@ -1,10 +1,23 @@
 # Vegetation Kit
 
+<div class="doc-meta">
+  <span class="doc-badge doc-badge--reference">Reference</span>
+  <span>Last verified: <time datetime="2026-11-18">2026-11-18</time></span>
+  <span>Source: <a href="https://github.com/devscafecommunity/caffeine/blob/main/assets/vegetation-kit/manifest.json"><code>assets/vegetation-kit/manifest.json</code></a></span>
+</div>
+
+<p class="doc-lede">A nine-asset CC0 kit for exercising PBR, alpha cutout and blend foliage,
+shadows, GI and LOD, plus the demo scene that wires it together.</p>
+
 The **Vegetation Kit** is a small, self-contained set of nine CC0 assets for
 exercising the renderer: PBR materials, alpha-cutout and alpha-blended foliage,
 shadow casting, Photon GI, baked AO, instancing and automatic LOD.
 
-![Vegetation kit demo scene](../images/captures/vegetation-kit.png)
+<figure class="doc-figure">
+  <img src="../images/captures/vegetation-kit.png" alt="Vegetation kit demo scene" loading="lazy">
+  <figcaption>Vegetation kit demo scene</figcaption>
+</figure>
+
 
 The kit lives in `assets/vegetation-kit/` in the engine repository. Every model
 is 1k PBR and every material ships the albedo, normal and ARM (AO / roughness /
@@ -29,7 +42,11 @@ textures. All assets are **CC0 1.0** from [Poly Haven](https://polyhaven.com).
 The individual source URLs and authors are in `manifest.json`; a human-readable
 list is in `ATTRIBUTION.txt`.
 
-![Vegetation kit thumbnails](../images/captures/vegetation-kit-contact.png)
+<figure class="doc-figure">
+  <img src="../images/captures/vegetation-kit-contact.png" alt="Vegetation kit thumbnails" loading="lazy">
+  <figcaption>Vegetation kit thumbnails</figcaption>
+</figure>
+
 
 `previews/` contains the Poly Haven thumbnails used by this page and by asset
 browsers.

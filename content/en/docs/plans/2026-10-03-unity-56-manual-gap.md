@@ -1,5 +1,10 @@
 # Caffeine contra o manual da Unity 5.6
 
+<div class="doc-meta">
+  <span class="doc-badge doc-badge--historical">Historical</span>
+  <span>Last updated: <time datetime="2026-11-18">2026-11-18</time></span>
+</div>
+
 Doppio and runtime inventory in October 2026, read from code in `src/` . The criterion is to get the work that the page describes, do not copy the name of the menu.
 
 | Temos | Parcial | Falta | Fora de escopo |

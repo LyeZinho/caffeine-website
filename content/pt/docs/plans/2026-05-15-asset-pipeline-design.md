@@ -1,5 +1,10 @@
 # Asset Pipeline Integration — Design
 
+<div class="doc-meta">
+  <span class="doc-badge doc-badge--historical">Historical</span>
+  <span>Last updated: <time datetime="2026-11-18">2026-11-18</time></span>
+</div>
+
 **Date:** 2026-05-15
 **Issue:** #92
 **Milestone:** M2 — Visual Editing & Assets
@@ -75,16 +80,16 @@ First concrete compiler. Decodes PNG/JPG with `stb_image.h` (compile as C, heade
 
 | File | Status |
 |------|--------|
-| `src/core/io/FileWatcher.hpp` | New |
-| `src/core/io/FileWatcher.cpp` | New |
-| `src/assets/AssetPipeline.hpp` | New |
-| `src/assets/AssetPipeline.cpp` | New |
-| `src/assets/TextureCompiler.hpp` | New |
-| `src/assets/TextureCompiler.cpp` | New |
+| `src/caffeine/core/io/FileWatcher.hpp` | New |
+| `src/caffeine/core/io/FileWatcher.cpp` | New |
+| `src/caffeine/assets/AssetPipeline.hpp` | New |
+| `src/caffeine/assets/AssetPipeline.cpp` | New |
+| `src/caffeine/assets/TextureCompiler.hpp` | New |
+| `src/caffeine/assets/TextureCompiler.cpp` | New |
 | `CMakeLists.txt` | Edit — add sources to caffeine-core |
 | `tests/CMakeLists.txt` | Edit — add test_pipeline.cpp |
 | `tests/test_pipeline.cpp` | New — pipeline + compiler tests |
-| `src/Caffeine.hpp` | Edit — add AssetPipeline include |
+| `src/caffeine/Caffeine.hpp` | Edit — add AssetPipeline include |
 
 ## Out of Scope (v1)
 

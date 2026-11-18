@@ -1,86 +1,94 @@
 # 🔍 Debug Tools
 
-> **Phase:**2+ (available since Phase 2, grows with engine)
-> **Namespace:** `Caffeine::Debug` 
-> **Files:** `src/debug/LogSystem.hpp` , `Profiler.hpp` , `DebugDraw.hpp` 
-> ** Status:** 
-> **RF:** RF2.10
+<div class="doc-meta">
+  <span class="doc-badge doc-badge--reference">Reference</span>
+  <span class="doc-badge">Engine</span>
+  <span><strong>Namespace:</strong> <code>Caffeine::Debug</code></span>
+  <span><strong>Files:</strong> <code>src/caffeine/debug/LogSystem.hpp</code>, <code>Profiler.hpp</code>, <code>CrashHandler.hpp</code>, <code>SystemMetrics.hpp</code></span>
+  <span>Last verified: <time datetime="2026-11-18">2026-11-18</time></span>
+</div>
+
+<p class="doc-lede">The logging, profiling, crash-report and system-metrics
+facilities available to the runtime and editor, plus the debug-draw module that
+is still only a design.</p>
 
 ---
 
 ## Overview
 
-Debug Tools provides development tools that are always available (even in configurable release builds). Composed of three independent modules:
+`Caffeine::Debug` is a set of independent, always-compiled utilities. Nothing
+here requires ImGui or another frontend; editor windows are built on top of
+these APIs by the frontend.
 
-| Module | Purpose |
-|--------|-----------|
-| **LogSystem** | Logging categorized by level and category |
-| **Profiler** | Scope performance measurement |
-| **DebugDraw** | Geometric visualization in the world (AABB, vectors, etc.) |
+| Module | Purpose | Status |
+|--------|-----------|--------|
+| **LogSystem** | Categorised logging by severity and category, with sinks | ✅ Implemented |
+| **Profiler** | Nested named scopes with inclusive/self timings | ✅ Implemented |
+| **CrashHandler** | Signal handlers with a backtrace and crash log | ✅ Implemented |
+| **SystemMetrics** | Process CPU/RAM and optional GPU utilisation | ✅ Implemented |
+| **DebugDraw** | Geometric debug primitives in the world | 📅 Planned — no header or implementation |
 
 ---
 
-## API Planejada
+## API
 
 ### LogSystem
 
 ```cpp
 namespace Caffeine::Debug {
 
-// ============================================================================
-// @brief  Nível de severidade do log.
-// ============================================================================
 enum class LogLevel : u8 {
-    Trace = 0,   // Informação muito detalhada (desabilitado em release)
-    Info,        // Informação normal de operação
-    Warn,        // Situação anormal mas recuperável
-    Error,       // Erro que afeta funcionalidade
-    Fatal        // Erro irrecuperável — terminação do processo
+    Trace = 0,   // very detailed (macro compiled out in release)
+    Info,        // normal operation
+    Warn,        // abnormal but recoverable
+    Error,       // functionality affected
+    Fatal        // unrecoverable — process termination
 };
 
-// ============================================================================
-// @brief  Sistema de logging categorizado.
-//
-//  Cada categoria pode ser habilitada/desabilitada independentemente.
-//  Útil para silenciar subsistemas muito verbosos.
-//
-//  Exemplos de categorias: "Physics", "AssetManager", "ECS", "Audio"
-// ============================================================================
 class LogSystem {
 public:
     static LogSystem& instance();
 
-    void log(LogLevel level, const char* category,
-             const char* fmt, ...);
+    void log(LogLevel level, const char* category, const char* fmt, ...);
+    void vlog(LogLevel level, const char* category, const char* fmt, va_list args);
 
     void setLevel(LogLevel minLevel);
-    void setCategoryEnabled(const char* category, bool enabled);
-    void addSink(std::function<void(LogLevel, const char*, const char*)> sink);
+    LogLevel getLevel() const;
 
-    // Macros convenientes (ver abaixo)
+    void setCategoryEnabled(const char* category, bool enabled);
+    bool isCategoryEnabled(const char* category) const;
+
+    using SinkFn = std::function<void(LogLevel, const char*, const char*)>;
+    void addSink(SinkFn sink);
+    void clearSinks();
+    usize sinkCount() const;
+
+    static const char* levelToString(LogLevel level);
 };
 
 }  // namespace Caffeine::Debug
 
-// Macros para uso no código:
-#define CF_TRACE(cat, ...)  Caffeine::Debug::LogSystem::instance().log(Caffeine::Debug::LogLevel::Trace, cat, __VA_ARGS__)
-#define CF_INFO(cat, ...)   Caffeine::Debug::LogSystem::instance().log(Caffeine::Debug::LogLevel::Info,  cat, __VA_ARGS__)
-#define CF_WARN(cat, ...)   Caffeine::Debug::LogSystem::instance().log(Caffeine::Debug::LogLevel::Warn,  cat, __VA_ARGS__)
-#define CF_ERROR(cat, ...)  Caffeine::Debug::LogSystem::instance().log(Caffeine::Debug::LogLevel::Error, cat, __VA_ARGS__)
-#define CF_FATAL(cat, ...)  Caffeine::Debug::LogSystem::instance().log(Caffeine::Debug::LogLevel::Fatal, cat, __VA_ARGS__)
+// Macros:
+#ifdef CF_DEBUG
+#define CF_TRACE(cat, ...) Caffeine::Debug::LogSystem::instance().log(Caffeine::Debug::LogLevel::Trace, cat, __VA_ARGS__)
+#else
+#define CF_TRACE(cat, ...) ((void)0)
+#endif
+#define CF_INFO(cat, ...)  Caffeine::Debug::LogSystem::instance().log(Caffeine::Debug::LogLevel::Info,  cat, __VA_ARGS__)
+#define CF_WARN(cat, ...)  Caffeine::Debug::LogSystem::instance().log(Caffeine::Debug::LogLevel::Warn,  cat, __VA_ARGS__)
+#define CF_ERROR(cat, ...) Caffeine::Debug::LogSystem::instance().log(Caffeine::Debug::LogLevel::Error, cat, __VA_ARGS__)
+#define CF_FATAL(cat, ...) Caffeine::Debug::LogSystem::instance().log(Caffeine::Debug::LogLevel::Fatal, cat, __VA_ARGS__)
 ```
+
+Limits are compile-time constants: 64 categories, 16 sinks and a 2048-character
+formatted message. The log call is protected by a mutex, so worker threads may
+log concurrently.
 
 ### Profiler
 
 ```cpp
 namespace Caffeine::Debug {
 
-// ============================================================================
-// @brief  Profiler com markers de escopo.
-//
-//  Mede duração de escopos nomeados e acumula estatísticas entre frames.
-//  Compatível com ScopeTimer RAII (ver timer.md).
-// ============================================================================
 class Profiler {
 public:
     static Profiler& instance();
@@ -88,98 +96,102 @@ public:
     void beginScope(const char* name);
     void endScope(const char* name);
 
+    static constexpr u32 kInvalidNode = static_cast<u32>(-1);
+
     struct ScopeStats {
-        const char* name;
-        u64          callCount;
-        f64          totalMs;
-        f64          avgMs;
-        f64          minMs;
-        f64          maxMs;
+        const char* name = nullptr;
+        u32 nodeIndex = kInvalidNode;
+        u32 parentIndex = kInvalidNode;
+        u32 firstChildIndex = kInvalidNode;
+        u32 nextSiblingIndex = kInvalidNode;
+        u32 depth = 0;
+        u64 callCount = 0;
+        f64 totalMs = 0.0;     // inclusive (scope + children)
+        f64 selfMs = 0.0;      // exclusive (scope only)
+        f64 avgMs = 0.0;
+        f64 avgSelfMs = 0.0;
+        f64 minMs = 0.0;
+        f64 maxMs = 0.0;
     };
 
-    void report(Caffeine::Array<ScopeStats, 256>& out) const;
-    void reset();  // Zera estatísticas acumuladas
+    // Fills out[0..nodeCount()-1]; index 0 is the virtual root (no samples).
+    void report(Vector<ScopeStats>& out) const;
 
-    // Habilita/desabilita coleta (zero overhead quando desabilitado)
-    void setEnabled(bool enabled) { m_enabled = enabled; }
-    bool isEnabled() const { return m_enabled; }
-
-private:
-    bool m_enabled = true;
-    HashMap<u64, ScopeStats> m_stats;  // keyed por hash do nome
+    void reset();
+    void setEnabled(bool enabled);
+    bool isEnabled() const;
+    usize scopeCount() const;
 };
 
-// Macro RAII para escopo automático:
-#define CF_PROFILE_SCOPE(name) \
-    Caffeine::Debug::ProfileScope _scope_##__LINE__(name)
-
-// ============================================================================
-// @brief  RAII helper para marcar escopos automaticamente.
-// ============================================================================
 class ProfileScope {
 public:
     explicit ProfileScope(const char* name);
     ~ProfileScope();
-private:
-    const char* m_name;
-    u64          m_startTicks;
 };
 
 }  // namespace Caffeine::Debug
+
+#define CF_PROFILE_SCOPE(name) \
+    Caffeine::Debug::ProfileScope _cfProfileScope_##__LINE__(name)
 ```
 
-### DebugDraw
+`Profiler::report()` clears and resizes the vector for you. Scope nodes form a
+tree: `parentIndex` / `firstChildIndex` / `nextSiblingIndex` let a tool render a
+timeline, while `totalMs` includes children and `selfMs` excludes them.
+
+### CrashHandler
 
 ```cpp
 namespace Caffeine::Debug {
 
-// ============================================================================
-// @brief  Visualização geométrica sobreposta ao mundo.
-//
-//  Primitivos acumulados durante o frame e renderizados em endFrame().
-//  Requer RHI::CommandBuffer (disponível na Fase 3).
-//
-//  Útil para: hitboxes de colisão, vetores de velocidade, raycasts, bounds.
-// ============================================================================
-class DebugDraw {
-public:
-    static DebugDraw& instance();
+// Installs SIGSEGV/SIGABRT/SIGILL/SIGFPE handlers that dump a backtrace
+// to stderr and ~/.config/caffeine/crash.log.
+void installCrashHandler();
 
-    // Primitivos 2D
-    void line(Vec2 a, Vec2 b, Color color, f32 duration = 0.0f);
-    void rect(Rect2D rect, Color color, f32 duration = 0.0f);
-    void circle(Vec2 center, f32 radius, Color color, f32 duration = 0.0f);
-    void text(Vec2 pos, const char* text, Color color);
-    void arrow(Vec2 from, Vec2 to, Color color);
-    void cross(Vec2 center, f32 size, Color color);
-
-    // Controle de frame
-    void beginFrame();  // remove primitivos com duration expirada
-    void endFrame(RHI::CommandBuffer* cmd, const Render::Camera2D& camera);
-
-    void setEnabled(bool enabled) { m_enabled = enabled; }
-    bool isEnabled() const { return m_enabled; }
-
-private:
-    struct DebugPrimitive {
-        enum class Type { Line, Rect, Circle, Text, Arrow } type;
-        Vec2  a, b;
-        f32   radius;
-        Color color;
-        f32   timeLeft;  // -1 = permanente até próximo beginFrame
-        char  text[64];
-    };
-
-    bool m_enabled = true;
-    std::vector<DebugPrimitive> m_primitives;
-};
+// Records a short breadcrumb for the next crash dump.
+void setCrashBreadcrumb(const char* text);
 
 }  // namespace Caffeine::Debug
 ```
 
+### SystemMetrics
+
+```cpp
+namespace Caffeine::Debug {
+
+struct SystemMetrics {
+    f32 processCpuPercent = 0.0f;  // % of one core (can exceed 100)
+    f32 gpuBusyPercent = -1.0f;    // -1 if unavailable
+    f32 ramUsedMiB = 0.0f;
+    f32 ramTotalMiB = -1.0f;
+    f32 vramUsedMiB = -1.0f;
+    f32 vramTotalMiB = -1.0f;
+    bool gpuAvailable = false;
+};
+
+SystemMetrics sampleSystemMetrics();
+
+}  // namespace Caffeine::Debug
+```
+
+GPU values depend on a backend (NVML / sysfs); check `gpuAvailable` and the
+`-1` sentinels instead of assuming every field is populated.
+
 ---
 
-## Exemplos de Uso
+## Planned: DebugDraw
+
+There is **no `DebugDraw` header or implementation** in `src/caffeine/debug`.
+The former API sketch (lines, boxes, circles, text, arrows with a per-primitive
+lifetime, rendered through an RHI command buffer) remains design intent. Do not
+call it from engine or game code yet.
+
+When it lands, the intended split is: the core accumulates primitives and a
+renderer backend consumes them; the core does not own an RHI command buffer.
+
+---
+
+## Usage Examples
 
 ```cpp
 // ── Logging ───────────────────────────────────────────────────
@@ -187,8 +199,14 @@ CF_INFO("AssetManager", "Loaded texture: %s (%.1f KB)", path, sizeKB);
 CF_WARN("Physics", "Detected %d overlapping bodies — potential tunneling", count);
 CF_ERROR("JobSystem", "Worker thread %d crashed: %s", workerId, err);
 
-// Silenciar subsistema verboso:
+// Silence a noisy subsystem:
 Caffeine::Debug::LogSystem::instance().setCategoryEnabled("Physics", false);
+
+// Forward every message to an editor console:
+Caffeine::Debug::LogSystem::instance().addSink(
+    [](Caffeine::Debug::LogLevel level, const char* category, const char* message) {
+        editorConsole.append(level, category, message);
+    });
 
 // ── Profiler ──────────────────────────────────────────────────
 {
@@ -196,75 +214,82 @@ Caffeine::Debug::LogSystem::instance().setCategoryEnabled("Physics", false);
     physicsSystem.update(world, dt);
 }
 
-// Ou manual:
+// Or manually:
 Caffeine::Debug::Profiler::instance().beginScope("BatchRenderer::flush");
 batchRenderer.flushCurrentBatch(cmd);
 Caffeine::Debug::Profiler::instance().endScope("BatchRenderer::flush");
 
-// Relatório no endFrame:
-Array<Caffeine::Debug::Profiler::ScopeStats, 256> stats;
+// Report at end of frame:
+Caffeine::Vector<Caffeine::Debug::Profiler::ScopeStats> stats;
 Caffeine::Debug::Profiler::instance().report(stats);
-for (auto& s : stats)
-    CF_INFO("Perf", "%-30s  avg=%.2fms  calls=%llu", s.name, s.avgMs, s.callCount);
+for (const auto& s : stats) {
+    CF_INFO("Perf", "%-30s  avg=%.2fms  self=%.2fms  calls=%llu",
+            s.name, s.avgMs, s.avgSelfMs,
+            static_cast<unsigned long long>(s.callCount));
+}
 
-// ── DebugDraw ─────────────────────────────────────────────────
-// Em PhysicsSystem (visualiza hitboxes):
-world.query(colliderQuery, [](Collider2D& col, Position2D& pos) {
-    Rect2D box = { {pos.x + col.offset.x, pos.y + col.offset.y}, col.size };
-    Caffeine::Debug::DebugDraw::instance().rect(box, Color::GREEN);
-});
+// ── Crash reporting and metrics ───────────────────────────────
+Caffeine::Debug::installCrashHandler();
+Caffeine::Debug::setCrashBreadcrumb("loading level 3");
 
-// Vetor de velocidade:
-Caffeine::Debug::DebugDraw::instance().arrow(pos, pos + vel * 0.1f, Color::YELLOW);
+Caffeine::Debug::SystemMetrics metrics = Caffeine::Debug::sampleSystemMetrics();
+if (metrics.gpuAvailable) {
+    CF_INFO("Perf", "GPU busy: %.1f%%", metrics.gpuBusyPercent);
+}
 ```
-
----
-
-## Integration with Dear ImGui (Phase 6)
-
-In Phase 6, Profiler and Log will be exposed via [Caffeine Studio](../ui/editor-ui.md):
-- **Log** window with filter per category/level
-- **Profiler** window with graphical frame timeline
-- Overlay of **Debug Draw** always visible in editor mode
 
 ---
 
 ## Build Settings
 
-| Feature | Debug Build | Release Build |
+| Feature | Debug build | Release build |
 |---------|-------------|---------------|
-| `LogLevel::Trace` | ✅ Ativo | Compiled off |
-| `LogLevel::Info/Warn/Error` | ✅ Ativo | ✅ Ativo (configurável) |
-| `Profiler` | ✅ Ativo | Opt-in via `CF_PROFILING=1` |
-| `DebugDraw` | ✅ Ativo | Compiled off |
+| `CF_DEBUG` | Defined when `CMAKE_BUILD_TYPE=Debug` | Not defined |
+| `CF_TRACE` | Active | Compiles to `((void)0)` |
+| `CF_INFO` / `CF_WARN` / `CF_ERROR` / `CF_FATAL` | Active | Active |
+| `LogSystem` runtime level/category filtering | Active | Active |
+| `Profiler` | Active | Compiled; enable/disable at runtime with `setEnabled()` |
+| `CrashHandler` | Available | Available; call `installCrashHandler()` explicitly |
+| `SystemMetrics` | Available | Available; GPU fields depend on the backend |
+| `DebugDraw` | Not implemented | Not implemented |
 
 ---
 
 ## Design Decisions
 
-| Decision | Justificativa |
+| Decision | Rationale |
 |---------|-------------|
-| Categorias de log | Silenciar subsistemas verbosos sem perder outros |
-| `duration` em DebugDraw | Primitivos persistentes (ex: "mostre AABB por 2 frames") |
-| Profiler opt-out | Zero overhead em builds de release |
-| Singletons para Debug | Debug is transversal infrastructure — global access is acceptable here |
+| Log categories | Silence noisy subsystems without losing the rest |
+| Sink callback | Frontends can implement a console without the core knowing about UI |
+| Profiler tree with self time | Distinguishes a slow child from a slow parent |
+| Runtime profiler enable flag | No instrumentation cost when disabled |
+| Crash handler opt-in | The host decides whether to install signal handlers |
+| Singletons for debug services | Debug is cross-cutting infrastructure; global access is acceptable here |
 
 ---
 
-## Acceptance Criteria
+## Tests
 
-- [ ] `log()` overhead < 1μs em builds com logging habilitado
-- [ ] Profiler: overhead < 100ns por `beginScope` / `endScope`
-- [ ] DebugDraw: overhead < 0.1ms em 1000 primitivos/frame
-- [ ] Qualified/unabled categories without recompilation
-- [ ] Log thread-safe (multiple workers logging simultaneously)
+`tests/test_debug.cpp` covers:
+- Log level ordering and `levelToString()`
+- Level filtering and per-category enable/disable
+- Sinks, multiple sinks and `sinkCount()`
+- Formatted messages with multiple arguments
+- Concurrent logging from several threads
+- Profiler call accumulation, min/max, independent named scopes
+- Nested scopes and self time
+- Disabled profiler recording nothing
+- `reset()` and `scopeCount()`
+- `ProfileScope` RAII
 
 ---
 
 ## Dependencies
 
-- **Upstream:** [Timer](../core/timer.md) (ScopeTimer usa TimePoint), `Caffeine::Core::Types`
-- **Downstream:** [Phase 3 — RHI](../rendering/rhi.md) (DebugDraw needs CommandBuffer), [Phase 6 — Studio](../ui/editor-ui.md)
+- **Upstream:** `Caffeine::Core::Types`, `Caffeine::Core::Timer`,
+  `Caffeine::Vector`, standard `<mutex>`, `<cstdarg>`, `<functional>`
+- **Downstream:** runtime and editor consoles, profiler windows and crash
+  reporting in the frontend
 
 ---
 
@@ -272,12 +297,13 @@ In Phase 6, Profiler and Log will be exposed via [Caffeine Studio](../ui/editor-
 
 | Topic | Description |
 |--------|-----------|
-| [Editor & Debug]() | Debug Tools como base do editor |
-| [Competition & Runtime]() | Profiler monitors competition |
+| [Editor & Debug]() | Debug tools as the basis of the editor |
+| [Concurrency & Runtime]() | The Profiler monitors frame work |
 
 ## References
 
-- [`docs/architecture_specs.md`](../architecture specs.md) — §16 Debug/Development Tools
-- [`core/timer.md`](../core/timer.md) — `ScopeTimer` RAII
-- [`ui/editor-ui.md`](../ui/editor-ui.md) — ImGui UI for debug
+- [`src/caffeine/debug/`](https://github.com/devscafecommunity/caffeine/tree/main/src/caffeine/debug)
+- [`tests/test_debug.cpp`](https://github.com/devscafecommunity/caffeine/blob/main/tests/test_debug.cpp)
+- [`docs/architecture_specs.md`](../architecture_specs.md) — §16 Debug/Development Tools
+- [`core/timer.md`](../core/timer.md) — `Core::Timer` used by the Profiler
 - [Transversal Topic Index]()

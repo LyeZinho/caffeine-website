@@ -1,10 +1,22 @@
 # Photon — GI híbrido nativo por radiance cascades
 
-O Photon é um **sistema nativo do Doppio e do runtime**: é compilado nos binários do
-editor e do runtime, não é carregado como plugin. Fornece iluminação global em tempo
+<div class="doc-meta">
+  <span class="doc-badge doc-badge--beta">Beta</span>
+  <span class="doc-badge">Engine</span>
+  <span>Last updated: <time datetime="2026-11-18">2026-11-18</time></span>
+</div>
+
+<p class="doc-lede">Iluminação global em tempo real sem ray tracing por hardware: radiance cascades ancoradas ao ecrã, merge de intervalos e far field de céu/ambiente.</p>
+
+O Photon é um **sistema nativo da engine**: é compilado em `caffeine-core` e usado pelo
+editor e pelo runtime. Não é carregado como plugin. Fornece iluminação global em tempo
 real sem hardware de ray tracing.
 
-![Iluminação indireta do Photon no runtime](../images/captures/photon-gi.png)
+<figure class="doc-figure">
+  <img src="../images/captures/photon-gi.png" alt="Iluminação indireta do Photon no runtime" loading="lazy">
+  <figcaption>Iluminação indireta do Photon no runtime</figcaption>
+</figure>
+
 
 ## Âmbito v0.1
 

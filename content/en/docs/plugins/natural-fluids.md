@@ -1,10 +1,30 @@
 # Natural Fluids
 
-Natural Fluids is a **Doppio plugin** for animated water and real fluids. It adds a
-`NaturalFluidComponent` to entities and four authoring levels, from a flat water
-plane to a 3D Eulerian fluid volume.
+<div class="doc-meta">
+  <span class="doc-badge doc-badge--reference">Reference</span>
+  <span>Last updated: <time datetime="2026-11-18">2026-11-18</time></span>
+</div>
 
-![Natural Fluids water and fire](../images/captures/natural-fluids.png)
+<div class="doc-callout doc-callout--warning">
+  <p><strong>Legacy host.</strong> The active Rust/Iced Doppio does not load C++ plugins.
+  These pages document the C++/ImGui plugin SDK and its host in the archived C++ editor
+  (<code>doppio-archived/</code>). The engine still builds every plugin from the submodule
+  so the SDK stays compile-tested.</p>
+</div>
+
+
+<p class="doc-lede">The Natural Fluids plugin adds animated water and real 2D/3D fluid
+volumes on top of the engine's fluid simulation.</p>
+
+Natural Fluids is a **plugin for the legacy C++/ImGui host** for animated water and real
+fluids. It adds a `NaturalFluidComponent` to entities and four authoring levels, from a
+flat water plane to a 3D Eulerian fluid volume.
+
+<figure class="doc-figure">
+  <img src="../images/captures/natural-fluids.png" alt="Natural Fluids water and fire" loading="lazy">
+  <figcaption>Natural Fluids water and fire</figcaption>
+</figure>
+
 
 ## Four levels
 
@@ -35,8 +55,9 @@ not saved; they are rebuilt on load.
 
 ## Panel
 
-Open **View → Panels → Natural Fluids** (or enable the plugin and use its docked
-panel). Select an entity with the component, or create one from the panel.
+In the legacy host, open **View → Panels → Natural Fluids** (or enable the plugin and
+use its docked panel). Select an entity with the component, or create one from the
+panel.
 
 The panel exposes size, water level, wind, amplitude, choppiness, foam threshold,
 mesh/physics resolution, time scale and material. The fluid volume section adds
@@ -62,4 +83,6 @@ cmake --build doppio-plugins/build --target natural_fluids_plugin
 cp doppio-plugins/build/plugins/natural_fluids_plugin.so build/plugins/
 ```
 
-Enable **Natural Fluids** in **Plugins → Plugin Manager**.
+Enable **Natural Fluids** in the legacy host's **Plugins → Plugin Manager**. The
+component and the engine-side simulation still work in scenes loaded by the Rust
+Doppio or the runtime; only the plugin panel is missing.

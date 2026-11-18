@@ -1,8 +1,27 @@
 # Service registry
 
-Doppio provides a **generic service registry**. Plugins register named handlers; any code (host or other plugins) can call `invokeService`.
+<div class="doc-meta">
+  <span class="doc-badge doc-badge--reference">Reference</span>
+  <span>Last updated: <time datetime="2026-11-18">2026-11-18</time></span>
+</div>
 
-This avoids hardcoding feature bridges inside the editor core.
+<p class="doc-lede">Serviços partilhados entre plugins através do registo do host.</p>
+
+
+
+<div class="doc-callout doc-callout--warning">
+  <p><strong>Host legado.</strong> O Doppio atual em Rust/Iced não carrega plugins C++.
+  Estas páginas documentam o SDK de plugins C++/ImGui e o seu host no editor C++ arquivado
+  (<code>doppio-archived/</code>). A engine continua a compilar todos os plugins do
+  submódulo, para que o SDK se mantenha testado na compilação.</p>
+</div>
+
+
+O host C++ legado fornece um **registo genérico de serviços**. Os plugins registam
+handlers com nome; qualquer código (host ou outros plugins) pode chamar
+`invokeService`.
+
+Isto evita embutir pontes de funcionalidades no core do editor.
 
 ## Architecture
 

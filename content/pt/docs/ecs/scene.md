@@ -1,22 +1,43 @@
 # 🗺️ Scene Manager
 
-> **Fase:** 4 — O Cérebro  
-> **Namespace:** `Caffeine::Scene`  
-> **Arquivos:** `src/scene/SceneManager.hpp`, `src/scene/SceneSerializer.hpp`  
-> **Status:** ✅ Implementado  
-> **RF:** RF4.5
+<div class="doc-meta">
+  <span class="doc-badge doc-badge--stable">Stable</span>
+  <span class="doc-badge">Engine</span>
+  <span><strong>Namespace:</strong> <code>Caffeine::Scene</code></span>
+  <span>Atualizado em: <time datetime="2026-11-18">2026-11-18</time></span>
+  <span>Fonte: <a href="https://github.com/devscafecommunity/caffeine/blob/main/src/caffeine/scene/SceneManager.hpp"><code>scene/SceneManager.hpp</code></a></span>
+</div>
+
+<p class="doc-lede">A camada de cena acrescenta ao ECS uma hierarquia parent/child,
+world transforms e uma pilha de cenas, além dos serializadores que escrevem um world
+num ficheiro <code>.caf</code>.</p>
 
 ---
 
 ## Visão Geral
 
-O Scene Manager organiza entidades em hierarquia parent/child para transformações locais, e permite salvar/carregar o estado completo da cena em formato binário `.caf`.
+A camada de cena são algumas peças pequenas por cima de `ECS::World`:
 
-**Componentes chave:**
-- `Parent` — link hierárquico entre entidades
-- `WorldTransform` — matrix de transformação global calculada
-- `SceneSerializer` — serialização para `.caf` binário
-- `SceneManager` — stack de cenas e transições
+- `Scene::Parent` — o link de parent usado pela hierarquia.
+- `Scene::WorldTransform` — a matriz resolvida de cada entidade.
+- `Scene::EntityLayer` — a camada de render herdada.
+- `Scene::propagateTransforms` — recalcula as matrizes globais e as camadas herdadas.
+- `Scene::SceneManager` — uma pilha de worlds e um temporizador de transição.
+- `Scene::SceneSerializer` — o serializador mínimo de cena (binário/JSON).
+- `Editor::SceneSerializer` — o serializador completo de projeto usado pelo Doppio,
+  pelo runtime e pela C ABI.
+
+<dl>
+  <dt><code>Parent</code></dt>
+  <dd>Guarda a entidade pai e uma flag <code>dirty</code>. A flag é serializada, mas
+  <code>propagateTransforms</code> recalcula todas as entidades em cada chamada; não
+  salta entradas limpas.</dd>
+  <dt><code>WorldTransform</code></dt>
+  <dd>Uma <code>Mat4</code> por entidade, escrita por <code>propagateTransforms</code>.
+  Os componentes <code>Transform</code> locais nunca são reescritos pela herança.</dd>
+  <dt><code>EntityLayer</code></dt>
+  <dd>Uma camada <code>u8</code> herdada do pai quando o filho não tem camada própria.</dd>
+</dl>
 
 ---
 
@@ -25,46 +46,48 @@ O Scene Manager organiza entidades em hierarquia parent/child para transformaç�
 ```cpp
 namespace Caffeine::Scene {
 
-// ============================================================================
-// @brief  Componente de hierarquia parent/child.
-// ============================================================================
+// ── Components ───────────────────────────────────────────────────────────────
+
 struct Parent {
     ECS::Entity parent = ECS::Entity::INVALID;
-    bool        dirty  = true;  // world transform precisa recalcular
+    bool        dirty  = true;
 };
 
-// ============================================================================
-// @brief  World transform — matrix resultante da hierarquia.
-//
-//  Calculado pelo TransformSystem: acumula transforms parent → child.
-// ============================================================================
 struct WorldTransform {
     Mat4 matrix = Mat4::identity();
 };
 
-// ============================================================================
-// @brief  Serializa e deserializa uma cena (ECS::World) para .caf.
-//
-//  Formato .caf de cena:
-//  - Header (32 bytes)
-//  - Entity count + Archetype table
-//  - Component data packed per archetype (binary)
-//  - String table (entity names)
-//  - Asset reference table (paths das texturas, áudios, etc.)
-// ============================================================================
+struct EntityLayer {
+    u8 layer = 0;
+};
+
+// ── Hierarchy ────────────────────────────────────────────────────────────────
+
+Mat4 buildLocalTRS(const ECS::Transform& t);
+Mat4 buildLocalTRS_3D(const ECS::Position3D* p,
+                      const ECS::Rotation3D* r,
+                      const ECS::Scale3D* s);
+Mat4 localMatrix(ECS::World& world, ECS::Entity e);
+Mat4 computeWorldMatrix(ECS::World& world, ECS::Entity e, int depth = 0);
+
+// Recomputes WorldTransform for every entity and inherits EntityLayer.
+void propagateTransforms(ECS::World& world);
+
+// True when the entity or any ancestor has ECS::DisabledTag.
+bool isEffectivelyDisabled(ECS::World& world, ECS::Entity e);
+
+// ── Minimal scene serializer (Scene::) ───────────────────────────────────────
+
 class SceneSerializer {
 public:
     explicit SceneSerializer(ECS::World& world);
 
-    // Binário .caf — produção
-    bool serialize(const char* path) const;
+    bool serialize(const char* path) const;    // binary .caf via CafWriter
     bool deserialize(const char* path);
 
-    // JSON — dev/debug (legível por humanos)
-    bool serializeJson(const char* path) const;
-    bool deserializeJson(const char* path);
+    bool serializeJson(const char* path) const;  // debug dump
+    bool deserializeJson(const char* path);      // currently returns false
 
-    // Exporta estado atual para bytes (sem arquivo)
     bool serializeToMemory(std::vector<u8>& out) const;
     bool deserializeFromMemory(const std::vector<u8>& data);
 
@@ -72,136 +95,184 @@ private:
     ECS::World& m_world;
 };
 
-// ============================================================================
-// @brief  Gerenciador de cenas.
-//
-//  Suporta:
-//  - Single scene (switch)
-//  - Scene stack (push/pop para menus sobre gameplay)
-//  - Transições animadas (fade, slide)
-//  - Async loading em background
-// ============================================================================
+// ── Scene manager ────────────────────────────────────────────────────────────
+
+struct Color {
+    u8 r = 0, g = 0, b = 0, a = 255;
+};
+
+enum class TransitionType : u8 { None, Fade, Slide, Custom };
+
+struct TransitionConfig {
+    TransitionType type      = TransitionType::Fade;
+    f32            duration  = 0.5f;
+    Color          fadeColor = {};
+};
+
 class SceneManager {
 public:
-    enum class TransitionType : u8 {
-        None,    // Instantâneo
-        Fade,    // Fade out → Fade in
-        Slide,   // Slide lateral
-        Custom   // Callback customizado
-    };
+    using SceneHandle = u32;
+    static constexpr SceneHandle kInvalidHandle = ~u32(0);
 
-    struct TransitionConfig {
-        TransitionType type     = TransitionType::Fade;
-        f32            duration = 0.5f;
-        Color          fadeColor = Color::BLACK;
-    };
+    SceneHandle loadScene(const char* path, bool async = false);
+    bool        switchScene(const char* path, TransitionConfig trans = {});
+    bool        pushScene(const char* path);
+    void        popScene();
 
-    // ── Carregamento ───────────────────────────────────────────
-    Assets::LoadHandle loadScene(const char* path, bool async = false);
+    void setActiveWorld(std::unique_ptr<ECS::World> world);
+    void pushWorld(std::unique_ptr<ECS::World> world);
 
-    // ── Navegação ──────────────────────────────────────────────
-    void switchScene(const char* path,
-                     TransitionConfig trans = {});
+    ECS::World* activeWorld() const;
+    bool        isTransitioning() const;
+    f32         transitionProgress() const;
 
-    // Stack para menus sobre gameplay:
-    void pushScene(const char* path);
-    void popScene();
-
-    // ── Consultas ──────────────────────────────────────────────
-    ECS::World* activeWorld() const { return m_activeWorld; }
-    bool        isTransitioning() const { return m_transitioning; }
-
-    // ── Update (processa transições) ───────────────────────────
     void update(f64 dt);
-
-private:
-    ECS::World*                     m_activeWorld    = nullptr;
-    std::vector<std::unique_ptr<ECS::World>> m_sceneStack;
-    bool                            m_transitioning  = false;
-    TransitionConfig                m_currentTrans;
-    f32                             m_transProgress  = 0.0f;
 };
 
 }  // namespace Caffeine::Scene
 ```
 
+### O que o manager faz na prática
+
+- `loadScene` deserializa de imediato, guarda o world num mapa de pré-carregamento e
+  devolve um handle. O argumento `async` é aceite mas ignorado, e ainda não existe uma
+  chamada pública que ative um handle pré-carregado; usa `switchScene` ou `pushScene`.
+- `switchScene` limpa a pilha de worlds e empilha o world recém-carregado. Devolve
+  `false` quando não consegue ler o ficheiro.
+- `pushScene` carrega e empilha um world sem limpar a pilha; `popScene` remove o world do
+  topo.
+- `update(dt)` apenas avança o temporizador de transição e limpa-o em 1.0. Nenhum
+  renderer da engine consome `TransitionType` ou `fadeColor`; um frontend que queira um
+  fade desenha-o a partir de `transitionProgress()`.
+- `activeWorld()` é o topo da pilha, ou `nullptr` quando a pilha está vazia.
+- `SceneSerializer::deserialize` acrescenta ao world que recebe; não o limpa primeiro.
+  Usa um `ECS::World` novo (como o `SceneManager` faz) ou chama `destroyAll()`.
+
 ---
 
 ## Formato de Serialização (.caf Scene)
 
-```
-[CafHeader]         (32 bytes — magic, version, type=Scene)
-[SceneHeader]       (20 bytes — entityCount, archetypeCount, offsets)
-[Archetype Table]   [N × ArchetypeDesc]
-[Entity Data]       [componentes packed por archetype]
-[String Table]      [nomes de entidades, null-terminated]
-[Asset Ref Table]   [paths de assets referenciados]
-[CRC32]             (4 bytes — verificação de integridade)
+O formato de cena usa o `CafHeader` interno da engine (`magic = 0xCAFECAFE`), não o
+formato de asset do caf-pack (`magic = 0x43414621`).
+
+```text
+[CafHeader]       32 bytes: magic, version, type=Scene, flags, crc32,
+                  metadataSize, dataSize
+[SceneMetadata]   entityCount, archetypeCount, stringTableOffset,
+                  assetRefTableOffset, reserved
+[Payload]         a sequence of sections:
+                    u32 typeId
+                    u32 count
+                    count × (u32 entityId + component bytes)
+[CRC32]           4-byte whole-file checksum (memory serializer)
 ```
 
-**Exemplo de salvamento:**
-```mermaid
-flowchart TD
-  Salvar_1K_entidades["Salvar 1K entidades"] --> _100KB_arquivo__caf["~100KB arquivo .caf"]
-  _100KB_arquivo__caf["~100KB arquivo .caf"] --> Carregar["Carregar"]
-  Carregar["Carregar"] --> round_trip___200ms__critério_de_aceitaçã["round-trip < 200ms (critério de aceitação)"]
-```
+`Scene::SceneSerializer` escreve exatamente quatro tipos de secção:
 
+| Type id | Component | Size per entity |
+|--------:|-----------|-----------------|
+| 0 | `ECS::Transform` | `sizeof(Transform)` |
+| 1 | `ECS::Acceleration2D` | `sizeof(Acceleration2D)` |
+| 2 | `Scene::Parent` | `u32 parentId + u8 dirty` |
+| 3 | `Scene::WorldTransform` | `sizeof(WorldTransform)` |
+
+<mark>Limites.</mark> Os nomes das entidades não são escritos (o header guarda
+`stringTableOffset = 0`), não existe tabela de referências a assets e todos os outros
+tipos de componente são descartados. `serializeJson` escreve apenas um dump de debug de
+transforms e `deserializeJson` devolve `false`.
+
+Para projetos reais usa `Editor::SceneSerializer`
+(`src/caffeine/scene/EditorSceneSerializer.hpp`). É o serializador por trás de
+`caffeine_session_save_scene` / `load_scene`, cobre os ids de componente listados nesse
+header (nomes, transforms, luzes, meshes, física, scripts, UI, terreno, skinned poses e
+mais) e preserva nomes de entidades e links de parent.
 
 ---
 
 ## Sistema de Hierarquia (TransformSystem)
 
+A hierarquia é uma função livre, não uma subclasse de `ISystem`. Chama-a uma vez por
+frame antes do rendering:
+
 ```cpp
-// TransformSystem (ECS::ISystem, priority = 50 — antes de tudo):
-world.query(parentQuery, [](WorldTransform& wt, Position2D& pos,
-                            const Parent& parent) {
-    if (parent.dirty) {
-        Mat4 localTransform = Mat4::translate(pos.x, pos.y);
-        if (parent.parent.isValid()) {
-            auto* parentWT = world.get<WorldTransform>(parent.parent);
-            wt.matrix = parentWT->matrix * localTransform;
-        } else {
-            wt.matrix = localTransform;
-        }
-    }
-});
+#include "scene/HierarchySystem.hpp"
+
+// Local transform sources:
+//   ECS::Position3D + Rotation3D + Scale3D   (3D, quaternion rotation)
+//   ECS::Transform                           (position + Euler degrees + scale)
+Caffeine::Scene::propagateTransforms(world);
+
+// The resolved matrix is now on every entity that has a Transform/Position3D.
+Mat4 worldMatrix = world.get<Caffeine::Scene::WorldTransform>(entity)->matrix;
 ```
+
+Como resolve:
+
+1. Todas as entidades com `ECS::Transform` ou `ECS::Position3D` recebem um
+   `WorldTransform` com a matriz local.
+2. Até `MAX_DEPTH` (8) passagens compõem a matriz local de cada filho com a matriz
+   global do pai. Os pais podem aparecer depois dos filhos na lista de entidades.
+3. Um segundo conjunto de passagens copia a `EntityLayer` do pai para os filhos que
+   ainda não têm uma.
+4. Adicionar `WorldTransform` durante a iteração invalidaria a iteração, por isso as
+   atualizações são recolhidas primeiro e escritas depois. É isto que torna a função
+   segura em filhos que nunca tiveram world transform.
+
+`Parent.dirty` não é consultado; remover um `Parent` e chamar `propagateTransforms`
+outra vez devolve o filho ao espaço local.
+
+`isEffectivelyDisabled` percorre a cadeia de pais, pelo que uma raiz desativada desativa
+a subárvore sem tocar em cada filho.
 
 ---
 
 ## Exemplos de Uso
 
 ```cpp
-// ── Salvar cena ───────────────────────────────────────────────
+#include "debug/LogSystem.hpp"
+#include "scene/HierarchySystem.hpp"
+#include "scene/SceneManager.hpp"
+#include "scene/SceneSerializer.hpp"
+
+// ── Save and load a minimal scene ─────────────────────────────
 Caffeine::Scene::SceneSerializer serializer(world);
 if (!serializer.serialize("saves/level1.caf")) {
     CF_ERROR("Scene", "Failed to save level1");
 }
 
-// ── Carregar cena ─────────────────────────────────────────────
-if (!serializer.deserialize("assets/scenes/level1.caf")) {
-    CF_FATAL("Scene", "Could not load level1");
-}
-
-// ── Transição de cena ─────────────────────────────────────────
+// ── Load into the manager ─────────────────────────────────────
 Caffeine::Scene::SceneManager sceneManager;
 
-// Vai para próximo nível com fade
-sceneManager.switchScene("assets/scenes/level2.caf",
-    { .type = SceneManager::TransitionType::Fade,
-      .duration = 0.5f });
+// Replace the current world with level2, with a 0.5 s timer.
+Caffeine::Scene::TransitionConfig transition;
+transition.type     = Caffeine::Scene::TransitionType::Fade;
+transition.duration = 0.5f;
+if (!sceneManager.switchScene("assets/scenes/level2.caf", transition)) {
+    CF_ERROR("Scene", "Could not load level2");
+}
 
-// Abre menu pause (preserva gameplay por baixo)
-sceneManager.pushScene("assets/scenes/pause_menu.caf");
-// ...volta ao jogo
+// Push a pause menu over the gameplay world, then pop it.
+if (!sceneManager.pushScene("assets/scenes/pause_menu.caf")) {
+    CF_ERROR("Scene", "Could not load pause_menu");
+}
+// ...later
 sceneManager.popScene();
 
-// ── Hierarquia ────────────────────────────────────────────────
+// Advance the transition timer once per frame.
+sceneManager.update(dt);
+float fade = sceneManager.transitionProgress();
+
+// ── Hierarchy ────────────────────────────────────────────────
+Entity player = world.create("Player");
+world.add<Caffeine::ECS::Transform>(player).position = {0.0f, 0.0f, 0.0f};
+
 Entity sword = world.create("Sword");
-world.add<Position2D>(sword, {15, -5});  // local ao player
-world.add<Parent>(sword, { .parent = playerEntity });
-// WorldTransform do sword = WorldTransform do player * Mat4::translate(15, -5)
+// Local position relative to the player.
+world.add<Caffeine::ECS::Transform>(sword).position = {1.5f, 0.0f, 0.0f};
+world.add<Caffeine::Scene::Parent>(sword).parent = player;
+
+Caffeine::Scene::propagateTransforms(world);
+// sword's WorldTransform = player's WorldTransform * sword's local transform.
 ```
 
 ---
@@ -210,27 +281,38 @@ world.add<Parent>(sword, { .parent = playerEntity });
 
 | Decisão | Justificativa |
 |---------|-------------|
-| Scene stack | Menus sobre gameplay sem destruir o mundo |
-| Formato binário .caf | Zero-parsing — load limitado pela velocidade do SSD |
-| JSON opcional | Legibilidade em debug sem comprometer performance |
-| `dirty` flag no Parent | Evita recalcular WorldTransform quando não mudou |
-| Async loading | Transições de nível sem freeze |
+| Hierarquia sobre componentes ECS | Links de parent são dados; qualquer sistema ou frontend os pode ler |
+| `WorldTransform` separado do `Transform` local | O inspector continua a editar valores locais enquanto o rendering usa matrizes resolvidas |
+| Até 8 passagens de composição | Trata pais que aparecem depois dos filhos sem uma ordenação topológica |
+| Atualizações recolher-depois-escrever | Adicionar componentes durante a iteração invalida a iteração de arquétipos |
+| Pilha de cenas | Mantém um world de gameplay vivo por baixo de um world de menu |
+| Header `.caf` interno da engine | Os ficheiros de cena são versionados separadamente dos assets do caf-pack |
+| `Scene::SceneSerializer` mínimo | Round-trip pequeno e testável de quatro componentes; o formato completo vive em `Editor::SceneSerializer` |
 
 ---
 
 ## Critério de Aceitação
 
-- [x] Serialize + deserialize 1K entidades round-trip < 200ms
-- [x] Scene stack push/pop sem memory leaks
-- [x] Transição Fade funcional (sem artefatos visuais)
-- [x] Hierarquia: WorldTransform calculado corretamente para 3+ níveis de depth
+A suite `tests/test_scenemanager.cpp` cobre:
+
+- [x] `Parent` começa com `Entity::INVALID` e `dirty = true`
+- [x] `WorldTransform` começa como identidade
+- [x] Round-trip de world vazio e do header via `serializeToMemory`
+- [x] Round-trip de `Transform`, `Acceleration2D`, `WorldTransform` e `Parent`
+- [x] Push/pop da pilha do `SceneManager` e `activeWorld()`
+- [x] `propagateTransforms` compõe três níveis de transforms parent/child
+- [x] Filhos sem `WorldTransform` são tratados sem invalidar a iteração
+- [x] Remover `Parent` devolve o filho ao espaço local
+
+A suite não impõe um orçamento de carregamento de 1K entidades nem uma contagem de
+leaks da pilha de cenas; mede isso no teu próprio projeto se for relevante.
 
 ---
 
 ## Dependências
 
-- **Upstream:** [ECS Core](ecs.md), [Formato .caf](../assets/caf-format.md), [Fase 1 — Mat4](../math/vectors.md)
-- **Downstream:** [Fase 6 — Scene Editor](../editor/scene-editor.md)
+- **Upstream:** [ECS Core](./core.md), [CafTypes](../assets/caf-format.md), [Mat4](../math/vectors.md)
+- **Downstream:** I/O de cenas do Doppio e a C ABI (`caffeine_session_save_scene` / `load_scene`)
 
 ---
 
@@ -238,12 +320,13 @@ world.add<Parent>(sword, { .parent = playerEntity });
 
 | Tópico | Descrição |
 |--------|-----------|
-| [Sistemas de Jogo]() | Scene Manager como orquestrador de fases |
-| [Assets & Pipeline]() | Serialização de cenas em .caf |
+| [ECS Core](./core.md) | Entidades, componentes e queries usados pela camada de cena |
+| [ECS examples](./examples.md) | Programas que usam a API do world |
+| [Headless engine API](../api/headless-engine-api.md) | Guardar e carregar cenas através da C ABI |
 
 ## Referências
 
-- [`docs/architecture_specs.md`](../architecture_specs.md) — §5 Scene Graph & Serialização
-- [`assets/caf-format.md`](../assets/caf-format.md) — formato binário
-- [`ecs/core.md`](ecs.md) — ECS World usado internamente
-- [Índice de Tópicos Transversais]()
+- [`src/caffeine/scene/HierarchySystem.hpp`](https://github.com/devscafecommunity/caffeine/blob/main/src/caffeine/scene/HierarchySystem.hpp) — composição da hierarquia
+- [`src/caffeine/scene/SceneManager.hpp`](https://github.com/devscafecommunity/caffeine/blob/main/src/caffeine/scene/SceneManager.hpp) — pilha de cenas
+- [`src/caffeine/scene/EditorSceneSerializer.hpp`](https://github.com/devscafecommunity/caffeine/blob/main/src/caffeine/scene/EditorSceneSerializer.hpp) — formato completo de cena de projeto
+- [`tests/test_scenemanager.cpp`](https://github.com/devscafecommunity/caffeine/blob/main/tests/test_scenemanager.cpp) — suite de hierarquia e serialização

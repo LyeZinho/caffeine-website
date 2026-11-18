@@ -1,9 +1,12 @@
 # 🛠️ Caffeine Studio IDE — Plano de Desenvolvimento
 
-> **Milestone:** 2.0 — Caffeine Studio  
-> **Namespace:** `Caffeine::Editor`  
-> **Estado:** 📅 Planeamento  
-> **RFs:** RF6.1–RF6.6, RF4.7
+<div class="doc-meta">
+  <span class="doc-badge doc-badge--planned">Planned</span>
+  <span><strong>Milestone:</strong> 2.0 — Caffeine Studio</span>
+  <span><strong>Namespace:</strong> `Caffeine::Editor`</span>
+  <span><strong>RFs:</strong> RF6.1–RF6.6, RF4.7</span>
+  <span>Last updated: <time datetime="2026-11-18">2026-11-18</time></span>
+</div>
 
 ---
 
@@ -32,16 +35,16 @@ Este plano divide o desenvolvimento em **4 milestones** progressivas:
 
 | Componente | Ficheiros | Estado |
 |------------|-----------|--------|
-| **ImGuiIntegration** | `src/editor/ImGuiIntegration.hpp` | ✅ Integração SDL3+ImGui |
-| **ProfilerWindow** | `src/editor/ProfilerWindow.hpp` | ✅ Gráfico de frame times |
-| **ConsoleWindow** | `src/editor/ConsoleWindow.hpp` | ✅ Log filtering por nível |
-| **StatsOverlay** | `src/editor/StatsOverlay.hpp` | ✅ FPS, cache stats |
-| **EditorTypes** | `src/editor/EditorTypes.hpp` | ✅ FrameStats, tipos base |
-| **AssetPipeline CLI** | `src/tools/*.hpp` | ✅ Texture, Audio, Mesh encoders |
-| **UISystem (game)** | `src/ui/UISystem.hpp` | ✅ UI retained mode para jogos |
-| **SceneSerializer** | `src/scene/SceneSerializer.hpp` | ✅ Serialização `.caf` |
-| **ECS Core** | `src/ecs/World.hpp` | ✅ Archetypes, queries, systems |
-| **RHI** | `src/rhi/RenderDevice.hpp` | ✅ SDL_GPU abstraction |
+| **ImGuiIntegration** | `doppio-archived/src/doppio/editor/ImGuiIntegration.hpp` | ✅ Integração SDL3+ImGui |
+| **ProfilerWindow** | `doppio-archived/src/doppio/editor/ProfilerWindow.hpp` | ✅ Gráfico de frame times |
+| **ConsoleWindow** | `doppio-archived/src/doppio/editor/ConsoleWindow.hpp` | ✅ Log filtering por nível |
+| **StatsOverlay** | `doppio-archived/src/doppio/editor/StatsOverlay.hpp` | ✅ FPS, cache stats |
+| **EditorTypes** | `doppio-archived/src/doppio/editor/EditorTypes.hpp` | ✅ FrameStats, tipos base |
+| **AssetPipeline CLI** | `src/caffeine/tools/` | ✅ Texture, Audio, Mesh encoders |
+| **UISystem (game)** | `src/caffeine/ui/UISystem.hpp` | ✅ UI retained mode para jogos |
+| **SceneSerializer** | `src/caffeine/scene/SceneSerializer.hpp` | ✅ Serialização `.caf` |
+| **ECS Core** | `src/caffeine/ecs/World.hpp` | ✅ Archetypes, queries, systems |
+| **RHI** | `src/caffeine/rhi/RenderDevice.hpp` | ✅ SDL_GPU abstraction |
 
 ### ❌ Por Implementar
 

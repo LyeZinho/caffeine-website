@@ -1,5 +1,10 @@
 # Session 2026-09-22 — Viewport 3D, Visual Quality and Performance
 
+<div class="doc-meta">
+  <span class="doc-badge doc-badge--historical">Historical</span>
+  <span>Last updated: <time datetime="2026-11-18">2026-11-18</time></span>
+</div>
+
 > **Objective:** fix visual artifacts in Scene Viewport (shading edges, 2.5D aspect, sawing), improve FPS in fast camera motion and introduce LOD of textures by distance to viewers.
 > **Build verificado:** `doppio` compile after changes.
 
@@ -45,9 +50,9 @@ Removido `finishCurvedPrimitive()` and dependence on `MeshNormals.hpp` em `GpuPr
 
 ### Ficheiros
 
-- `src/render/GpuProceduralMeshes.cpp`
-- `src/assets/MeshNormals.hpp` (utilitarian; not used in GPU procedures)
-- `src/ecs/MeshComponents.hpp` — `meshPrimitiveUsesSmoothShading()`
+- `src/caffeine/render/GpuProceduralMeshes.cpp`
+- `src/caffeine/assets/MeshNormals.hpp` (utilitarian; not used in GPU procedures)
+- `src/caffeine/ecs/MeshComponents.hpp` — `meshPrimitiveUsesSmoothShading()`
 
 ---
 
@@ -162,11 +167,11 @@ Persistido em `~/.config/caffeine/editor_preferences.json` .
 
 ### Ficheiros
 
-- `src/render/TextureQuality.hpp`
-- `src/render/GpuTextureCache.{hpp,cpp}` — `acquire(..., qualityTier)`
-- `src/render/GpuSceneRenderer.cpp` — `MeshDraw::viewerDistance`
-- `src/editor/EditorContext.hpp` , `EditorPreferences.{hpp,cpp}`
-- `src/editor/SettingsPanel.cpp`
+- `src/caffeine/render/TextureQuality.hpp`
+- `src/caffeine/render/GpuTextureCache.hpp` / `.cpp` — `acquire(..., qualityTier)`
+- `src/caffeine/render/GpuSceneRenderer.cpp` — `MeshDraw::viewerDistance`
+- `src/caffeine/scene/EditorContext.hpp` , `EditorPreferences.{hpp,cpp}`
+- `doppio-archived/src/doppio/editor/SettingsPanel.cpp`
 
 ### Technical documentation
 

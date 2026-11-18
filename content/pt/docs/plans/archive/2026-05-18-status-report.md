@@ -1,5 +1,10 @@
 # Caffeine Engine - Current Status & Implementation Roadmap
 
+<div class="doc-meta">
+  <span class="doc-badge doc-badge--historical">Historical</span>
+  <span>Last updated: <time datetime="2026-11-18">2026-11-18</time></span>
+</div>
+
 **Branch**: `121-44-audio-preview-spatial-placement`
 **Date**: 2026-05-18
 
@@ -18,7 +23,7 @@
 ### Known Issues to Fix
 - ⚠️ FilePicker window requires scrolling (fixed window size ~600x400)
   - **Fix**: Make window resizable and increase default size
-  - **File**: `src/editor/FilePicker.cpp` line 96-97
+  - **File**: `doppio-archived/src/doppio/editor/FilePicker.cpp` line 96-97
 
 ---
 
@@ -28,11 +33,11 @@
 **Status**: ✅ Fully implemented and working
 
 **Core Files**:
-- `src/ecs/Entity.hpp` - Entity definition
-- `src/ecs/World.hpp` - World/scene management
-- `src/ecs/Components.hpp` - Basic components (Position2D, Velocity2D, Rotation, Scale2D, Sprite, Health, Tag, ParticleEmitterComponent)
-- `src/ecs/ComponentID.hpp` - Component type system
-- `src/ecs/ComponentQuery.hpp` - Entity querying
+- `src/caffeine/ecs/Entity.hpp` - Entity definition
+- `src/caffeine/ecs/World.hpp` - World/scene management
+- `src/caffeine/ecs/Components.hpp` - Basic components (Position2D, Velocity2D, Rotation, Scale2D, Sprite, Health, Tag, ParticleEmitterComponent)
+- `src/caffeine/ecs/ComponentID.hpp` - Component type system
+- `src/caffeine/ecs/ComponentQuery.hpp` - Entity querying
 
 **Current Components Available**:
 1. **Transform**: Position2D, Velocity2D, Acceleration2D, Rotation, Scale2D
@@ -84,7 +89,7 @@
      - No physics settings UI in editor
      - Sleep optimization incomplete
    
-   - **Files**: `src/physics/PhysicsComponents2D.hpp`, `src/physics/PhysicsSystem2D.hpp`
+   - **Files**: `src/caffeine/physics/PhysicsComponents2D.hpp`, `src/caffeine/physics/PhysicsSystem2D.hpp`
    - **Priority**: 🔴 CRITICAL - No game without physics
    - **Effort**: ~2-3 days to integrate properly
 
@@ -101,7 +106,7 @@
      - **No API documentation**
      - Script component UI in inspector
    
-   - **Files**: `src/script/ScriptEngine.hpp/cpp`, `src/script/ScriptSystem.cpp`
+   - **Files**: `src/script/ScriptEngine.hpp/cpp`, `src/caffeine/script/ScriptSystem.cpp`
    - **Priority**: 🔴 CRITICAL - Game logic impossible without this
    - **Effort**: ~5-7 days (depends on language choice)
 
@@ -238,18 +243,18 @@ input.isKeyDown("w") -- true/false
 ## 6. FILE CHECKLIST
 
 ### Core Systems (Check/expand these)
-- [ ] `src/ecs/Components.hpp` - Add missing component types
-- [ ] `src/editor/InspectorPanel.cpp` - Expand with property drawers
-- [ ] `src/physics/PhysicsSystem2D.hpp` - Wire to main game loop
-- [ ] `src/script/ScriptEngine.cpp` - Add engine bindings
-- [ ] `src/editor/TilemapEditor.cpp` - Implement rendering
-- [ ] `src/editor/FilePicker.cpp` - Fix window sizing
+- [ ] `src/caffeine/ecs/Components.hpp` - Add missing component types
+- [ ] `doppio-archived/src/doppio/editor/InspectorPanel.cpp` - Expand with property drawers
+- [ ] `src/caffeine/physics/PhysicsSystem2D.hpp` - Wire to main game loop
+- [ ] `src/caffeine/script/ScriptEngine.cpp` - Add engine bindings
+- [ ] `doppio-archived/src/doppio/editor/TilemapEditor.cpp` - Implement rendering
+- [ ] `doppio-archived/src/doppio/editor/FilePicker.cpp` - Fix window sizing
 
 ### Next Exploration
 - [ ] How scenes are serialized (look for SceneSerializer)
-- [ ] How assets are loaded (look in `src/assets/`)
-- [ ] Render pipeline (look in `src/render/`)
-- [ ] How systems integrate into main game loop (look in `src/engine/`)
+- [ ] How assets are loaded (look in `src/caffeine/assets`)
+- [ ] Render pipeline (look in `src/caffeine/render`)
+- [ ] How systems integrate into main game loop (look in `src/caffeine/engine`)
 
 ---
 

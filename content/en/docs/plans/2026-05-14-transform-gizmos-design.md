@@ -1,5 +1,10 @@
 # Transform Gizmos Design
 
+<div class="doc-meta">
+  <span class="doc-badge doc-badge--historical">Historical</span>
+  <span>Last updated: <time datetime="2026-11-18">2026-11-18</time></span>
+</div>
+
 **Date:** 2026-05-14
 **Issue:** #90
 **Namespace:** `Caffeine::Editor`
@@ -46,8 +51,8 @@ namespace Caffeine::Editor {
 
 ## TransformGizmo Class
 
-**Header:** `src/editor/TransformGizmo.hpp`
-**Source:** `src/editor/TransformGizmo.cpp`
+**Header:** `doppio-archived/src/doppio/editor/TransformGizmo.hpp`
+**Source:** `doppio-archived/src/doppio/editor/TransformGizmo.cpp`
 
 ```cpp
 namespace Caffeine::Editor {
@@ -199,7 +204,7 @@ if (snapEnabled) {
 
 ## File Structure
 
-- `src/editor/`
+- `doppio-archived/src/doppio/editor/`
   - `TransformGizmo.hpp (new)`
   - `TransformGizmo.cpp (new)`
 - `Modified:`

@@ -1,159 +1,138 @@
-# 🎥 Camera 3D
+# Camera 3D
 
-> **Fase:** 5 — Transição Dimensional  
-> **Namespace:** `Caffeine::Render`  
-> **Arquivo:** `src/render/Camera3D.hpp`  
-> **Status:** 📅 Planejado  
-> **RFs:** RF5.5, RF5.6
+<div class="doc-meta">
+  <span class="doc-badge doc-badge--stable">Stable</span>
+  <span><strong>Namespace:</strong> `Caffeine::Render`</span>
+  <span>Last verified: <time datetime="2026-11-18">2026-11-18</time></span>
+  <span>Source: <a href="https://github.com/devscafecommunity/caffeine/blob/main/src/caffeine/render/Camera3D.hpp"><code>render/Camera3D.hpp</code></a></span>
+</div>
+
+<p class="doc-lede">Câmara perspectiva usada pelo viewport 3D e pelo runtime: matrizes de view
+e projecção, conversão ecrã/mundo, um frustum para culling e controlos FPS/orbital/follow.</p>
 
 ---
 
 ## Visão Geral
 
-Camera3D com projeção perspectiva para renderização 3D. Coexiste com `Camera2D` (Fase 3) — o mesmo frame pode renderizar 2D (HUD, sprites) e 3D (ambiente, personagens) com câmeras diferentes.
+A `Camera3D` fornece projecção perspectiva para render 3D e coexiste com a `Camera2D`: o mesmo
+frame pode desenhar 2D (HUD, sprites) e 3D (ambiente, personagens) com câmaras diferentes.
 
 ---
 
-## API Planejada
+## API
 
 ```cpp
 namespace Caffeine::Render {
 
-// ============================================================================
-// @brief  Câmera 3D com projeção perspectiva.
-//
-//  Modos:
-//  - FPS: mouse look, WASD movement
-//  - Orbital: rotação em torno de um ponto (editor, estratégia)
-//  - Follow: segue entidade com offset (terceira pessoa)
-// ============================================================================
 class Camera3D {
 public:
-    Camera3D();
+    Camera3D() = default;
 
-    // ── Matrizes ───────────────────────────────────────────────
-    Math::Mat4 viewMatrix()           const;
-    Math::Mat4 projectionMatrix()     const;
-    Math::Mat4 viewProjectionMatrix() const;   // cached, dirty-flagged
+    // ── Matrizes ──────────────────────────────────────────────
+    Mat4 viewMatrix()           const;
+    Mat4 projectionMatrix()     const;
+    Mat4 viewProjectionMatrix() const;   // em cache, recalculada quando dirty
 
-    // Frustum para culling (RF5.6)
+    // Frustum para culling
     Spatial::Frustum frustum() const;
 
-    // ── Conversão de espaço ────────────────────────────────────
-    Math::Vec3 worldToScreen(Math::Vec3 worldPos) const;
-    Math::Vec3 screenToWorld(Math::Vec2 screenPos, f32 depth = 0.5f) const;
-    bool       isVisible(const Spatial::AABB3D& bounds) const;
+    // ── Conversão de espaço ───────────────────────────────────
+    Vec3 worldToScreen(Vec3 worldPos) const;              // pixels + profundidade 0..1
+    Vec3 screenToWorld(Vec2 screenPos, f32 depth = 0.5f) const;
+    bool isVisible(const Spatial::AABB3D& bounds) const;
 
-    // ── Configuração perspectiva ────────────────────────────────
-    void setFOV(f32 fovYDegrees);
+    // ── Configuração perspectiva ──────────────────────────────
+    void setFOV(f32 fovYDegrees);      // limitado a 1..179
     void setAspect(f32 aspect);
     void setNearFar(f32 nearPlane, f32 farPlane);
+    void setViewport(Rect2D viewport);
 
-    // ── Transform ──────────────────────────────────────────────
-    void setPosition(Math::Vec3 pos);
-    void setRotation(Math::Quat rot);
-    void lookAt(Math::Vec3 eye, Math::Vec3 target,
-                Math::Vec3 up = {0, 1, 0});
+    // ── Transform ─────────────────────────────────────────────
+    void setPosition(Vec3 pos);
+    void setRotation(Quat rot);
+    void lookAt(Vec3 eye, Vec3 target, Vec3 up = {0, 1, 0});
 
-    // ── FPS mode ───────────────────────────────────────────────
-    void rotateFPS(f32 deltaPitch, f32 deltaYaw);  // graus
-    void moveFPS(Math::Vec3 localDelta);           // espaço local
+    // ── Modo FPS ──────────────────────────────────────────────
+    void rotateFPS(f32 deltaPitch, f32 deltaYaw);  // graus; pitch limitado a ±89
+    void moveFPS(Vec3 localDelta);                 // espaço local
 
-    // ── Orbital mode ───────────────────────────────────────────
-    void orbit(f32 deltaAzimuth, f32 deltaElevation);  // graus
-    void setOrbitTarget(Math::Vec3 target);
+    // ── Modo orbital ──────────────────────────────────────────
+    void orbit(f32 deltaAzimuth, f32 deltaElevation);
+    void setOrbitTarget(Vec3 target);
     void setOrbitDistance(f32 distance);
     void zoom(f32 delta);
 
-    // ── Follow mode ────────────────────────────────────────────
-    void follow(ECS::Entity target, Math::Vec3 offset = {0, 2, -5},
-                f32 smoothing = 0.05f);
+    // ── Modo follow ───────────────────────────────────────────
+    void follow(ECS::Entity target, Vec3 offset = {0, 2, -5}, f32 smoothing = 0.05f);
+    void stopFollowing();
     void update(f64 dt, const ECS::World& world);
 
-    // ── Getters ────────────────────────────────────────────────
-    Math::Vec3 position()  const { return m_position; }
-    Math::Quat rotation()  const { return m_rotation; }
-    Math::Vec3 forward()   const;
-    Math::Vec3 right()     const;
-    Math::Vec3 up()        const;
-    f32        fov()       const { return m_fovY; }
-
-private:
-    Math::Mat4 calculateViewMatrix()       const;
-    Math::Mat4 calculateProjectionMatrix() const;
-
-    Math::Vec3 m_position    = {0, 0, -5};
-    Math::Quat m_rotation    = Math::Quat::identity();
-    f32         m_fovY        = 60.0f;
-    f32         m_aspect      = 16.0f / 9.0f;
-    f32         m_near        = 0.1f;
-    f32         m_far         = 1000.0f;
-
-    // Follow
-    ECS::Entity m_followTarget    = ECS::Entity::INVALID;
-    Math::Vec3  m_followOffset    = {0, 2, -5};
-    f32          m_followSmoothing = 0.05f;
-
-    // Orbital
-    Math::Vec3 m_orbitTarget   = {0, 0, 0};
-    f32         m_orbitDistance = 5.0f;
-    f32         m_azimuth       = 0.0f;    // graus
-    f32         m_elevation     = 30.0f;   // graus
-
-    mutable Math::Mat4 m_cachedVP;
-    mutable bool        m_dirty = true;
+    // ── Getters ───────────────────────────────────────────────
+    Vec3 position()    const;
+    Quat rotation()    const;
+    f32  fov()         const;
+    f32  aspect()      const;
+    f32  nearPlane()   const;
+    f32  farPlane()    const;
+    Rect2D viewport()  const;
+    Vec3 forward()     const;
+    Vec3 right()       const;
+    Vec3 up()          const;
 };
 
 }  // namespace Caffeine::Render
 ```
 
+Defaults: FOV 60°, 16:9, near 0.1, far 1000, posição `(0, 0, -5)`.
+
 ---
 
-## Matemática da Projeção Perspectiva
+## Matemática da projecção perspectiva
 
-```
-Projection Matrix (perspective):
+```text
+Matriz de projecção (perspectiva):
     f = 1 / tan(fovY/2)
-    
+
     [f/aspect,  0,      0,                0]
     [0,         f,      0,                0]
     [0,         0,  far/(far-near),       1]
     [0,         0, -far*near/(far-near),  0]
 
-View Matrix (lookAt):
-    forward = normalize(target - eye)
-    right   = normalize(cross(forward, up))
-    up      = cross(right, forward)
-    
-    Mat4 lookAt = rotation(right, up, -forward) * translate(-eye)
+Matriz de view (a partir do quaternion de rotação):
+    view = inverse(rotation) * translate(-position)
 ```
+
+`viewProjectionMatrix()` devolve `projection * view` e só recalcula quando um setter marcou a
+câmara como dirty.
 
 ---
 
-## Frustum Culling Integration
+## Integração do frustum culling
 
 ```cpp
-// Camera3D fornece Frustum para o Octree:
+// A Camera3D constrói o frustum a partir dos seus próprios parâmetros:
 Spatial::Frustum frustum = camera3D.frustum();
-octree.queryFrustum(frustum, visibleEntities);
-// → apenas visibleEntities geram draw calls
+
+// O GPU scene renderer testa cada AABB de mesh contra ele:
+if (!frustum.intersects(aabb)) return;  // sem draw
 ```
 
 ---
 
-## Exemplos de Uso
+## Exemplos de uso
 
 ```cpp
-// ── Setup câmera perspectiva ──────────────────────────────────
+// ── Setup perspectiva ─────────────────────────────────────────
 Caffeine::Render::Camera3D camera;
 camera.setFOV(60.0f);
 camera.setAspect(1280.0f / 720.0f);
 camera.setNearFar(0.1f, 1000.0f);
+camera.setViewport({ {0, 0}, {1280, 720} });
 camera.lookAt({0, 5, -10}, {0, 0, 0});
 
-// ── FPS camera ────────────────────────────────────────────────
+// ── Câmara FPS ────────────────────────────────────────────────
 camera.rotateFPS(input.axisValue(Axis::LookY) * sensitivity,
-                  input.axisValue(Axis::LookX) * sensitivity);
+                 input.axisValue(Axis::LookX) * sensitivity);
 
 Vec3 moveDir = {
     input.axisValue(Axis::MoveX),
@@ -171,60 +150,47 @@ camera.setOrbitTarget({0, 0, 0});
 camera.setOrbitDistance(15.0f);
 camera.orbit(deltaX * 0.5f, deltaY * 0.5f);
 camera.zoom(scrollDelta);
-
-// ── Frustum culling ───────────────────────────────────────────
-auto visible = octree.queryFrustum(camera.frustum());
 ```
 
 ---
 
-## Coexistência com Camera2D
+## Coexistência com a Camera2D
 
 ```cpp
-// Frame com renderização 2D + 3D:
+// 2D + 3D no mesmo frame:
 
-// Render 3D (mundo)
-cmd->beginRenderPass(worldPassDesc);
-meshSystem.renderWithCamera(camera3D, cmd);  // perspectiva
-cmd->endRenderPass();
+// 3D (mundo) — cena HDR linear + pós-processamento para colorTarget
+renderer.renderWithCamera(cmd, world, camera, colorTarget, depthTarget,
+                          width, height, projectRoot, options);
 
-// Render 2D (HUD sobreposto)
+// 2D (HUD por cima)
 cmd->beginRenderPass(hudPassDesc);
-batchRenderer.setCamera(camera2D);  // ortho
+batchRenderer.setCamera(camera2D);  // ortográfica
 batchRenderer.endFrame(cmd);
 cmd->endRenderPass();
 ```
 
 ---
 
-## Critério de Aceitação
+## Notas de comportamento
 
-- [ ] `lookAt` produz view matrix correta (comparado com glm::lookAt)
-- [ ] `perspective` produz projection correta (comparado com glm::perspective)
-- [ ] Frustum culling: objetos fora do frustum não renderizam
-- [ ] Follow suave sem jitter (igual ao Camera2D)
-- [ ] FPS mode: pitch clampado a [-89°, +89°] (sem flip)
+- `rotateFPS` limita o pitch a `[-89, +89]` e mantém o roll a zero.
+- `orbit` limita a elevação da mesma forma e recalcula a posição em torno do alvo orbital.
+- `follow` interpola a posição para o `Position3D` do alvo mais um offset local; o `dt` ainda
+  não é usado, pelo que a suavização é por chamada.
+- `screenToWorld` desprojeta com a inversa da view-projecção na profundidade pedida.
 
 ---
 
 ## Dependências
 
-- **Upstream:** [3D Math](3d-math.md), [Spatial Partitioning](spatial-partitioning.md), [Fase 4 — ECS](../ecs/core.md)
-- **Downstream:** [Mesh Loading](mesh-loading.md), [Skeletal Animation](skeletal-animation.md)
+- **Upstream:** [3D Math](../math/vectors.md), [Spatial Partitioning](../physics/spatial-partitioning.md), [ECS](../ecs/core.md)
+- **Downstream:** [Mesh Loading](../assets/mesh-loading.md), [Skeletal Animation](../animation/skeletal-animation.md)
 
 ---
 
 ## Referências
 
-## 🔗 Tópicos Relacionados
-
-| Tópico | Descrição |
-|--------|-----------|
-| [Renderização & Pipeline]() | Camera 3D na pipeline de renderização |
-
-## Referências
-
-- [`docs/architecture_specs.md`](../architecture_specs.md) — §10 Camera System, RF5.5-5.6
-- [`docs/fase3/camera.md`](../rendering/camera-2d.md) — Camera2D (para coexistência)
-- [`docs/physics/spatial-partitioning.md`](../physics/spatial-partitioning.md) — Frustum culling via Octree
-- [Índice de Tópicos Transversais]()
+- [`architecture_specs.md`](../architecture_specs.md) — §10 Camera System, RF5.5-5.6
+- [`camera-2d.md`](camera-2d.md) — Camera2D (para coexistência)
+- [`../physics/spatial-partitioning.md`](../physics/spatial-partitioning.md) — frustum culling via Octree

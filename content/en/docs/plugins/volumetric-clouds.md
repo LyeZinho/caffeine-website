@@ -1,10 +1,30 @@
 # VC&M — Volumetric Clouds & Mist
 
-VC&M is a **Doppio plugin** that procedurally authors volumetric clouds and ground
-mist. The plugin owns the weather model and the authoring UI; the engine ray-marches
-the cloud layer in the sky pass.
+<div class="doc-meta">
+  <span class="doc-badge doc-badge--reference">Reference</span>
+  <span>Last updated: <time datetime="2026-11-18">2026-11-18</time></span>
+</div>
 
-![Volumetric clouds rendered by VC&M](../images/captures/vcm-clouds.png)
+<div class="doc-callout doc-callout--warning">
+  <p><strong>Legacy host.</strong> The active Rust/Iced Doppio does not load C++ plugins.
+  These pages document the C++/ImGui plugin SDK and its host in the archived C++ editor
+  (<code>doppio-archived/</code>). The engine still builds every plugin from the submodule
+  so the SDK stays compile-tested.</p>
+</div>
+
+
+<p class="doc-lede">The VC&amp;M plugin authors volumetric clouds and ground mist through a
+weather model and a panel for the legacy C++ host.</p>
+
+VC&amp;M is a **plugin for the legacy C++/ImGui host** that procedurally authors
+volumetric clouds and ground mist. The plugin owns the weather model and the authoring
+UI; the engine ray-marches the cloud layer in the sky pass.
+
+<figure class="doc-figure">
+  <img src="../images/captures/vcm-clouds.png" alt="Volumetric clouds rendered by VC&M" loading="lazy">
+  <figcaption>Volumetric clouds rendered by VC&M</figcaption>
+</figure>
+
 
 ## What it does
 
@@ -54,7 +74,7 @@ cmake --build doppio-plugins/build --target volumetric_clouds_plugin
 cp doppio-plugins/build/plugins/volumetric_clouds_plugin.so build/plugins/
 ```
 
-Enable **VC&M** in **Plugins → Plugin Manager**, then use
+Enable **VC&amp;M** in the legacy host's **Plugins → Plugin Manager**, then use
 **Plugins → Create Volumetric Clouds & Mist** (creates the component, enables it and
 opens the panel) or **View → Volumetric Clouds & Mist**.
 

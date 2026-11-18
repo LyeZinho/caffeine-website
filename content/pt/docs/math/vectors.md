@@ -1,40 +1,51 @@
-# Math Module
+# Módulo de Matemática
 
-> Documentation for Caffeine Engine Math module - Phase 1: Atomic Foundation
+<div class="doc-meta">
+  <span class="doc-badge doc-badge--reference">Reference</span>
+  <span class="doc-badge">Engine</span>
+  <span>Last verified: <time datetime="2026-11-18">2026-11-18</time></span>
+  <span>Source: <a href="https://github.com/devscafecommunity/caffeine/tree/main/src/caffeine/math"><code>src/caffeine/math</code></a></span>
+</div>
 
-## Overview
+<p class="doc-lede">Os tipos de vetor, matriz e helpers escalares em structs
+simples usados pelo runtime e pelo editor, com um <code>Mat4</code>
+column-major pronto para a GPU.</p>
 
-The Math module provides vector and matrix types optimized for game development. All types are designed with cache locality and SIMD potential in mind.
+## Visão Geral
 
-**Location:** `src/math/`
+O módulo Math fornece tipos de vetor e matriz otimizados para desenvolvimento de
+jogos. Todos os tipos são desenhados com localidade de cache e potencial de
+SIMD em mente.
 
-## Files
+**Localização:** `src/caffeine/math`
 
-| File | Description | Status |
+## Ficheiros
+
+| Ficheiro | Descrição | Estado |
 |------|-------------|--------|
-| [`Vec2.hpp`](../../src/math/Vec2.hpp) | 2D vector (x, y) | ✅ Complete |
-| [`Vec3.hpp`](../../src/math/Vec3.hpp) | 3D vector (x, y, z) + `cross()` | ✅ Complete |
-| [`Vec4.hpp`](../../src/math/Vec4.hpp) | 4D vector (x, y, z, w) | ✅ Complete |
-| [`Mat4.hpp`](../../src/math/Mat4.hpp) | 4x4 matrix (column-major) | ✅ Complete |
-| [`Quat.hpp`](../../src/math/Quat.hpp) | Quaternion rotations | ✅ Complete — see [quaternions.md](quaternions.md) |
-| [`Math.hpp`](../../src/math/Math.hpp) | Utility functions (`Caffeine::Math`) | ✅ Complete |
+| [`Vec2.hpp`](https://github.com/devscafecommunity/caffeine/blob/main/src/caffeine/math/Vec2.hpp) | Vetor 2D (x, y) | ✅ Completo |
+| [`Vec3.hpp`](https://github.com/devscafecommunity/caffeine/blob/main/src/caffeine/math/Vec3.hpp) | Vetor 3D (x, y, z) + `cross()` | ✅ Completo |
+| [`Vec4.hpp`](https://github.com/devscafecommunity/caffeine/blob/main/src/caffeine/math/Vec4.hpp) | Vetor 4D (x, y, z, w) | ✅ Completo |
+| [`Mat4.hpp`](https://github.com/devscafecommunity/caffeine/blob/main/src/caffeine/math/Mat4.hpp) | Matriz 4x4 (column-major) | ✅ Completo |
+| [`Quat.hpp`](https://github.com/devscafecommunity/caffeine/blob/main/src/caffeine/math/Quat.hpp) | Rotações por quaternion | ✅ Completo — ver [quaternions.md](quaternions.md) |
+| [`Math.hpp`](https://github.com/devscafecommunity/caffeine/blob/main/src/caffeine/math/Math.hpp) | Funções utilitárias (`Caffeine::Math`) | ✅ Completo |
 
-## Vector Types
+## Tipos de Vetor
 
 ### Vec2
 
-2D vector for positions, velocities, UV coordinates.
+Vetor 2D para posições, velocidades e coordenadas UV.
 
 ```cpp
 Caffeine::Vec2 position(10.0f, 20.0f);
 Caffeine::Vec2 velocity(1.0f, -1.0f);
 Caffeine::Vec2 normalized = velocity.normalized();
-f32 length = velocity.length();
+Caffeine::f32 length = velocity.length();
 ```
 
 ### Vec3
 
-3D vector for positions, directions, colors (RGB).
+Vetor 3D para posições, direções e cores (RGB).
 
 ```cpp
 Caffeine::Vec3 pos(1.0f, 2.0f, 3.0f);
@@ -46,15 +57,15 @@ Caffeine::f32 dot = up.dot(right);
 
 ### Vec4
 
-4D vector for homogeneous coordinates, colors (RGBA).
+Vetor 4D para coordenadas homogéneas e cores (RGBA).
 
 ```cpp
-Caffeine::Vec4 color(1.0f, 0.0f, 0.0f, 1.0f);  // RGBA red
+Caffeine::Vec4 color(1.0f, 0.0f, 0.0f, 1.0f);  // RGBA vermelho
 ```
 
 ## Mat4
 
-Column-major 4x4 matrix for transformations. GPU-compatible layout.
+Matriz 4x4 column-major para transformações. Layout compatível com a GPU.
 
 ```cpp
 Caffeine::Mat4 identity = Caffeine::Mat4::identity();
@@ -66,76 +77,78 @@ Caffeine::Mat4 transform = translation * rotation * scale;
 Caffeine::Vec3 transformed = transform.transformPoint(point);
 ```
 
-### Key Methods
+### Métodos Principais
 
-| Method | Description |
+| Método | Descrição |
 |--------|-------------|
-| `identity()` / `zero()` | Identity / all-zero matrix |
-| `translation(x, y, z)` / `translation(Vec3)` | Translation matrix |
-| `scale(s)` or `scale(x, y, z)` | Scale matrix |
-| `rotationX/Y/Z(radians)` | Axis rotations |
-| `ortho(l, r, b, t, n, f)` | Orthographic projection |
-| `perspective(fovY, aspect, near, far)` | Perspective projection (OpenGL RH) |
-| `lookAt(eye, target, up)` | Right-handed view matrix |
-| `transformPoint(p)` | Transform 3D point (w=1, perspective divide) |
-| `transformVector(v)` | Transform direction (w=0, no translation) |
-| `transformVec4(v)` | Raw 4D transform |
-| `transposed()` | Transpose |
-| `inverted()` | Inverse via cofactor expansion (returns identity on singular — see note) |
-| `operator()(row, col)` | Element access over `m[col * 4 + row]` (column-major) |
-| `operator*` | Matrix multiplication |
+| `identity()` / `zero()` | Matriz identidade / tudo a zero |
+| `translation(x, y, z)` / `translation(Vec3)` | Matriz de translação |
+| `scale(s)` ou `scale(x, y, z)` | Matriz de escala |
+| `rotationX/Y/Z(radians)` | Rotações por eixo |
+| `ortho(l, r, b, t, n, f)` | Projeção ortográfica |
+| `perspective(fovY, aspect, near, far)` | Projeção perspetiva (OpenGL RH) |
+| `lookAt(eye, target, up)` | Matriz de vista right-handed |
+| `transformPoint(p)` | Transforma um ponto 3D (w=1, divisão perspetiva quando necessário) |
+| `transformVector(v)` | Transforma uma direção (w=0, sem translação) |
+| `transformVec4(v)` | Transformação 4D em bruto |
+| `transposed()` | Transposta |
+| `inverted()` | Inversa por expansão de cofatores (devolve identidade se singular — ver nota) |
+| `operator()(row, col)` | Acesso a elementos sobre `m[col * 4 + row]` (column-major) |
+| `operator*` | Multiplicação de matrizes |
 
-> ⚠️ `inverted()` retorna identidade em matriz singular (fallback silencioso);
-> `lookAt()` degenera se `eye == target` (ver `AUDIT_REPORT.md` MA-2/MA-4).
+> ⚠️ `inverted()` devolve a identidade numa matriz singular (fallback
+> silencioso). `lookAt()` usa `Mat4::viewBasis()`, que substitui o forward ou o
+> up por um eixo de fallback quando `eye == target` ou o up é paralelo à direção
+> de vista.
 > Não existe `Mat4::fromQuat` — use `Quat::toMatrix()` ([quaternions.md](quaternions.md)).
 
-## Math Utilities (`Caffeine::Math`)
+## Utilitários Matemáticos (`Caffeine::Math`)
 
-| Function | Description |
+| Função | Descrição |
 |----------|-------------|
-| `PI` / `PI_HALF` / `TAU` / `E` | Constants |
-| `degToRad(degrees)` / `radToDeg(radians)` | Angle conversion |
-| `clamp(value, min, max)` | Clamp value |
-| `saturate(value)` | Clamp to [0, 1] |
-| `lerp(a, b, t)` / `inverseLerp(a, b, v)` | Interpolation and inverse |
-| `smoothstep(edge0, edge1, x)` | Smooth Hermite step |
-| `moveTowards(current, target, maxDelta)` | Stepped approach |
-| `absf(value)` / `minf(a, b)` / `maxf(a, b)` | Scalar helpers |
-| `approximatelyEqual(a, b, eps=1e-5)` | Epsilon comparison |
-| `sqrtf_safe(value)` | `sqrt` guarded (≤0 → 0) |
-| `isPowerOfTwo(usize)` | Check power of two |
-| `nextPowerOfTwo(usize)` | Next power of two (32-bit lanes only) |
+| `PI` / `PI_HALF` / `TAU` / `E` | Constantes |
+| `degToRad(degrees)` / `radToDeg(radians)` | Conversão de ângulos |
+| `clamp(value, min, max)` | Limita um valor |
+| `saturate(value)` | Limita a [0, 1] |
+| `lerp(a, b, t)` / `inverseLerp(a, b, v)` | Interpolação e inversa |
+| `smoothstep(edge0, edge1, x)` | Passo de Hermite suave |
+| `moveTowards(current, target, maxDelta)` | Aproximação em passos |
+| `absf(value)` / `minf(a, b)` / `maxf(a, b)` | Helpers escalares |
+| `approximatelyEqual(a, b, eps=1e-5)` | Comparação com epsilon |
+| `sqrtf_safe(value)` | `sqrt` protegido (≤0 → 0) |
+| `isPowerOfTwo(usize)` | Verifica se é potência de dois |
+| `nextPowerOfTwo(usize)` | Próxima potência de dois (apenas lanes de 32 bits) |
 
-> ⚠️ `floorf()` / `ceilf()` / `roundf()` / `powf()` chamam a si mesmas por
-> lookup não-qualificado (recursão infinita) — não usar até correção.
-> `normalized()` de vetor zero retorna vetor zero (silencioso).
+> ⚠️ `floorf()` / `ceilf()` / `roundf()` / `powf()` chamam-se a si mesmas por
+> lookup não qualificado (recursão infinita) — não usar até à correção.
+> `normalized()` de um vetor zero devolve o vetor zero (silencioso).
 
 ## DOD (Data-Oriented Design)
 
-- **Contiguous storage**: Vec2/3/4 are plain structs with no virtual methods
-- **Column-major**: Mat4 uses column-major for GPU compatibility
-- **SIMD-ready**: Memory layout supports future SIMD optimization
-- **Cache-friendly**: Small types that fit in CPU cache lines
+- **Armazenamento contíguo**: Vec2/3/4 são structs simples, sem métodos virtuais
+- **Column-major**: Mat4 usa column-major para compatibilidade com a GPU
+- **Preparado para SIMD**: o layout de memória permite otimização SIMD futura
+- **Amigo da cache**: tipos pequenos que cabem nas linhas de cache da CPU
 
-## Agnosticism
+## Agnosticismo
 
-All math types work for both 2D and 3D:
+Todos os tipos matemáticos servem tanto para 2D como para 3D:
 
-| Type | 2D Use | 3D Use |
+| Tipo | Uso 2D | Uso 3D |
 |------|--------|--------|
-| Vec2 | position, velocity, UV | — |
-| Vec3 | — | position, direction, color RGB |
-| Vec4 | — | homogeneous coords, color RGBA |
-| Mat4 | 2D transforms | 3D transforms |
+| Vec2 | posição, velocidade, UV | — |
+| Vec3 | — | posição, direção, cor RGB |
+| Vec4 | — | coordenadas homogéneas, cor RGBA |
+| Mat4 | transformações 2D | transformações 3D |
 
-## See Also
+## Ver Também
 
-### Related Documentation
-- [HISTORY.md](../HISTORY.md) - Phase 1 requirements and development rules
-- [architecture_specs.md](../architecture_specs.md) - Technical specifications
-- [API Reference](../api/README.md) - Complete API documentation
-- [Test Documentation](../../tests/test_math.cpp) - Math tests
+### Documentação Relacionada
+- [HISTORY.md](../HISTORY.md) - Requisitos e regras de desenvolvimento da Fase 1
+- [architecture_specs.md](../architecture_specs.md) - Especificações técnicas
+- [API Reference](../api/README.md) - Documentação completa da API
+- [Test Documentation](https://github.com/devscafecommunity/caffeine/blob/main/tests/test_math.cpp) - Testes de matemática
 
-### Related Modules
-- [Core Module](../core/types.md) - Foundation types
+### Módulos Relacionados
+- [Core Module](../core/types.md) - Tipos fundamentais
 - [Memory Module](../memory/allocators.md) - Allocators

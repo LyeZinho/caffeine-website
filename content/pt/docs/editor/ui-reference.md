@@ -1,154 +1,268 @@
 # Referência da UI do Doppio
 
-Gerado por `cargo test -p doppio-ui capture_ui_gallery -- --ignored`. As descrições vivem em `doppio/docs/ui-captions.json`.
+<div class="doc-meta">
+  <span class="doc-badge doc-badge--generated">Generated</span>
+  <span class="doc-badge">Doppio</span>
+</div>
+
+<p class="doc-lede">Gerado por `cargo test -p doppio-ui capture_ui_gallery -- --ignored`. As descrições vivem em `doppio/docs/ui-captions.json`.</p>
+
+## `editor.pane.tab.texture_generator`
+
+<figure class="doc-figure">
+  <img src="../images/ui-reference/editor-pane-tab-texture_generator.png" alt="editor.pane.tab.texture_generator" loading="lazy">
+  <figcaption>Separador do painel Texture Generator.</figcaption>
+</figure>
+
+## `editor.menu.project`
+
+<figure class="doc-figure">
+  <img src="../images/ui-reference/editor-menu-project.png" alt="editor.menu.project" loading="lazy">
+  <figcaption>Menu Projeto: gestor de projetos e atualização de assets.</figcaption>
+</figure>
 
 ## `editor.menu.scene`
 
-![editor.menu.scene](../images/ui-reference/editor-menu-scene.png)
-
-Menu Cena: adicionar, guardar e jogar.
+<figure class="doc-figure">
+  <img src="../images/ui-reference/editor-menu-scene.png" alt="editor.menu.scene" loading="lazy">
+  <figcaption>Menu Cena: adicionar, guardar e jogar.</figcaption>
+</figure>
 
 ## `editor.menu.edit`
 
-![editor.menu.edit](../images/ui-reference/editor-menu-edit.png)
-
-Menu Editar: desfazer, refazer e apagar.
+<figure class="doc-figure">
+  <img src="../images/ui-reference/editor-menu-edit.png" alt="editor.menu.edit" loading="lazy">
+  <figcaption>Menu Editar: desfazer, refazer e apagar.</figcaption>
+</figure>
 
 ## `editor.menu.view`
 
-![editor.menu.view](../images/ui-reference/editor-menu-view.png)
-
-Menu Ver: focar, repor câmara e renderizar.
+<figure class="doc-figure">
+  <img src="../images/ui-reference/editor-menu-view.png" alt="editor.menu.view" loading="lazy">
+  <figcaption>Menu Ver: focar, repor câmara e renderizar.</figcaption>
+</figure>
 
 ## `editor.pane.hierarchy`
 
-![editor.pane.hierarchy](../images/ui-reference/editor-pane-hierarchy.png)
+<figure class="doc-figure">
+  <img src="../images/ui-reference/editor-pane-hierarchy.png" alt="editor.pane.hierarchy" loading="lazy">
+  <figcaption>Árvore da cena: linhas compactas, ícones semânticos, expandir/fechar e seleção.</figcaption>
+</figure>
 
-Hierarquia da cena: lista as entidades e permite selecionar.
+## `editor.pane.assets`
+
+<figure class="doc-figure">
+  <img src="../images/ui-reference/editor-pane-assets.png" alt="editor.pane.assets" loading="lazy">
+  <figcaption>Assets do projeto encontrados na raiz de assets carregada.</figcaption>
+</figure>
+
+## `assets.toolbar.search`
+
+<figure class="doc-figure">
+  <img src="../images/ui-reference/assets-toolbar-search.png" alt="assets.toolbar.search" loading="lazy">
+  <figcaption>Filtra o navegador de assets por nome de ficheiro ou caminho.</figcaption>
+</figure>
+
+## `assets.toolbar.up`
+
+<figure class="doc-figure">
+  <img src="../images/ui-reference/assets-toolbar-up.png" alt="assets.toolbar.up" loading="lazy">
+  <figcaption>Sobe para a pasta anterior no navegador de assets.</figcaption>
+</figure>
+
+## `assets.toolbar.root`
+
+<figure class="doc-figure">
+  <img src="../images/ui-reference/assets-toolbar-root.png" alt="assets.toolbar.root" loading="lazy">
+  <figcaption>Volta à raiz de assets.</figcaption>
+</figure>
+
+## `assets.toolbar.refresh`
+
+<figure class="doc-figure">
+  <img src="../images/ui-reference/assets-toolbar-refresh.png" alt="assets.toolbar.refresh" loading="lazy">
+  <figcaption>Volta a ler a raiz de assets do projeto.</figcaption>
+</figure>
+
+## `assets.toolbar.view_grid`
+
+<figure class="doc-figure">
+  <img src="../images/ui-reference/assets-toolbar-view_grid.png" alt="assets.toolbar.view_grid" loading="lazy">
+  <figcaption>Mostra os assets como cartões com miniatura.</figcaption>
+</figure>
+
+## `assets.toolbar.view_list`
+
+<figure class="doc-figure">
+  <img src="../images/ui-reference/assets-toolbar-view_list.png" alt="assets.toolbar.view_list" loading="lazy">
+  <figcaption>Mostra os assets como linhas compactas.</figcaption>
+</figure>
+
+## `assets.tree.empty`
+
+<figure class="doc-figure">
+  <img src="../images/ui-reference/assets-tree-empty.png" alt="assets.tree.empty" loading="lazy">
+  <figcaption>Mostrado quando uma pasta ou pesquisa não tem assets.</figcaption>
+</figure>
+
+## `assets.toolbar.new`
+
+<figure class="doc-figure">
+  <img src="../images/ui-reference/assets-toolbar-new.png" alt="assets.toolbar.new" loading="lazy">
+  <figcaption>Opens the asset wizard on the Create tab (folder, material, script…).</figcaption>
+</figure>
+
+## `assets.toolbar.import`
+
+<figure class="doc-figure">
+  <img src="../images/ui-reference/assets-toolbar-import.png" alt="assets.toolbar.import" loading="lazy">
+  <figcaption>Opens the asset wizard on the Import tab.</figcaption>
+</figure>
+
+## `assets.toolbar.tree_toggle`
+
+<figure class="doc-figure">
+  <img src="../images/ui-reference/assets-toolbar-tree_toggle.png" alt="assets.toolbar.tree_toggle" loading="lazy">
+  <figcaption>Shows or hides the folder tree beside the file view.</figcaption>
+</figure>
+
+## `assets.tree.folders`
+
+<figure class="doc-figure">
+  <img src="../images/ui-reference/assets-tree-folders.png" alt="assets.tree.folders" loading="lazy">
+  <figcaption>Folder tree of the project asset root.</figcaption>
+</figure>
+
+## `viewport.canvas.gizmo`
+
+<figure class="doc-figure">
+  <img src="../images/ui-reference/viewport-canvas-gizmo.png" alt="viewport.canvas.gizmo" loading="lazy">
+  <figcaption>Gizmo de transformação sobre o viewport (mover, rodar ou escalar).</figcaption>
+</figure>
 
 ## `editor.pane.viewport`
 
-![editor.pane.viewport](../images/ui-reference/editor-pane-viewport.png)
-
-Render do motor para a cena atual, com controlos de câmara.
+<figure class="doc-figure">
+  <img src="../images/ui-reference/editor-pane-viewport.png" alt="editor.pane.viewport" loading="lazy">
+  <figcaption>Render do motor para a cena atual, com controlos de câmara.</figcaption>
+</figure>
 
 ## `editor.pane.inspector`
 
-![editor.pane.inspector](../images/ui-reference/editor-pane-inspector.png)
+<figure class="doc-figure">
+  <img src="../images/ui-reference/editor-pane-inspector.png" alt="editor.pane.inspector" loading="lazy">
+  <figcaption>Inspector de propriedades: cabeçalho da entidade, Transform e cartões de componentes recolhíveis.</figcaption>
+</figure>
 
-Transformação e ações da entidade selecionada.
+## `inspector.material.picker`
+
+<figure class="doc-figure">
+  <img src="../images/ui-reference/inspector-material-picker.png" alt="inspector.material.picker" loading="lazy">
+  <figcaption>Abre o seletor pesquisável de materiais .mat para a entidade selecionada.</figcaption>
+</figure>
+
+## `inspector.behaviour.add`
+
+<figure class="doc-figure">
+  <img src="../images/ui-reference/inspector-behaviour-add.png" alt="inspector.behaviour.add" loading="lazy">
+  <figcaption>Adiciona um comportamento à entidade selecionada: componente, script, malha ou material.</figcaption>
+</figure>
+
+## `hierarchy.toolbar.add`
+
+<figure class="doc-figure">
+  <img src="../images/ui-reference/hierarchy-toolbar-add.png" alt="hierarchy.toolbar.add" loading="lazy">
+  <figcaption>Cria uma entidade nova a partir da barra da hierarquia.</figcaption>
+</figure>
 
 ## `hierarchy.tree.scene`
 
-![hierarchy.tree.scene](../images/ui-reference/hierarchy-tree-scene.png)
-
-A linha raiz da cena na árvore da hierarquia.
+<figure class="doc-figure">
+  <img src="../images/ui-reference/hierarchy-tree-scene.png" alt="hierarchy.tree.scene" loading="lazy">
+  <figcaption>A linha raiz da cena na árvore da hierarquia.</figcaption>
+</figure>
 
 ## `hierarchy.search`
 
-![hierarchy.search](../images/ui-reference/hierarchy-search.png)
-
-Campo de pesquisa para filtrar entidades da hierarquia.
+<figure class="doc-figure">
+  <img src="../images/ui-reference/hierarchy-search.png" alt="hierarchy.search" loading="lazy">
+  <figcaption>Campo de pesquisa para filtrar entidades da hierarquia.</figcaption>
+</figure>
 
 ## `editor.pane.tab.hierarchy`
 
-![editor.pane.tab.hierarchy](../images/ui-reference/editor-pane-tab-hierarchy.png)
-
-Separador Hierarchy num painel partilhado.
+<figure class="doc-figure">
+  <img src="../images/ui-reference/editor-pane-tab-hierarchy.png" alt="editor.pane.tab.hierarchy" loading="lazy">
+  <figcaption>Separador Hierarchy num painel partilhado.</figcaption>
+</figure>
 
 ## `editor.pane.tab.assets`
 
-![editor.pane.tab.assets](../images/ui-reference/editor-pane-tab-assets.png)
-
-Separador Assets num painel partilhado.
+<figure class="doc-figure">
+  <img src="../images/ui-reference/editor-pane-tab-assets.png" alt="editor.pane.tab.assets" loading="lazy">
+  <figcaption>Separador Assets num painel partilhado.</figcaption>
+</figure>
 
 ## `editor.pane.tab.viewport`
 
-![editor.pane.tab.viewport](../images/ui-reference/editor-pane-tab-viewport.png)
+<figure class="doc-figure">
+  <img src="../images/ui-reference/editor-pane-tab-viewport.png" alt="editor.pane.tab.viewport" loading="lazy">
+  <figcaption>Separador Viewport num painel partilhado.</figcaption>
+</figure>
 
-Separador Viewport num painel partilhado.
+## `editor.pane.tab.script`
 
-## `editor.pane.tab.inspector`
+<figure class="doc-figure">
+  <img src="../images/ui-reference/editor-pane-tab-script.png" alt="editor.pane.tab.script" loading="lazy">
+  <figcaption>Separador do editor de scripts num painel partilhado.</figcaption>
+</figure>
 
-![editor.pane.tab.inspector](../images/ui-reference/editor-pane-tab-inspector.png)
+## `editor.pane.tab.dryad_nodes`
 
-Separador Inspector num painel partilhado.
+<figure class="doc-figure">
+  <img src="../images/ui-reference/editor-pane-tab-dryad_nodes.png" alt="editor.pane.tab.dryad_nodes" loading="lazy">
+  <figcaption>Separador Dryad Nodes num painel partilhado.</figcaption>
+</figure>
 
 ## `editor.pane.tab.console`
 
-![editor.pane.tab.console](../images/ui-reference/editor-pane-tab-console.png)
-
-Separador Console num painel partilhado.
-
-## `console.filter.error`
-
-![console.filter.error](../images/ui-reference/console-filter-error.png)
-
-Mostrar ou esconder erros no Console.
-
-## `console.filter.log`
-
-![console.filter.log](../images/ui-reference/console-filter-log.png)
-
-Mostrar ou esconder entradas gerais no Console.
-
-## `console.filter.action`
-
-![console.filter.action](../images/ui-reference/console-filter-action.png)
-
-Mostrar ou esconder ações do editor no Console.
-
-## `console.filter.engine`
-
-![console.filter.engine](../images/ui-reference/console-filter-engine.png)
-
-Mostrar ou esconder entradas do motor no Console.
-
-## `console.filter.ui`
-
-![console.filter.ui](../images/ui-reference/console-filter-ui.png)
-
-Mostrar ou esconder entradas da UI no Console.
-
-## `editor.pane.console`
-
-![editor.pane.console](../images/ui-reference/editor-pane-console.png)
-
-Registo do editor: seleções, edições, gravação e frames.
+<figure class="doc-figure">
+  <img src="../images/ui-reference/editor-pane-tab-console.png" alt="editor.pane.tab.console" loading="lazy">
+  <figcaption>Separador Console num painel partilhado.</figcaption>
+</figure>
 
 ## `viewport.canvas.surface`
 
-![viewport.canvas.surface](../images/ui-reference/viewport-canvas-surface.png)
-
-Imagem do motor apresentada dentro do painel de viewport.
+<figure class="doc-figure">
+  <img src="../images/ui-reference/viewport-canvas-surface.png" alt="viewport.canvas.surface" loading="lazy">
+  <figcaption>Imagem do motor apresentada dentro do painel de viewport.</figcaption>
+</figure>
 
 ## `inspector.entity.name`
 
-![inspector.entity.name](../images/ui-reference/inspector-entity-name.png)
-
-Nome editável da entidade selecionada; chega ao motor.
-
-## `inspector.add_component`
-
-![inspector.add_component](../images/ui-reference/inspector-add_component.png)
-
-Adiciona um componente à entidade selecionada.
+<figure class="doc-figure">
+  <img src="../images/ui-reference/inspector-entity-name.png" alt="inspector.entity.name" loading="lazy">
+  <figcaption>Nome editável da entidade selecionada; chega ao motor.</figcaption>
+</figure>
 
 ## `hierarchy.list.entity_row.0`
 
-![hierarchy.list.entity_row.0](../images/ui-reference/entity-row-0.png)
-
-A row in the hierarchy list; rows use the .N suffix.
+<figure class="doc-figure">
+  <img src="../images/ui-reference/entity-row-0.png" alt="hierarchy.list.entity_row.0" loading="lazy">
+  <figcaption>A row in the hierarchy list; rows use the .N suffix.</figcaption>
+</figure>
 
 ## `hierarchy.list.entity_row.1`
 
-![hierarchy.list.entity_row.1](../images/ui-reference/entity-row-1.png)
-
-A row in the hierarchy list; rows use the .N suffix.
+<figure class="doc-figure">
+  <img src="../images/ui-reference/entity-row-1.png" alt="hierarchy.list.entity_row.1" loading="lazy">
+  <figcaption>A row in the hierarchy list; rows use the .N suffix.</figcaption>
+</figure>
 
 ## `annotated.inspector`
 
-![annotated.inspector](../images/ui-reference/annotated-inspector.png)
-
-Controlos do inspector, numerados para documentação.
+<figure class="doc-figure">
+  <img src="../images/ui-reference/annotated-inspector.png" alt="annotated.inspector" loading="lazy">
+  <figcaption>Controlos do inspector, numerados para documentação.</figcaption>
+</figure>
 

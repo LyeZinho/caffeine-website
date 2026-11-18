@@ -1,5 +1,10 @@
 # ProjectStartupDialog - Tab-Based Project Management Design
 
+<div class="doc-meta">
+  <span class="doc-badge doc-badge--historical">Historical</span>
+  <span>Last updated: <time datetime="2026-11-18">2026-11-18</time></span>
+</div>
+
 **Date**: 2026-05-16  
 **Status**: Approved  
 **Author**: Sisyphus
@@ -225,10 +230,10 @@ The dialog uses an **ImGui tab bar** with 3 independent tabs. Tab state is manag
 
 ## Files to Modify
 
-- `src/editor/ProjectStartupDialog.hpp`: Add state variables, toast system
-- `src/editor/ProjectStartupDialog.cpp`: Implement 3 tab renderers + toast logic
-- `src/editor/ProjectManager.hpp`: Ensure GetRecentProjects(), OpenProject() exist
-- `src/editor/ProjectManager.cpp`: May need adjustments for error reporting
+- `doppio-archived/src/doppio/editor/ProjectStartupDialog.hpp`: Add state variables, toast system
+- `doppio-archived/src/doppio/editor/ProjectStartupDialog.cpp`: Implement 3 tab renderers + toast logic
+- `src/caffeine/project/ProjectManager.hpp`: Ensure GetRecentProjects(), OpenProject() exist
+- `src/caffeine/project/ProjectManager.cpp`: May need adjustments for error reporting
 
 ## Open Questions / Future Work
 

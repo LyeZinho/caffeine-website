@@ -1,54 +1,63 @@
 # 🔗 Job System
 
-> **Fase:** 2 — O Pulso e a Concorrência  
-> **Namespace:** `Caffeine::Threading`  
-> **Arquivo:** `src/threading/JobSystem.hpp`  
-> **Status:** 📅 Planejado  
-> **RFs:** RF2.2, RF2.3, RF2.4, RF2.5, RF2.6
+<div class="doc-meta">
+  <span class="doc-badge doc-badge--reference">Reference</span>
+  <span class="doc-badge">Engine</span>
+  <span><strong>Namespace:</strong> <code>Caffeine::Threading</code></span>
+  <span><strong>Arquivos:</strong> <code>src/caffeine/threading/JobSystem.hpp</code>, <code>src/caffeine/threading/JobSystem.cpp</code></span>
+  <span>Last verified: <time datetime="2026-11-18">2026-11-18</time></span>
+</div>
+
+<p class="doc-lede">Um thread pool com work-stealing que distribui física,
+animação, streaming e outros jobs pelos núcleos da CPU, com três níveis de
+prioridade, handles de conclusão e uma barreira bloqueante.</p>
 
 ---
 
 ## Visão Geral
 
-O Job System distribui trabalho pesado (física, IA, animação, carregamento de assets) entre os núcleos da CPU. Cada **Job** é uma unidade de trabalho leve executada por uma **worker thread**.
+O Job System distribui trabalho pesado (física, IA, animação, carregamento de
+assets) entre os núcleos da CPU. Cada **job** é uma unidade de trabalho leve
+executada por uma **worker thread**.
 
-**Abordagem:** Thread pool com **work-stealing** — cada worker tem sua própria fila; quando vazia, "rouba" jobs de workers ocupados. Isso garante balanceamento automático de carga sem coordenação central.
+**Abordagem:** thread pool com **work-stealing** — cada worker tem deques
+locais; quando estão vazias, rouba trabalho a outro worker. Isto proporciona
+balanceamento de carga sem coordenação central.
 
-**Melhorias da Fase 2:**
-- **Priority Queue** com 3 níveis: Crítico / Normal / Background
-- **Fiber-based** — Jobs podem suspender sem bloquear a thread do OS
+**Implementado atualmente:**
+- Três níveis de prioridade: Critical / Normal / Background
+- Deques por worker e por nível de prioridade, mais filas globais por prioridade
+- Tracking de conclusão por `JobHandle` com índice de slot + versão
+- `JobBarrier` para esperar por um grupo de jobs
+- Chunking em `scheduleParallelFor`
+
+**Ainda não implementado:** fibers. Um job corre até ao fim numa thread do OS;
+não pode suspender a meio sem bloquear essa thread.
 
 ---
 
-## API Planejada
+## API
 
 ```cpp
 namespace Caffeine::Threading {
 
-// ============================================================================
-// @brief  Prioridade de um Job.
-// ============================================================================
 enum class JobPriority : u8 {
-    Critical   = 0,  // 🔴 Renderização, Física — nunca esperam
-    Normal     = 1,  // 🟡 Gameplay, animação, eventos
-    Background = 2   // ⚪ Asset loading, streaming, compressão
+    Critical   = 0,  // renderização, física
+    Normal     = 1,  // gameplay, animação, eventos
+    Background = 2   // carregamento de assets, streaming, compressão
 };
 
-// ============================================================================
-// @brief  Interface base para todos os Jobs.
-//
-//  Jobs devem ser cheap to copy — dados passados por valor ou shared_ptr.
-//  Nunca alocar no heap dentro de um Job.
-// ============================================================================
+constexpr u32 PRIORITY_COUNT = 3;
+
+// Interface base de todos os jobs. Os jobs devem ser baratos de mover;
+// evite alocar dentro de execute().
 struct IJob {
     virtual ~IJob() = default;
     virtual void execute() = 0;
     virtual JobPriority priority() const { return JobPriority::Normal; }
 };
 
-// ============================================================================
-// @brief  Job com dados armazenados internamente (type-safe, zero alloc).
-// ============================================================================
+// Job type-safe que é dono dos seus dados (sem alocação separada do payload).
 template<typename DataT>
 struct JobWithData : IJob {
     DataT                       data;
@@ -59,89 +68,61 @@ struct JobWithData : IJob {
     JobPriority priority() const override { return prio; }
 };
 
-// ============================================================================
-// @brief  Handle para rastrear e sincronizar um Job.
-//
-//  Uso: index + version evita ABA problem sem lock.
-// ============================================================================
+// Handle para rastrear e sincronizar um job.
+// index + version evitam o problema ABA sem lock.
 class JobHandle {
 public:
     JobHandle() = default;
-    explicit JobHandle(u32 index, u32 version);
+    explicit JobHandle(u32 index, u32 version, std::atomic<u32>* completionFlag);
 
-    void wait() const;         // Bloqueia até o Job completar
-    bool isComplete() const;   // Non-blocking check
+    void wait() const;         // bloqueia até o job concluir (cede a CPU)
+    bool isComplete() const;   // verificação não bloqueante
     explicit operator bool() const { return isComplete(); }
-
-private:
-    u32 m_index   = u32_max;
-    u32 m_version = u32_max;
 };
 
-// ============================================================================
-// @brief  Barreira de sincronização — wait() bloqueia até N jobs terminarem.
-//
-//  Uso:
-//      JobBarrier barrier(chunkCount);
-//      for (auto& chunk : chunks) {
-//          jobSystem.schedule(makeJob(chunk), &barrier);
-//      }
-//      barrier.wait();  // todos prontos
-// ============================================================================
+// Barreira: wait() bloqueia até a contagem pendente chegar a zero.
 class JobBarrier {
 public:
     explicit JobBarrier(u32 targetCount = 0);
 
-    void add();      // incrementa contador pendente
-    void release();  // decrementa (chamado pelo sistema quando Job completa)
+    void add();      // incrementa a contagem pendente
+    void release();  // decrementa; o JobSystem chama isto quando um job conclui
     void wait();     // bloqueia até count == 0
 
 private:
-    std::atomic<u32>        m_count;
-    std::atomic<u32>        m_generation;
-    std::condition_variable m_cv;
+    std::atomic<u32>        m_count{0};
     std::mutex              m_mutex;
+    std::condition_variable m_cv;
 };
 
-// ============================================================================
-// @brief  Sistema de Jobs principal.
-//
-//  Arquitetura:
-//  - workerCount = hardware_concurrency() - 1 (main thread não compete)
-//  - Cada worker tem deque local (work-stealing da ponta oposta)
-//  - Fila global MPMC para overflow e jobs sem afinidade
-//  - Priority queue garante Critical > Normal > Background
-// ============================================================================
 class JobSystem {
 public:
-    explicit JobSystem(u32 workerCount = 0);  // 0 = auto (n-1 cores)
+    explicit JobSystem(u32 workerCount = 0);  // 0 = auto (hardware_concurrency - 1, no mínimo 1)
     ~JobSystem();
 
-    // Agenda um job com prioridade opcional
+    JobSystem(const JobSystem&) = delete;
+    JobSystem& operator=(const JobSystem&) = delete;
+
     JobHandle schedule(std::unique_ptr<IJob> job,
                        JobBarrier*           barrier = nullptr,
                        JobPriority           prio    = JobPriority::Normal);
 
-    // Açúcar: cria JobWithData<T> automaticamente
+    // Conveniência: constrói automaticamente um JobWithData<DataT>.
     template<typename DataT, typename FuncT>
     JobHandle scheduleData(DataT       data,
                            FuncT&&     func,
                            JobBarrier* barrier = nullptr,
-                           JobPriority prio    = JobPriority::Normal) {
-        auto* job       = new JobWithData<DataT>{ std::move(data),
-                                                   std::forward<FuncT>(func), prio };
-        return schedule(std::unique_ptr<IJob>(job), barrier, prio);
-    }
+                           JobPriority prio    = JobPriority::Normal);
 
-    // Parallel-for sobre [0, count) dividido em chunks por worker
+    // Parallel-for sobre [0, count), dividido em um chunk por worker.
     template<typename FuncT>
     JobHandle scheduleParallelFor(u32         count,
                                   FuncT&&     func,
                                   JobBarrier* barrier = nullptr,
                                   JobPriority prio    = JobPriority::Normal);
 
-    void waitAll();                           // Bloqueia até fila vazia
-    u32  workerCount() const { return m_workerCount; }
+    void waitAll();                           // bloqueia até não haver jobs pendentes
+    u32  workerCount() const;
 
     struct Stats {
         u32 activeWorkers;
@@ -150,18 +131,14 @@ public:
         f64 avgJobMs;
     };
     Stats stats() const;
-
-private:
-    struct WorkerThread; // implementação interna
-
-    u32                         m_workerCount;
-    std::vector<WorkerThread>   m_workers;
-    // priority queues por nível
-    JobQueue                    m_queues[3];  // Critical, Normal, Background
 };
 
 }  // namespace Caffeine::Threading
 ```
+
+> `scheduleData` guarda o callable em `std::function<void(DataT&)>`, pelo que a
+> lambda recebe um `DataT&` mutável. Capture estado partilhado por referência ou
+> por ponteiro; o job é dono apenas do payload `DataT` e do callable.
 
 ---
 
@@ -170,76 +147,114 @@ private:
 ```cpp
 // ── Física distribuída em chunks ──────────────────────────────
 Caffeine::Threading::JobSystem jobs;
-Caffeine::Threading::JobBarrier barrier(particleCount / CHUNK_SIZE);
+constexpr Caffeine::u32 CHUNK_SIZE = 256;
+const Caffeine::u32 chunkCount = (particleCount + CHUNK_SIZE - 1) / CHUNK_SIZE;
+Caffeine::Threading::JobBarrier barrier(chunkCount);
 
-for (u32 i = 0; i < particleCount; i += CHUNK_SIZE) {
+for (Caffeine::u32 i = 0; i < particleCount; i += CHUNK_SIZE) {
+    const Caffeine::u32 count = std::min(CHUNK_SIZE, particleCount - i);
     jobs.scheduleData(
-        ChunkJob{i, CHUNK_SIZE, dt},
-        [&particles](const ChunkJob& j) {
-            for (u32 k = j.start; k < j.start + j.count; ++k)
+        ChunkJob{i, count, dt},
+        [&particles](ChunkJob& j) {
+            for (Caffeine::u32 k = j.start; k < j.start + j.count; ++k)
                 particles[k].integrate(j.dt);
         },
         &barrier,
         Caffeine::Threading::JobPriority::Critical
     );
 }
-barrier.wait();  // todos os chunks prontos antes de render
+barrier.wait();  // todos os chunks prontos antes de renderizar
 
 // ── Parallel-for simplificado ─────────────────────────────────
 jobs.scheduleParallelFor(entityCount,
-    [&](u32 i) { animators[i].advance(dt); },
+    [&](Caffeine::u32 i) { animators[i].advance(dt); },
     nullptr,
     Caffeine::Threading::JobPriority::Normal
 );
 
-// ── Asset loading em background ───────────────────────────────
+// ── Carregamento de assets em background ──────────────────────
 auto handle = jobs.scheduleData(
     AssetLoadJob{"textures/hero.caf"},
-    [](const AssetLoadJob& j) { loadAsset(j.path); },
+    [](AssetLoadJob& j) { loadAsset(j.path); },
     nullptr,
     Caffeine::Threading::JobPriority::Background
 );
 
-// Main thread continua sem bloquear; verifica quando precisar:
-if (handle.isComplete()) { /* use asset */ }
+// A main thread continua; verifique quando o asset for necessário:
+if (handle.isComplete()) { /* usar o asset */ }
 ```
+
+Quando o frame inteiro tem de esperar pelo trabalho pendente, chame
+`jobs.waitAll()`. `JobHandle::wait()` bloqueia apenas nesse job.
 
 ---
 
 ## Arquitetura Interna
 
 - `JobSystem`
-  - `Worker[0]  ──┐`
-  - `Worker[1]  ──┤  work-stealing deque por worker`
-  - `Worker[2]  ──┤`
-  - `Worker[n]  ──┘`
-- `▼`
-- `Priority Queues`
-- `[Critical]   ← Physics, Render`
-- `[Normal]     ← Gameplay, Animation`
-- `[Background] ← Asset load, streaming`
-- `▼`
-- `JobHandle (index + version) → sem ABA problem`
+  - Três filas globais, uma por prioridade, usadas por `schedule()`
+  - Um `WorkStealDeque` por worker **e por prioridade** (3 × workerCount) para
+    trabalho local do worker
+  - `tryExecuteOne()` verifica as filas locais por ordem de prioridade, depois
+    as filas globais, e por fim rouba a outros workers (também por prioridade)
+  - Cada deque é um `std::deque` protegido por um `std::mutex`
+- Tracking de conclusão
+  - Um anel fixo de 4096 slots de conclusão
+  - `JobHandle` guarda índice de slot, versão e um ponteiro para o flag atómico
+  - Reutilizar um slot incrementa a versão, impedindo que handles antigos
+    observem a conclusão de um job mais recente
+- `JobBarrier`
+  - Contagem atómica mais mutex/condition variable
+  - O `JobSystem` chama `release()` depois de concluir um job agendado
 
+**Work stealing:** um worker retira da frente da sua própria deque; quando está
+vazia, rouba da cauda da deque de outro worker, o que reduz a contenção.
 
-**Work-Stealing:**  
-Cada worker pega jobs da ponta "top" da sua própria deque. Quando vazia, rouba da ponta "bottom" de outro worker — minimizando contention.
+**A prioridade é best-effort:** os workers olham sempre para Critical antes de
+Normal e de Background, mas um job Background em execução nunca é preemptido.
 
 ---
 
-## Integração com ECS (Fase 4)
+## Integração com ECS
+
+`World::forEachParallel` cria um `JobBarrier`, divide cada archetype
+correspondente em lotes de 1000 entidades e agenda os lotes no `JobSystem`
+fornecido:
 
 ```cpp
-// ComponentQuery suporta forEachParallel nativo:
-ComponentQuery physicsQuery;
-physicsQuery.with<RigidBody2D, Collider2D, Position2D>();
+Caffeine::ECS::ComponentQuery query;
+query.with<Caffeine::ECS::RigidBody2D,
+           Caffeine::ECS::Collider2D,
+           Caffeine::ECS::Position2D>();
 
-physicsQuery.forEachParallel(world, [](RigidBody2D& rb, Collider2D& col,
-                                       Position2D& pos) {
-    // roda em parallel-for via Job System
-    integrateRigidBody(rb, pos);
-}, &barrier);
+world.forEachParallel(query, jobs,
+    [](Caffeine::ECS::Entity entity,
+       Caffeine::ECS::RigidBody2D& rb,
+       Caffeine::ECS::Collider2D& col,
+       Caffeine::ECS::Position2D& pos) {
+        integrateRigidBody(rb, pos);
+    });
 ```
+
+O callback recebe a `Entity` primeiro, seguida dos componentes pedidos.
+`forEachParallel` espera pela sua barreira interna antes de retornar.
+
+---
+
+## Testes e Limites
+
+`tests/test_jobsystem.cpp` cobre:
+- Ordenação de prioridades
+- Execução e defaults de `IJob` / `JobWithData`
+- Conclusão e conversão para bool de `JobHandle`
+- add/release/wait de `JobBarrier`
+- Seleção do número de workers, agendamento, `scheduleData` e
+  `scheduleParallelFor`
+- `waitAll()` e `stats()`
+- Stress com 1K jobs, 10K jobs e um parallel-for de 100K elementos
+
+Não existe scheduler de fibers, cancelamento de jobs nem garantia de
+work-stealing entre prioridades. Estes são itens de roadmap, não API atual.
 
 ---
 
@@ -247,294 +262,21 @@ physicsQuery.forEachParallel(world, [](RigidBody2D& rb, Collider2D& col,
 
 | Decisão | Justificativa |
 |---------|-------------|
-| `workerCount = n-1` | Main thread não compete com workers por CPU |
-| Work-stealing deque | Melhor throughput vs fila centralizada em workloads heterogêneos |
-| `index + version` no Handle | Evita ABA problem sem mutex |
-| 3 níveis de prioridade | Renderização/Física nunca esperam por asset load |
-| Fiber-based (RF2.6) | Jobs pesados podem suspender sem bloquear OS thread |
-
----
-
-## Critério de Aceitação
-
-- [ ] 10K Jobs em <10ms em hardware de 8 cores
-- [ ] `parallelFor(1M, func)` < 50ms em 8 cores
-- [ ] `tsan` (ThreadSanitizer) clean — zero data races
-- [ ] Workers a ≥ 80% de carga em stress test de 10K partículas
-- [ ] `background` jobs nunca atrasam `critical` jobs
+| `workerCount = n-1` por omissão (no mínimo 1) | A main thread não compete com os workers por CPU |
+| Deques por worker + work stealing | Melhor throughput do que uma fila central para workloads heterogéneos |
+| `index + version` no handle | Evita o problema ABA sem mutex |
+| Três níveis de prioridade | Renderização/física não ficam atrás do carregamento de assets |
+| Prioridade best-effort, sem preempção | Mantém os workers simples e evita inversão de prioridade por jobs longos |
+| Slots de conclusão em vez de alocação por job | Handles baratos e estáveis enquanto os jobs executam |
 
 ---
 
 ## Dependências
 
-- **Upstream:** `Caffeine::Core::Types`, `Caffeine::Containers::HashMap`
-- **Downstream:** [Asset Manager](../assets/asset-manager.md), [ECS — forEachParallel](../ecs/core.md), [Physics 2D](../physics/physics-2d.md), [Animation](../animation/animation-2d.md)
-
----
-
----
-
-## Implementation Plan (3 Phases)
-
-> **Tech Stack:** C++20, std::thread, std::atomic, lock-free algorithms  
-> **Goal:** Implementar um motor de concorrência que transforma processamento pesado em Jobs distribuidos entre todos os nucleos da CPU.
-
-### Visão Geral do Sistema
-
-#### Filosofia de Design
-
-| Principio | Implementacao |
-|----------|---------------|
-| **Data-Oriented Design (DOD)** | Jobs em arrays continuos, cache-line aligned (64 bytes) |
-| **Lock-Free Progress** | std::atomic em caminhos criticos, mutex apenas em fallback |
-| **Work-Stealing** | Workers ociosos roubam trabalho de workers sobrecarregados |
-| **Wait & Stall** | Main Thread ajuda a processar enquanto espera |
-
-#### Requisitos Funcionais (RFs)
-
-| ID | Requisito | Descricao Tecnica |
-|----|----------|----------------|
-| **RF1** | Thread Pool | N-1 threads workers (N = nucleos logicos) |
-| **RF2** | Task Batching | Agrupar tarefas pequenas em lotes |
-| **RF3** | Job Handles | Sincronizacao atomic para grupos de jobs |
-| **RF4** | Wait & Stall | Main Thread processa enquanto espera |
-| **RF5** | Priority Levels | 3 niveis: Critico, Normal, Background |
-
-### Estrutura de Dados
-
-#### Job (64 bytes - fit cache line)
-
-```cpp
-namespace Caffeine {
-
-using JobFunc = void (*)(void*);
-
-// @brief Estrutura de trabalho atomica (64 bytes para caber em cache line)
-// @note data e um ponteiro para contexto alocado pelo caller
-struct Job {
-    JobFunc function;     // O que executar
-    void* data;           // Dados (contexto)
-    JobHandle* handle;    // Handle para sincronizacao (opcional)
-    // @todo: padding para 64 bytes
-};
-static_assert(sizeof(Job) <= 64, "Job must fit in cache line");
-
-} // namespace Caffeine
-```
-
-#### JobHandle (sincronizacao)
-
-```cpp
-namespace Caffeine {
-
-// @brief Handle para sincronizacao de grupo de jobs
-// @note usa contador atomico para tracking sem mutex
-struct JobHandle {
-    std::atomic<int32_t> unfinishedJobs;  // atomic counter
-    
-    // @brief Construtor - inicializa com N jobs pendentes
-    explicit JobHandle(int32_t initialCount) 
-        : unfinishedJobs(initialCount) {}
-    
-    // @brief Decrementa contador
-    // @return true se chegou a zero
-    bool complete() {
-        return (unfinishedJobs.fetch_sub(1, std::memory_order_release) - 1) == 0;
-    }
-    
-    // @brief Espera ate todos os jobs completarem
-    void wait() {
-        while (unfinishedJobs.load(std::memory_order_acquire) > 0) {
-            // @todo: yield CPU
-        }
-    }
-};
-
-} // namespace Caffeine
-```
-
-#### Priority Levels
-
-```cpp
-namespace Caffeine {
-
-// @brief Niveis de prioridade de job
-enum class JobPriority : u8 {
-    Critical = 0,   // Fisica/Input - nunca esperam
-    Normal = 1,      // Gameplay, animation
-    Background = 2   // Asset loading
-};
-
-} // namespace Caffeine
-```
-
-### Fases de Implementacao
-
-#### Fase Alpha: Thread Pool com Mutex
-
-**Objetivo:** Implementar thread pool basico funcional para debug e validacao.
-
-**Criterio:** 1.000 tarefas simples completes com sucesso.
-
-| Marco | Tarefas | Tempo |
-|-------|---------|-------|
-| Alpha-1 | Cria pastas e headers | 5 min |
-| Alpha-2 | Implementa Job e JobHandle | 10 min |
-| Alpha-3 | Implementa Worker com thread | 15 min |
-| Alpha-4 | Implementa JobScheduler basico | 15 min |
-| Alpha-5 | Escreve testes | 10 min |
-| Alpha-6 | Stress test 1k tarefas | 5 min |
-| **Total** | | **60 min** |
-
-**Arquivos:**
-- `src/threading/JobPriority.hpp` — Enum e comparadores
-- `src/threading/Job.hpp` — struct Job (64 bytes)
-- `src/threading/JobHandle.hpp` — JobHandle atomic
-- `src/threading/JobQueue.hpp` — std::queue + mutex
-- `src/threading/Worker.hpp` — thread loop basico
-- `src/threading/JobSystem.hpp` — JobScheduler inicial
-- `tests/test_threading.cpp` — testes do Job System
-
-**TDD Workflow:**
-
-1. **Alpha-1:** Estrutura de pastas, headers vazios
-2. **Alpha-2:** Job struct (64 bytes), JobHandle com atomic counter
-   - Test: `JobHandle initializes with correct count`
-   - Test: `JobHandle decrements on complete`
-   - Test: `Job is 64 bytes or less`
-3. **Alpha-3:** Worker basico
-   - Test: `Worker thread can be created`
-4. **Alpha-4:** JobScheduler com fila protegida por mutex
-   - Test: `JobScheduler creates workers`
-   - Test: `JobScheduler can schedule job`
-5. **Alpha-5 & 6:** Stress tests
-   - Test: `Alpha stress: 1000 jobs complete`
-   - Expected: < 100ms para 1k jobs
-
-#### Fase Beta: Work-Stealing
-
-**Objetivo:** Substituir fila unica por filas por thread e implementar steal().
-
-**Criterio:** 10.000 tarefas com work-stealing ativo, CPU usage > 80%.
-
-| Marco | Tarefas | Tempo |
-|-------|---------|-------|
-| Beta-1 | Implementar WorkerLocal deque | 15 min |
-| Beta-2 | Implementar steal() algorithm | 15 min |
-| Beta-3 | Integrar com JobScheduler | 15 min |
-| Beta-4 | Stress test 10k tarefas | 10 min |
-| **Total** | | **55 min** |
-
-**Arquivos novos:**
-- `src/threading/WorkerLocal.hpp` — deque LIFO por worker
-
-**WorkerLocal (LIFO deque):**
-
-```cpp
-class WorkerLocal {
-public:
-    // @brief Adiciona job na frente (LIFO)
-    void push(Job&& job) {
-        queue_.push_front(std::move(job));
-    }
-    
-    // @brief Remove job da frente (LIFO)
-    bool pop(Job* out) {
-        if (queue_.empty()) return false;
-        *out = std::move(queue_.front());
-        queue_.pop_front();
-        return true;
-    }
-    
-    // @brief Tenta roubar da cauda (FIFO - para steal)
-    bool steal(Job* out) {
-        if (queue_.empty()) return false;
-        *out = std::move(queue_.back());
-        queue_.pop_back();
-        return true;
-    }
-    
-    bool empty() const { return queue_.empty(); }
-private:
-    std::deque<Job> queue_;
-};
-```
-
-**Stress test:**
-```cpp
-TEST_CASE("Beta stress: 10000 jobs with work stealing", "[threading][stress]") {
-    Caffeine::JobScheduler scheduler;
-    std::atomic<int32_t> counter{0};
-    
-    auto handle = scheduler.schedule(10000, [](void* data) {
-        auto* c = static_cast<std::atomic<int32_t>*>(data);
-        c->fetch_add(1);
-    }, &counter);
-    
-    scheduler.wait(handle);
-    CHECK(counter.load() == 10000);
-}
-```
-
-#### Fase Gold: Lock-Free
-
-**Objetivo:** Trocar mutexes por operacoes atomicas de baixo nivel.
-
-**Criterio:** 50.000 tarefas em lock-free, zero mutex no hot path.
-
-| Marco | Tarefas | Tempo |
-|-------|---------|-------|
-| Gold-1 | Implementar atomic queue | 20 min |
-| Gold-2 | Substituir mutex por atomic | 15 min |
-| Gold-3 | Stress test 50k tarefas | 10 min |
-| Gold-4 | TSAN/ASAN clean | 10 min |
-| **Total** | | **55 min** |
-
-**Stress test final:**
-```cpp
-TEST_CASE("Gold stress: 50000 jobs complete", "[threading][stress]") {
-    Caffeine::JobScheduler scheduler;
-    std::atomic<int32_t> counter{0};
-    
-    auto handle = scheduler.schedule(50000, [](void* data) {
-        auto* c = static_cast<std::atomic<int32_t>*>(data);
-        c->fetch_add(1);
-    }, &counter);
-    
-    scheduler.wait(handle);
-    CHECK(counter.load() == 50000);
-}
-```
-
-### Criterios de Progresso
-
-| Fase | Teste | Benchmark | Target |
-|------|-------|-----------|--------|
-| Alpha | 1k tarefas | < 100ms | Correctness |
-| Beta | 10k tarefas, work-stealing | < 500ms | Load balancing |
-| Gold | 50k tarefas, lock-free | < 2s, TSAN clean | Performance |
-
-### Inclusao no Build
-
-```cmake
-# src/CMakeLists.txt
-add_subdirectory(threading)
-```
-
-```cpp
-// src/Caffeine.hpp
-#include "threading/JobSystem.hpp"
-```
-
-### Resumo da Implementacao
-
-| Fase | Descricao | Arquivos | Stress Test |
-|------|----------|---------|-------------|
-| **Alpha** | Thread pool + mutex | 7 novos | 1k jobs |
-| **Beta** | Work-stealing | 1 novo | 10k jobs |
-| **Gold** | Lock-free | 1 novo | 50k jobs |
-
-**Tempo total estimado:** ~3 horas
+- **Upstream:** `Caffeine::Core::Types`, `<thread>`, `<atomic>`, `<mutex>`,
+  `<condition_variable>` e `<deque>` da biblioteca padrão
+- **Downstream:** [ECS — `forEachParallel`](../ecs/core.md), [Physics 2D](../physics/physics-2d.md),
+  [Animation](../animation/animation-2d.md), [Asset Manager](../assets/asset-manager.md)
 
 ---
 
@@ -542,12 +284,12 @@ add_subdirectory(threading)
 
 | Tópico | Descrição |
 |--------|-----------|
-| [Concorrência & Runtime]() | Job System como espinha dorsal da concorrência |
-| [Assets & Pipeline]() | Async loading usa Job System |
+| [Concorrência & Runtime]() | Job System no pipeline de frame |
+| [Assets & Pipeline]() | Async loading usa o Job System |
 
 ## Referências
 
+- [`src/caffeine/threading/JobSystem.hpp`](https://github.com/devscafecommunity/caffeine/blob/main/src/caffeine/threading/JobSystem.hpp) / [`src/caffeine/threading/JobSystem.cpp`](https://github.com/devscafecommunity/caffeine/blob/main/src/caffeine/threading/JobSystem.cpp)
+- [`tests/test_jobsystem.cpp`](https://github.com/devscafecommunity/caffeine/blob/main/tests/test_jobsystem.cpp)
 - [`docs/architecture_specs.md`](../architecture_specs.md) — §2 Job System
-- [Jolt Physics Job System](https://github.com/jrouwe/JoltPhysics) — Referência de design
 - [Multithreaded Job Systems in Game Engines](https://pulsegeek.com/articles/multithreaded-job-systems-in-game-engines/)
-- [Índice de Tópicos Transversais]()

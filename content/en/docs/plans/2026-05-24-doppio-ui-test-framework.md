@@ -1,5 +1,10 @@
 # Doppio UI Test Framework Implementation Plan
 
+<div class="doc-meta">
+  <span class="doc-badge doc-badge--historical">Historical</span>
+  <span>Last updated: <time datetime="2026-11-18">2026-11-18</time></span>
+</div>
+
 > **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans or superpowers:subagent-driven-development to implement this plan task-by-task.
 
 **Goal:** Implement a JSON-based test framework that allows Python to autonomously test Doppio's UI (clicking, multi-selecting, deleting, focusing camera) without screenshots or OCR.
@@ -16,7 +21,7 @@
 ## Task 1: Create TestUIMapper Header (C++)
 
 **Files:**
-- Create: `src/editor/TestUIMapper.hpp`
+- Create: `doppio-archived/src/doppio/editor/TestUIMapper.hpp`
 
 **Objective:** Define data structures and API for capturing viewport state and simulating clicks
 
@@ -107,7 +112,7 @@ public:
 ## Task 2: Create TestRequestHandler Header (C++)
 
 **Files:**
-- Create: `src/editor/TestRequestHandler.hpp`
+- Create: `doppio-archived/src/doppio/editor/TestRequestHandler.hpp`
 
 **Objective:** Define request/response protocol for JSON communication
 

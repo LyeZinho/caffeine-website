@@ -1,5 +1,10 @@
 # Caffeine Engine — Audit Report
 
+<div class="doc-meta">
+  <span class="doc-badge doc-badge--historical">Historical</span>
+  <span>Last updated: <time datetime="2026-11-18">2026-11-18</time></span>
+</div>
+
 **Date**: 2026-05-26  
 **Auditor**: Sisyphus (automated session)  
 **Scope**: Full engine review — Rendering 3D, ECS, Memory, Math, Editor, Serialization, Audio/Preview, Build/Tests  
@@ -19,15 +24,15 @@
 
 ---
 
-## 1. Rendering 3D (`src/editor/SceneViewport.cpp`)
+## 1. Rendering 3D (`doppio-archived/src/doppio/editor/SceneViewport.cpp`)
 
 ### ✅ Verified Correct
 
 | Item | Location | Notes |
 |---|---|---|
-| `Mat4::perspective()` | `src/math/Mat4.hpp` | Matches OpenGL RH spec exactly |
-| `Mat4::lookAt()` | `src/math/Mat4.hpp` | Right-handed, translation correct |
-| `Mat4::transformVec4()` | `src/math/Mat4.hpp` | Correct |
+| `Mat4::perspective()` | `src/caffeine/math/Mat4.hpp` | Matches OpenGL RH spec exactly |
+| `Mat4::lookAt()` | `src/caffeine/math/Mat4.hpp` | Right-handed, translation correct |
+| `Mat4::transformVec4()` | `src/caffeine/math/Mat4.hpp` | Correct |
 | NDC→screen mapping `(ndcX+1)*0.5*w` | `SceneViewport.cpp:651` | Correct |
 | Y-flip `1.0 - ndcY` | `SceneViewport.cpp:651` | Correct |
 | Near-plane clipping in `drawLine3D` | `SceneViewport.cpp` | Existed and correct |
@@ -42,47 +47,47 @@
 
 ---
 
-## 2. ECS (`src/ecs/World.hpp`, `src/ecs/Archetype.hpp`)
+## 2. ECS (`src/caffeine/ecs/World.hpp`, `src/caffeine/ecs/Archetype.hpp`)
 
 | ID | Severity | File:Line | Description | Suggested Fix |
 |---|---|---|---|---|
-| E-1 | 🟠 HIGH | `src/ecs/World.hpp` | No generation/version counter on Entity IDs. After `world.destroy(e)`, the same ID can be reused and assigned to a new entity. Any stale `Entity` handle silently points to the wrong entity. | Add a 16-bit generation field to `Entity` (upper bits). Increment on destroy. Validate on access. |
-| E-2 | 🟡 MEDIUM | `src/ecs/World.hpp` — `forEach` | `forEach` iterates `m_archetypes` by index. If a callback calls `world.add<T>(e)` on an entity (triggering archetype migration), `m_archetypes` may reallocate. The raw `Archetype*` captured before iteration could dangle. | Snapshot archetype count before loop, or use a stable indirection (index into stable slab). Mark `forEach` callbacks as "no structural mutation" in docs. |
-| E-3 | 🟢 LOW | `src/ecs/World.hpp` | No assertion or compile-time guard preventing structural mutations (add/remove/destroy) inside `forEach`. | Add a `m_iterating` boolean; assert in `add`, `remove`, `destroy` when set. |
+| E-1 | 🟠 HIGH | `src/caffeine/ecs/World.hpp` | No generation/version counter on Entity IDs. After `world.destroy(e)`, the same ID can be reused and assigned to a new entity. Any stale `Entity` handle silently points to the wrong entity. | Add a 16-bit generation field to `Entity` (upper bits). Increment on destroy. Validate on access. |
+| E-2 | 🟡 MEDIUM | `src/caffeine/ecs/World.hpp` — `forEach` | `forEach` iterates `m_archetypes` by index. If a callback calls `world.add<T>(e)` on an entity (triggering archetype migration), `m_archetypes` may reallocate. The raw `Archetype*` captured before iteration could dangle. | Snapshot archetype count before loop, or use a stable indirection (index into stable slab). Mark `forEach` callbacks as "no structural mutation" in docs. |
+| E-3 | 🟢 LOW | `src/caffeine/ecs/World.hpp` | No assertion or compile-time guard preventing structural mutations (add/remove/destroy) inside `forEach`. | Add a `m_iterating` boolean; assert in `add`, `remove`, `destroy` when set. |
 
 ---
 
-## 3. Memory (`src/memory/`)
+## 3. Memory (`src/caffeine/memory`)
 
 | ID | Severity | File:Line | Description | Suggested Fix |
 |---|---|---|---|---|
-| M-1 | 🟢 LOW | `src/memory/LinearAllocator.hpp` | Reset is all-or-nothing. No partial rewind. Clients that mix lifetimes can't selectively free. | Document clearly or add a marker/rewind API. |
-| M-2 | 🟢 LOW | `src/memory/PoolAllocator.hpp` | No double-free detection. Freeing the same block twice silently corrupts the free list. | Add a debug-mode allocated-block bitset. |
-| M-3 | 🟢 LOW | `src/memory/StackAllocator.hpp` | Stack unwind depends on callers pushing/popping in matched order. No guard against mismatched pop. | Add stack-marker cookies in debug builds. |
+| M-1 | 🟢 LOW | `src/caffeine/memory/LinearAllocator.hpp` | Reset is all-or-nothing. No partial rewind. Clients that mix lifetimes can't selectively free. | Document clearly or add a marker/rewind API. |
+| M-2 | 🟢 LOW | `src/caffeine/memory/PoolAllocator.hpp` | No double-free detection. Freeing the same block twice silently corrupts the free list. | Add a debug-mode allocated-block bitset. |
+| M-3 | 🟢 LOW | `src/caffeine/memory/StackAllocator.hpp` | Stack unwind depends on callers pushing/popping in matched order. No guard against mismatched pop. | Add stack-marker cookies in debug builds. |
 
 ---
 
-## 4. Math (`src/math/`)
+## 4. Math (`src/caffeine/math`)
 
 | ID | Severity | File:Line | Description | Suggested Fix |
 |---|---|---|---|---|
-| MA-1 | 🟢 LOW | `src/math/Vec3.hpp` — `normalized()` | Returns `Vec3(0,0,0)` on zero-length input. Silent — callers downstream may produce NaN normals. | Return an `Optional<Vec3>` or log a warning in debug builds. |
-| MA-2 | 🟢 LOW | `src/math/Mat4.hpp` — `inverted()` | Returns identity on singular matrix. Silent fallback can mask bugs in projection/transform chains. | Assert in debug builds or return `Optional<Mat4>`. |
-| MA-3 | 🟢 LOW | `src/math/Quat.hpp` — `normalized()` | Returns identity quaternion on zero quaternion. Same silent-fallback concern. | Assert in debug builds. |
-| MA-4 | 🟡 MEDIUM | `src/math/Mat4.hpp` — `lookAt()` | Degenerates when `eye == target` (forward = zero → `normalized()` = zero → bad matrix). Currently guarded only by camera pitch clamp `±1.5f` in the editor. | Add explicit `CF_ASSERT(eye != target)` or early-out returning identity with a warning. |
+| MA-1 | 🟢 LOW | `src/caffeine/math/Vec3.hpp` — `normalized()` | Returns `Vec3(0,0,0)` on zero-length input. Silent — callers downstream may produce NaN normals. | Return an `Optional<Vec3>` or log a warning in debug builds. |
+| MA-2 | 🟢 LOW | `src/caffeine/math/Mat4.hpp` — `inverted()` | Returns identity on singular matrix. Silent fallback can mask bugs in projection/transform chains. | Assert in debug builds or return `Optional<Mat4>`. |
+| MA-3 | 🟢 LOW | `src/caffeine/math/Quat.hpp` — `normalized()` | Returns identity quaternion on zero quaternion. Same silent-fallback concern. | Assert in debug builds. |
+| MA-4 | 🟡 MEDIUM | `src/caffeine/math/Mat4.hpp` — `lookAt()` | Degenerates when `eye == target` (forward = zero → `normalized()` = zero → bad matrix). Currently guarded only by camera pitch clamp `±1.5f` in the editor. | Add explicit `CF_ASSERT(eye != target)` or early-out returning identity with a warning. |
 
 ---
 
 ## 5. Editor
 
-### 5a. Selection & Raycasting (`src/editor/EditorContext.cpp`, `SceneViewport.cpp`)
+### 5a. Selection & Raycasting (`src/caffeine/scene/EditorContext.cpp`, `SceneViewport.cpp`)
 
 | ID | Severity | File:Line | Description | Suggested Fix |
 |---|---|---|---|---|
 | S-1 | 🟠 HIGH | `SceneViewport.cpp` — `raycastSelectEntity` | Raycast only tests entities that have `ECS::Transform` (2D transform component). Entities that exist purely in 3D (`Position3D` only, no `ECS::Transform`) are invisible to selection. | Add a separate raycast pass over entities with `Position3D`. |
 | S-2 | 🟢 LOW | `SceneViewport.cpp` — `rayIntersectsAABB` | AABB is axis-aligned in world space — correct. But no OBB support. Rotated meshes use a world-space AABB that can be very loose, making small-angle selection imprecise. | Acceptable limitation. Document or add OBB for selected component types. |
 
-### 5b. Undo Stack (`src/editor/EditorContext.hpp`, `EditorContext.cpp`)
+### 5b. Undo Stack (`src/caffeine/scene/EditorContext.hpp`, `EditorContext.cpp`)
 
 | ID | Severity | File:Line | Description | Suggested Fix |
 |---|---|---|---|---|
@@ -96,7 +101,7 @@
 
 | ID | Severity | File:Line | Description | Suggested Fix |
 |---|---|---|---|---|
-| SE-1 | 🔵 INFO | `src/editor/AssetCooker.cpp:123,129` | Asset cooking cache not implemented (stub comments). Assets re-cook on every load. | Implement file-hash–based cache. |
+| SE-1 | 🔵 INFO | `doppio-archived/src/doppio/editor/AssetCooker.cpp` | Asset cooking cache not implemented (stub comments). Assets re-cook on every load. | Implement file-hash–based cache. |
 | SE-2 | 🟢 LOW | General | No versioning observed on serialized scene format. Format changes will silently corrupt or crash on older scene files. | Add a format version header; write migration path for each bump. |
 
 ---
@@ -105,9 +110,9 @@
 
 | ID | Severity | File:Line | Description | Suggested Fix |
 |---|---|---|---|---|
-| A-1 | 🔵 INFO | `src/editor/AudioPreviewPanel.cpp:188,229` | Audio asset load not implemented. Panel exists but plays nothing. | Implement or gate behind a feature flag. |
-| A-2 | 🔵 INFO | `src/editor/PreviewRenderer.cpp:91–102` | Shader pipeline blocked — RHI incomplete. Preview renderer renders nothing. | Track RHI completion milestone; hook up once ready. |
-| A-3 | 🔵 INFO | `src/editor/ProjectManager.cpp:236` | AssetBrowser load capacity (CAP) not implemented. | Implement or document limit. |
+| A-1 | 🔵 INFO | `doppio-archived/src/doppio/editor/AudioPreviewPanel.cpp` | Audio asset load not implemented. Panel exists but plays nothing. | Implement or gate behind a feature flag. |
+| A-2 | 🔵 INFO | `doppio-archived/src/doppio/editor/AssetPreviewRenderer.cpp` | Shader pipeline blocked — RHI incomplete. Preview renderer renders nothing. | Track RHI completion milestone; hook up once ready. |
+| A-3 | 🔵 INFO | `src/caffeine/project/ProjectManager.cpp` | AssetBrowser load capacity (CAP) not implemented. | Implement or document limit. |
 
 ---
 

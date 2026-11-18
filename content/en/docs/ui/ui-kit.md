@@ -1,10 +1,22 @@
 # Composable UI kit
 
-Doppio's UI is built from small, reusable **elements**. A panel is not a special
-case: it is a tree of objects, cards and controls. The same model is available to
-plugins, so a plugin panel looks and behaves like a native Doppio panel.
+<div class="doc-meta">
+  <span class="doc-badge doc-badge--reference">Reference</span>
+  <span>Last updated: <time datetime="2026-11-18">2026-11-18</time></span>
+</div>
 
-![UI Gallery showing cards, controls, text, progress and property rows](../images/captures/ui-gallery-elements.png)
+<p class="doc-lede">The composable C++ immediate-mode kit used by the runtime and legacy plugins.</p>
+
+This kit belongs to the **runtime and legacy C++/ImGui host**, not the active Rust
+Doppio. A panel is a tree of objects, cards and controls; plugins use the same model
+so their panels look like the host's native panels. The Rust editor uses Iced
+components and `uikit/theme.rs` instead.
+
+<figure class="doc-figure">
+  <img src="../images/captures/ui-gallery-elements.png" alt="UI Gallery showing cards, controls, text, progress and property rows" loading="lazy">
+  <figcaption>UI Gallery showing cards, controls, text, progress and property rows</figcaption>
+</figure>
+
 
 ## Objects → Cards → Panels
 

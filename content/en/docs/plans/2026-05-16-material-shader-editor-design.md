@@ -1,5 +1,10 @@
 # Material & Shader Editor - Design Document
 
+<div class="doc-meta">
+  <span class="doc-badge doc-badge--historical">Historical</span>
+  <span>Last updated: <time datetime="2026-11-18">2026-11-18</time></span>
+</div>
+
 **Date:** 2026-05-16
 **Issue:** #122
 **Milestone:**M4 — Advanced Tools & Polish
@@ -169,7 +174,7 @@ Invalid nodes visually indicate issues (red border, error tooltip).
 | **Dual graph + text mode** | Accommodates both visual-first artists and code-focused technical artists |
 | **RHI + ImGui fallback** | GPU preview when available, graceful degradation to wireframe in headless/fallback mode |
 | **Background compilation** | Prevents UI freeze during shader compilation |
-| **Material3D reuse** | Leverage existing PBR material struct from `src/assets/MeshTypes.hpp` |
+| **Material3D reuse** | Leverage existing PBR material struct from `src/caffeine/assets/MeshTypes.hpp` |
 
 ---
 

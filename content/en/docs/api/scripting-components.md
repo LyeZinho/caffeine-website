@@ -1,5 +1,12 @@
 # Scripting: generic component access
 
+<div class="doc-meta">
+  <span class="doc-badge doc-badge--reference">Reference</span>
+  <span>Last updated: <time datetime="2026-11-18">2026-11-18</time></span>
+</div>
+
+<p class="doc-lede">The reflection registry that exposes every engine component to Lua, Dryad, the Inspector and the C ABI.</p>
+
 Every component the engine can describe is scriptable, in **Lua** and in **Dryad**, through one shared
 reflection registry (`src/caffeine/scene/ComponentReflection.*`). The editor inspector, the C ABI and both
 languages read the same table, so a component registered once is available everywhere, with its fields,
@@ -68,7 +75,7 @@ component then appears in the Doppio inspector, the C ABI and both languages wit
 
 ## Status
 
-The registry covers **43 components and ~400 fields**: transforms (3D and legacy 2D), cameras (2D, 3D, controller),
+The registry covers **43 components and ~350 fields**: transforms (3D and legacy 2D), cameras (2D, 3D, controller),
 lights, meshes and skinned meshes, bodies and colliders (2D and 3D), script, sprite and sprite LOD, particles,
 health, audio emitter, **terrain** (size, height, resolution, the four splat layer textures), **natural fluids /
 water**, nav agent, effects, skybox, environment effects (day/night), post-processing (every effect, flattened),

@@ -1,5 +1,10 @@
 # Scripting Module Implementation Plan
 
+<div class="doc-meta">
+  <span class="doc-badge doc-badge--historical">Historical</span>
+  <span>Last updated: <time datetime="2026-11-18">2026-11-18</time></span>
+</div>
+
 > **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
 
 **Goal:** Implement Lua scripting support (Lua 5.4 + sol2) for the Caffeine engine with ScriptEngine, ScriptComponent/ScriptSystem ECS integration, and full `caffeine.*` Lua binding API.
@@ -17,23 +22,23 @@
 ### Task 1: Add `isKeyDown` to InputManager
 
 **Files:**
-- Modify: `src/input/InputManager.hpp` (add public method declaration)
-- Modify: `src/input/InputManager.cpp` (add implementation)
+- Modify: `src/caffeine/input/InputManager.hpp` (add public method declaration)
+- Modify: `src/caffeine/input/InputManager.cpp` (add implementation)
 
 **Step 1: Read current InputManager to verify API**
 
-Read `src/input/InputManager.hpp` — confirm `m_keyState` is private and no public `isKeyDown` exists.
+Read `src/caffeine/input/InputManager.hpp` — confirm `m_keyState` is private and no public `isKeyDown` exists.
 
 **Step 2: Add public method declaration**
 
-In `src/input/InputManager.hpp` , add to the Query state section (after `mouseDelta()` ):
+In `src/caffeine/input/InputManager.hpp` , add to the Query state section (after `mouseDelta()` ):
 ```cpp
 bool isKeyDown(Key key) const;
 ```
 
 **Step 3: Add implementation**
 
-In `src/input/InputManager.cpp` , add:
+In `src/caffeine/input/InputManager.cpp` , add:
 ```cpp
 bool InputManager::isKeyDown(Key key) const {
     return m_keyState[static_cast<usize>(key)];
@@ -51,8 +56,8 @@ Expected: Builds cleanly (no scripting yet, just verify InputManager change comp
 
 **Files:**
 - Modify: `CMakeLists.txt`
-- Create: `src/script/` (directory)
-- Create: `src/Caffeine.hpp` (add scripting include guard)
+- Create: `src/caffeine/script` (directory)
+- Create: `src/caffeine/Caffeine.hpp` (add scripting include guard)
 
 **Step 1: Add option and dependency fetching to root CMakeLists.txt**
 
@@ -97,7 +102,7 @@ endif()
 
 **Step 2: Add scripting include guard to Caffeine.hpp**
 
-In `src/Caffeine.hpp` , before the `// Tools` section, add:
+In `src/caffeine/Caffeine.hpp` , before the `// Tools` section, add:
 ```cpp
 // Scripting (optional — CAFFEINE_ENABLE_SCRIPTING)
 #ifdef CF_HAS_SCRIPTING
@@ -110,9 +115,9 @@ In `src/Caffeine.hpp` , before the `// Tools` section, add:
 **Step 3: Create placeholder source files**
 
 Create empty files (they'll gain content in subsequent tasks):
-- `src/script/ScriptEngine.cpp`
-- `src/script/ScriptSystem.cpp`
-- `src/script/ScriptWatcher.cpp`
+- `src/caffeine/script/ScriptEngine.cpp`
+- `src/caffeine/script/ScriptSystem.cpp`
+- `src/caffeine/script/ScriptWatcher.cpp`
 
 Each file should have just:
 ```cpp
@@ -132,8 +137,8 @@ Expected: No scripting includes, builds without sol2/Lua.
 ### Task 3: Implement ScriptEngine (header + core implementation)
 
 **Files:**
-- Create: `src/script/ScriptEngine.hpp`
-- Create: `src/script/ScriptEngine.cpp` (init/shutdown/loadScript/reloadScript)
+- Create: `src/caffeine/script/ScriptEngine.hpp`
+- Create: `src/caffeine/script/ScriptEngine.cpp` (init/shutdown/loadScript/reloadScript)
 - Create: `src/script/ScriptBindings.hpp` (internal — binding registration helpers)
 
 **Step 1: Create ScriptEngine.hpp**
@@ -312,7 +317,7 @@ Expected: Compiles cleanly (ScriptEngine registers Lua VM)
 ### Task 4: Implement Lua Binding Registration
 
 **Files:**
-- Modify: `src/script/ScriptEngine.cpp` (add binding functions)
+- Modify: `src/caffeine/script/ScriptEngine.cpp` (add binding functions)
 
 **Step 1: Implement `registerWorldBindings` **
 
@@ -576,9 +581,9 @@ Expected: Compiles cleanly
 ### Task 5: Implement ScriptTypes + ScriptSystem
 
 **Files:**
-- Create: `src/script/ScriptTypes.hpp`
-- Create: `src/script/ScriptSystem.hpp`
-- Modify: `src/script/ScriptSystem.cpp`
+- Create: `src/caffeine/script/ScriptTypes.hpp`
+- Create: `src/caffeine/script/ScriptSystem.hpp`
+- Modify: `src/caffeine/script/ScriptSystem.cpp`
 
 **Step 1: Create ScriptTypes.hpp**
 
@@ -689,8 +694,8 @@ Expected: Compiles cleanly
 ### Task 6: Implement ScriptWatcher (Hot-Reload)
 
 **Files:**
-- Create: `src/script/ScriptWatcher.hpp`
-- Modify: `src/script/ScriptWatcher.cpp`
+- Create: `src/caffeine/script/ScriptWatcher.hpp`
+- Modify: `src/caffeine/script/ScriptWatcher.cpp`
 
 **Step 1: Create ScriptWatcher.hpp**
 

@@ -1,82 +1,95 @@
-# Viewport toolbar, projection and isometric view
+# Viewport HUD and controls
 
-The scene viewport has a compact toolbar that floats over the rendered image. It is
-**icon-only and background-free** so it never covers the scene with a chrome bar.
+<div class="doc-meta">
+  <span class="doc-badge doc-badge--stable">Stable</span>
+  <span class="doc-badge">Doppio</span>
+  <span>Last verified: <time datetime="2026-11-18">2026-11-18</time></span>
+  <span>Source: <a href="https://github.com/devscafecommunity/caffeine/blob/main/doppio/crates/ui/src/uikit/components/viewport_surface.rs"><code>viewport_surface.rs</code></a></span>
+</div>
 
-![Scene viewport toolbar](../images/captures/doppio-scene.png)
+<p class="doc-lede">The Rust viewport has a compact HUD instead of an icon toolbar.
+View mode, gizmo mode, grid and markers are driven by the View menu and shortcuts;
+the HUD reports exactly what the renderer is doing.</p>
 
-## Tool groups
+<figure class="doc-figure">
+  <img src="../images/editor/workspace-scene.png" alt="Viewport HUD showing resolution, grid, anti-aliasing, gizmo mode, frame time and FPS" loading="lazy">
+  <figcaption>The top-left chip reports render size, grid, anti-aliasing, gizmo mode, latency and FPS. The hint chip lists the camera gestures; the bottom line names the selection.</figcaption>
+</figure>
 
-| Group | Tools |
-|-------|-------|
-| **Selection / transform** | Select, move, rotate, scale |
-| **View mode** | 2D, 3D, Isometric |
-| **Projection** | Perspective, Orthographic |
-| **Visualization** | Grid, gizmos, lighting overlays |
+## HUD
 
-Each icon has a tooltip. The active tool uses the accent colour and a short underline;
-there is no filled button background.
+The status chip is assembled in `windows/main.rs` and rendered by
+`viewport_surface`:
 
-## Projection
-
-Projection is real editor state, not a label:
-
-```cpp
-enum class ViewProjection { Perspective, Orthographic };
-ViewProjection projection = ViewProjection::Perspective;
+```text
+1872×1075 · grid · FXAA · Move · 18 ms · 57 FPS
 ```
 
-It lives in `EditorContext::projection`. The **same view-projection matrix** is used
-by:
+| Field | Meaning |
+|---|---|
+| `width×height` | Internal render size in physical pixels, after `render_scale`. |
+| `grid` / `no grid` | Reference grid state. |
+| `no AA` / `FXAA` / `TAA` | Active anti-aliasing mode. |
+| `Move` / `Rotate` / `Scale` | Gizmo mode. |
+| `ms` | Latency of the last completed readback. |
+| `FPS` | Completed viewport frames in the last second. |
 
-- the GPU scene renderer,
-- CPU picking (selection and gizmo raycasts),
-- overlays, gizmos and light helpers,
-- the editor grid.
+The bottom hint shows `Selected: <entity> · Double-click to focus`, or the focus hint
+when nothing is selected.
 
-Switching projection therefore changes what you see and what you can click, with no
-drift between the two.
+## View menu
 
-The orthographic half-height is derived from the camera distance and the perspective
-FOV, so zoom keeps roughly the same framing when you toggle projection.
+<table class="doc-table">
+  <thead>
+    <tr><th>Item</th><th>Shortcut</th><th>Effect</th></tr>
+  </thead>
+  <tbody>
+    <tr><td>Focus Selection</td><td><code>Ctrl+F</code> or <code>F</code></td><td>Moves the orbit focus to the selected entity.</td></tr>
+    <tr><td>Reset Camera</td><td><code>Ctrl+0</code></td><td>Restores the default orbit distance and angles.</td></tr>
+    <tr><td>Render Now</td><td><code>Ctrl+R</code></td><td>Requests an immediate viewport frame.</td></tr>
+    <tr><td>Show / Hide Scene Markers</td><td>—</td><td>Toggles light, camera, collider and empty markers.</td></tr>
+    <tr><td>Show / Hide Grid</td><td><code>G</code></td><td>Toggles the reference grid.</td></tr>
+    <tr><td>Move Tool</td><td><code>1</code></td><td>Translate gizmo.</td></tr>
+    <tr><td>Rotate Tool</td><td><code>2</code></td><td>Rotate gizmo.</td></tr>
+    <tr><td>Scale Tool</td><td><code>3</code></td><td>Scale gizmo.</td></tr>
+    <tr><td>Terrain / Water / Nature / Texture Generator</td><td>—</td><td>Opens the matching generator tab.</td></tr>
+    <tr><td>Default Layout</td><td><code>Ctrl+1</code></td><td>Restores the standard pane arrangement.</td></tr>
+    <tr><td>Viewport Layout</td><td><code>Ctrl+2</code></td><td>Maximises the viewport area.</td></tr>
+  </tbody>
+</table>
 
-## Isometric
+## Camera gestures
 
-**Isometric** is a first-class 3D view mode, not a 2D projection trick:
-
-- camera yaw = `45°` (`0.7853982 rad`),
-- camera pitch = `35.264°` (`0.6154797 rad`),
-- projection = **Orthographic**,
-- grid and overlays use the same 3D matrix.
-
-This gives the classic 2:1-style game view while keeping full 3D editing, picking and
-gizmos.
-
-## Navigation
-
-| Input | Action |
-|-------|--------|
-| Right-drag | Orbit (3D / isometric) |
-| Middle-drag | Pan |
+| Gesture | Action |
+|---|---|
+| Drag | Orbit |
+| Right or middle drag | Pan |
 | Wheel | Zoom |
-| Right-drag horizontally | Orbit yaw in isometric |
-| F | Frame selection |
-| Double-click entity | Focus camera |
+| `W` `A` `S` `D` / `Q` `E` | Fly / down-up |
+| `Shift` | Boost |
+| Double-click | Focus the entity under the cursor |
 
-## Status labels
+## Anti-aliasing and render scale
 
-The navigation gizmo in the top-right corner shows the current projection
-(**Persp** / **Ortho**) and can toggle it directly. The viewport also keeps the
-selected view mode visible in the toolbar.
+Anti-aliasing and render scale are part of `CaffeineViewportSettings` in the C ABI and
+are clamped by the engine:
 
-## Implementation notes
+- `anti_aliasing`: `Off`, `FXAA` or `TAA`.
+- `render_scale`: `0.5` to `2.0`; values above 1 supersample, below 1 trade sharpness
+  for speed.
 
-- `SceneViewport::computeVP3D` builds the shared matrix.
-- `GpuSceneRenderer` accepts `GpuSceneRenderOptions::orthographic`.
-- Picking functions take the same `Mat4` as the renderer.
-- `is3DViewMode()` treats `Mode3D` and `Isometric` identically for runtime paths.
+The render size is the pane's logical size multiplied by the scale and the display
+scale factor. Change the pane size to change the render resolution; the HUD updates
+on the next completed frame.
 
-## Related
+<div class="doc-callout doc-callout--note">
+  <p><strong>Historical note.</strong> The archived C++ editor had a floating
+  icon-only toolbar with 2D/3D/Iso and perspective/orthographic buttons. It is not
+  part of the Rust viewport; use the View menu and shortcuts above.</p>
+</div>
 
-- [Scene viewport](scene-viewport.md) for the render pipeline.
-- [Workspace and theme](workspace-and-theme.md) for the surrounding UI.
+## Related pages
+
+- [Scene viewport](scene-viewport.md) — readback pipeline, picking and camera maths.
+- [Gizmos and markers](https://github.com/devscafecommunity/caffeine/blob/main/doppio/docs/gizmos-and-markers.md)
+- [Performance](../performance/editor-viewport-performance.md)

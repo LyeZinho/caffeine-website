@@ -1,180 +1,94 @@
-# Scene Viewport — 3D surrender
+# Scene viewport
 
-> **Namespace:** `Caffeine::Editor::SceneViewport` 
-> **Ficheiro:** `src/editor/SceneViewport.cpp` 
-> ** Status:** Implemented (GPU-first in 3D)
-> * *Performance:** ~10 → ~100 FPS in the editor (see [performance](../performance/editor-viewport-performance.md))
+<div class="doc-meta">
+  <span class="doc-badge doc-badge--stable">Stable</span>
+  <span class="doc-badge">Doppio</span>
+  <span>Last verified: <time datetime="2026-11-18">2026-11-18</time></span>
+  <span>Source: <a href="https://github.com/devscafecommunity/caffeine/blob/main/doppio/crates/ui/src/uikit/components/viewport_surface.rs"><code>viewport_surface.rs</code></a></span>
+</div>
 
----
+<p class="doc-lede">The viewport is a GPU render owned by the engine, read back into
+the Rust editor and composited under the gizmo, markers and HUD. It never blocks the
+UI thread.</p>
 
-## Overview
+<figure class="doc-figure">
+  <img src="../images/editor/workspace-scene.png" alt="Doppio viewport with the grid, transform gizmo and scene markers over a rendered scene" loading="lazy">
+  <figcaption>The engine render arrives as pixels; the toolbar, HUD, gizmo and scene markers are drawn by the editor over the frame.</figcaption>
+</figure>
 
-**Scene Viewport** renders the 3D scene into an offscreen GPU target and composes the result in an ImGui window. Overlays use `ImDrawList` with consistent 3D projection.
+## Frame pipeline
 
----
+1. The pane reports its logical size. The editor keeps a desired render size in
+   physical pixels and requests a frame at most every 16 ms.
+2. `caffeine_session_render_begin(width, height)` starts an offscreen engine render.
+3. The 16 ms `ViewportTick` polls `caffeine_session_render_poll` into a reusable RGBA
+   buffer. States are `Pending`, `Ready`, `Idle` and `Failed`.
+4. On `Ready`, the pixels are uploaded to an Iced/wgpu texture through
+   `uikit/components/viewport_shader.rs`. A content hash skips identical frames, so a
+   static scene does not re-upload every tick.
+5. The editor draws the toolbar, HUD, gizmo and scene markers over the frame. Those
+   overlays project with the same camera that produced the image.
 
-## Modos de preview de mesh
+<div class="doc-callout doc-callout--warning">
+  <p><strong>Warning.</strong> SDL_GPU does not expose a native texture handle through
+  the public API. A shared wgpu texture is therefore not possible without a renderer
+  change (wgpu backend, SDL patch or a separate window). The readback path is the
+  supported one; do not describe it as zero-copy.</p>
+</div>
 
-| Modo | GPU | CPU overlay |
-|------|-----|-------------|
-| **Textured** | `GpuSceneRenderer` PBR forward + HDR + `PostProcessStack` (TAA/SSAO defaults) | Gizmos, frustums — **not** redesigns meshes or CPU sky if GPU covers viewport |
-| **Wireframe** | `GpuSceneRenderer` pipeline `FillMode::Line` | Idem |
+## Quality settings
 
-Toggle: **Textured / Wireframe** button in the viewport bar.
+<table class="doc-table">
+  <thead>
+    <tr><th>Setting</th><th>Values</th><th>Notes</th></tr>
+  </thead>
+  <tbody>
+    <tr><td>Anti-aliasing</td><td><code>Off</code>, <code>FXAA</code>, <code>TAA</code></td><td>FXAA is the default; TAA accumulates across frames and needs camera stability.</td></tr>
+    <tr><td>Render scale</td><td><code>0.5</code> … <code>2.0</code></td><td>Internal supersampling; default <code>1.5</code>. The UI stays at logical resolution.</td></tr>
+    <tr><td>Grid</td><td>on / off</td><td><code>G</code> or View → Show/Hide Grid.</td></tr>
+    <tr><td>Scene markers</td><td>on / off</td><td>View → Show/Hide Scene Markers.</td></tr>
+    <tr><td>Gizmo</td><td>Move / Rotate / Scale</td><td><code>1</code>, <code>2</code>, <code>3</code> or View → Move/Rotate/Scale Tool.</td></tr>
+  </tbody>
+</table>
 
-**Importante:** com GPU activo ( `gpuOwnsSceneMeshes` ), the CPU does not rasterize meshes or terrain in the same frame. See [viewport performance](../performance/editor-viewport-performance.md).
+The HUD reports resolution, grid, gizmo mode, view model, FPS and render latency.
+`Ctrl+R` forces a frame; `Ctrl+0` resets the camera.
 
----
+## Camera
 
-## Pipeline por frame (3D)
+| Input | Action |
+|---|---|
+| Drag | Orbit around the focus point |
+| Right or middle drag | Pan the focus |
+| Wheel | Zoom (exponential) |
+| `W` `A` `S` `D` | Fly horizontally |
+| `Q` / `E` | Fly down / up |
+| `Shift` | Fly boost |
+| `F` or double-click | Focus the selection |
+| `Ctrl+0` | Reset the camera |
 
-- `1. resizeCanvasIfNeeded(imguiFramebufferSize(viewportSize, 3840))`
-- `2. syncTerrainMeshes(world)`
-- `3. GpuSceneRenderer::renderWithCamera / render (HDR scene → PostProcessStack → RGBA8)`
-  - `resolveForwardRenderFeatures + PostProcessComponent (câmara selecionada ou defaults)`
-  - `planar reflection + reflection probes (top-level pass)`
-  - `shadow passes (runtime / quando enableShadows)`
-  - `opaque → sky GPU → grid GPU → translucent (copy opaco + blend)`
-  - `TAA jitter, SSR history, needsAnotherFrame até convergir`
-- `4. ImGui: AddImage(GPU) → overlays (sem fake post ImGui)`
-  - `drawEmptyEntities, drawCameraFrustums, drawLightGizmos, TransformGizmo`
-  - `CPU sky/grid só se gpuImageCoversViewport == false`
+The camera state lives in `windows/main.rs`; `viewport_surface` only converts pointer
+and wheel events into camera messages. That separation keeps the camera maths out of
+the widget and makes it testable.
 
+## Selection and picking
 
-`renderScale` (Settings → Viewport → Rendering) multiplies the internal resolution of the scene.
+A click uses a ray from the cursor through the camera. If the ray hits a gizmo handle,
+the gizmo consumes it; otherwise a scene marker takes it; otherwise the engine picks
+the mesh. The result updates the selection and the Inspector. Picking uses the world
+transform resolved through the parent chain, so children of moved groups select
+correctly.
 
----
+## Empty state and fixtures
 
-## Editor camera
+When no engine session is available, the viewport shows **Waiting for the engine
+viewport…**. This is expected in the `entities` and `empty` headless fixtures. The
+`scene3d` fixture starts a real engine session with lights, a camera and meshes, and
+is the fixture used by the gizmo/marker capture flows.
 
-| Parameter | Fonte |
-|-----------|--------|
-| Position | `editorCameraPosition(camYaw, camPitch, camDistance, camFocus)` |
-| View | `Mat4::lookAt(camPos, camFocus, up)` |
-| FOV | 60° (1.0472 rad) — aligned with `GpuSceneRenderer` |
-| Overlay projection | `computeVP3D(viewportSize, ctx)` |
+## Related pages
 
-Ver [`EditorCameraMath.hpp`](../../src/editor/EditorCameraMath.hpp).
-
----
-
-## 3D Line Projection
-
-Static functions in `SceneViewport` :
-
-```cpp
-static bool projectWorldToViewport(const Mat4& vp, Vec3 worldPos,
-                                   ImVec2 origin, ImVec2 viewportSize, ImVec2& screenOut);
-static void drawViewportWorldLine(ImDrawList* dl, const Mat4& vp, ImVec2 origin,
-                                  ImVec2 viewportSize, Vec3 a, Vec3 b,
-                                  ImU32 color, float thickness);
-```
-
-- Off-screen endpoints are allowed (ImGui clip)
-- If an endpoint is behind the near plane ( `w <= 0.1` ), the segment is **clipped** in clip space — avoid lines for invalid coordinates
-
-Usado por: grid 3D, frustums `Camera3D` , CPU wireless, primitive rings.
-
----
-
-## HiDPI and resolution
-
-```cpp
-// ImGuiGpuTexture.hpp
-ImVec2 fb = imguiFramebufferSize(viewportSize, 3840);
-resizeCanvasIfNeeded((u32)fb.x, (u32)fb.y);
-```
-
-- `DisplayFramebufferScale` do ImGui reflecte DPI do monitor
-- Cap **3840** px on the largest side (viewport); camera preview up to **1920**; gameplay preview up to **2560**
-- `ctx.renderScale` (0.25–2×) applied in `GpuSceneRenderOptions::renderScale`
-- `cameraFarPlane()` dynamic from camera distance to focus
-
----
-
-## GPU Options ( `GpuSceneRenderOptions` )
-
-Built in `SceneViewport::render()` :
-
-| Campo | Comportamento no viewport |
-|-------|---------------------------|
-| `wireframeMeshes` | `true` em modo Wireframe |
-| `enableShadows` | Conforme contexto (editor pode omitir passes; shader suporta PCF atlas) |
-| `renderScale` | De `EditorContext` / preferences |
-| `viewId` | `1` viewport, `2` camera preview (separate TAA/SSR history) |
-| `postProcessCamera` | Entidade com `PostProcessComponent` (viewport camera selected) |
-| `environmentPath` | Vazio se skybox desligado na toolbar |
-| `grid` | Space derived from camera distance; drawn in GPU |
-| `terrainLodDistanceScale` | ** `2.0` ** no editor |
-| `textureQuality.enabled` | ** `false` ** no viewport (menos churn) |
-
-> **Nota:** `enableShadows=false` Turn off only the shadow **passes**. Samplers remain connected — see [shadow-mapping.md](../rendering/shadow-mapping.md#editor-vs-runtime).
-
----
-
-## Anti-aliasing de overlays
-
-At the start of viewport draw:
-
-```cpp
-drawList->Flags |= ImDrawListFlags_AntiAliasedLines;
-drawList->Flags |= ImDrawListFlags_AntiAliasedFill;
-```
-
-Afecta gizmos e linhas ImGui. Silhuetas da cena usam **TAA** no `PostProcessStack` (not MSAA hardware).
-
----
-
-## Camera / Gameplay Preview GPU
-
-- `renderCameraPreviewGpu()` — sharing `GpuSceneRenderer` do viewport; targets `m_previewColorTarget`
-- `GameplayPreviewPanel` — own renderer, even command buffer
-- **Um caminho por frame:** GPU **ou** `drawSceneMeshesForCamera()` (CPU), nunca ambos
-- Throttle: `editorPanelWorthGpuRender(origin, size, 2)` — ver `EditorPanelUtils.hpp`
-
----
-
-## Related Preferences
-
-**Settings → Viewport:**
-
-- Move speed / Orbit sensitivity
-- Show grid
-- **Render scale** (internal HDR resolution)
-- **Texture quality**(radio, falloff, minimum) — see [`texture-quality-lod.md`](../rendering/texture-quality-lod.md)
-
-Campos em `EditorContext` sincronizados via `SettingsPanel::applyPreferencesToContext()` .
-
----
-
-## Ficheiros principais
-
-| Ficheiro | Responsabilidade |
-|----------|------------------|
-| `src/editor/SceneViewport.cpp` | UI, input camera, composition |
-| `src/editor/SceneViewport.hpp` | Public API, auxiliary CPU raster |
-| `src/editor/ImGuiGpuTexture.hpp` | `imguiFramebufferSize()` |
-| `src/render/GpuSceneRenderer.cpp` | Pass GPU cena |
-| `src/editor/EditorCameraMath.hpp` | Orbit / look direction |
-
----
-
-## Known limitations
-
-| Item | Notas |
-|------|-------|
-| MSAA hardware | Not used; TAA + render scale > 1 improve edges |
-| Gizmos ImGui | No depth test against scene GPU (intentional — always visible) |
-| Runtime play | `enableShadows` conforme contexto; ver `RuntimeSceneRenderer` |
-
----
-
-## See also
-
-- [**Performance — Viewport Editor**](../performance/editor-viewport-performance. md)
-- [Session 2026-09-22 — Viewport & Quality](../plans/2026-09-22-viewport-rendering-quality-session.md)
-- [Texture Quality LOD](../rendering/texture-quality-lod.md)
-- [Materials PBR](../rendering/materials-pbr.md)
-- [Post-processing](../rendering/post-processing.md)
-- [Material Editor](material-editor.md)
-- [Shadow Mapping](../rendering/shadow-mapping.md)
+- [Viewport toolbar](viewport-toolbar.md) — icon toolbar and projections.
+- [Gizmos and markers](https://github.com/devscafecommunity/caffeine/blob/main/doppio/docs/gizmos-and-markers.md)
+- [Materials guide](https://github.com/devscafecommunity/caffeine/blob/main/doppio/docs/materials-guide.md)
+- [Performance](../performance/editor-viewport-performance.md)

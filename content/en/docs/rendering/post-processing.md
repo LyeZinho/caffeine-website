@@ -1,5 +1,14 @@
 # 🎨 Post-Processing Stack
 
+<div class="doc-meta">
+  <span class="doc-badge doc-badge--reference">Reference</span>
+  <span>Last verified: <time datetime="2026-11-18">2026-11-18</time></span>
+  <span>Source: <a href="https://github.com/devscafecommunity/caffeine/blob/main/src/caffeine/render/PostProcessStack.cpp"><code>render/PostProcessStack.cpp</code></a></span>
+</div>
+
+<p class="doc-lede">Modular post-processing on camera entities: each effect is an independent
+toggle with its own parameters, and cameras without a component get the defaults.</p>
+
 > **Component:** `PostProcessComponent` on camera entities
 > **Plugin:** `post_processing_plugin.so` (UI + presets; execution is in the engine)
 > **Lua API:** `caffeine.postprocess.*` 
@@ -33,7 +42,8 @@ Cameras without `PostProcessComponent` usam `PostProcessStack::defaults()` (TAA 
 | **Screen space reflections** | Screen space | intensity, max roughness, max steps |
 | **Deferred fog** | Atmosphere | density, start/end, color |
 
-All fields are exposed on Moon as `"efeito.campo"` (ver `src/ecs/PostProcessFields.hpp` ).
+All fields are addressable as `"effect.field"` (for example `"bloom.intensity"`) through the
+Lua API; the shared table lives in `src/caffeine/ecs/PostProcessFields.hpp`.
 
 ---
 
@@ -84,11 +94,11 @@ Template: `assets/plugins/post_processing/scripts/custom_effect.lua`
 
 | Ficheiro | Function |
 |----------|--------|
-| `src/ecs/PostProcessComponents.hpp` | Structs por efeito |
-| `src/ecs/PostProcessFields.hpp` | Table of reflection effect.field |
+| `src/caffeine/ecs/PostProcessComponents.hpp` | Structs por efeito |
+| `src/caffeine/ecs/PostProcessFields.hpp` | Table of reflection effect.field |
 | `include/caffeine/postprocess/PostProcessEditorUI.hpp` | UI ImGui partilhada |
 | `include/caffeine/postprocess/PostProcessPresets.hpp` | Benchmark looks |
-| `src/render/PostProcessStack.cpp` | Passes GPU |
-| `src/render/PostProcessRenderer.hpp` | Solves component in camera |
-| `src/script/PostProcessBindings.cpp` | Lua API |
-| `src/script/ScriptSystem.cpp` | Executa `customEffectScript` em play mode |
+| `src/caffeine/render/PostProcessStack.cpp` | Passes GPU |
+| `src/caffeine/render/PostProcessRenderer.hpp` | Solves component in camera |
+| `src/caffeine/script/PostProcessBindings.cpp` | Lua API |
+| `src/caffeine/script/ScriptSystem.cpp` | Executa `customEffectScript` em play mode |

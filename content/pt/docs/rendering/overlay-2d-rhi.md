@@ -1,22 +1,40 @@
-# 2D vector overlays (RHI path)
+# Overlays vectoriais 2D (caminho RHI)
 
-Play-mode debug and gameplay lines are batched in `Render::Overlay2D`.
+<div class="doc-meta">
+  <span class="doc-badge doc-badge--reference">Reference</span>
+  <span><strong>Namespace:</strong> `Caffeine::Render`</span>
+  <span>Last verified: <time datetime="2026-11-18">2026-11-18</time></span>
+  <span>Source: <a href="https://github.com/devscafecommunity/caffeine/blob/main/src/caffeine/render/Overlay2D.hpp"><code>render/Overlay2D.hpp</code></a></span>
+</div>
 
-## ImGui path (editor + current runtime)
+<p class="doc-lede">Linhas, círculos e rectângulos de debug e de gameplay em modo retained,
+desenhados por ImGui no editor e tesselados para um futuro passe RHI.</p>
 
-When `CF_HAS_IMGUI` is defined, `Overlay2D::draw(ImDrawList*, ...)` renders after the world and before UI widgets.
+As primitivas de debug e gameplay do play mode são acumuladas em `Render::Overlay2D`
+(`line`, `circle`, `circleFilled`, `rect`, `polyline`) e limpas por `beginFrame()`.
 
-## Shipping / no ImGui
+## Caminho ImGui (editor + runtime actual)
 
-1. Scripts record primitives via `caffeine.draw2d.*` (same buffer as ImGui).
-2. `Overlay2D::buildRhiMesh(camera, screenOrigin, vertices)` tessellates lines and rect outlines into world-space triangles.
-3. `Overlay2D::drawRhi(CommandBuffer*, camera, screenOrigin)` is the GPU submission entry point.
+Com `CF_HAS_IMGUI` definido, `Overlay2D::draw(ImDrawList*, camera, screenOrigin, panelSize)`
+desenha depois do mundo e antes dos widgets de UI.
 
-Shader sources live in `src/render/shaders/overlay2d.vert` and `overlay2d.frag`. Register them in the builtin shader list and `ShaderBytecode` when enabling GPU draw on your branch.
+## Shipping / sem ImGui
 
-Until the pipeline is registered, tessellation still runs so gameplay logic can be tested; GPU upload is a no-op.
+1. Os scripts registam primitivas via `caffeine.draw2d.*` (mesmo buffer que o ImGui).
+2. `Overlay2D::buildRhiMesh(camera, screenOrigin, vertices)` tesselam os comandos em valores
+   `RhiVertex` em espaço de ecrã (`x`, `y`, `r`, `g`, `b`, `a`); os comandos em espaço de mundo
+   são primeiro transformados com a `Camera2D`.
+3. `Overlay2D::drawRhi(CommandBuffer*, camera, screenOrigin)` é o ponto de entrada da
+   submissão GPU.
 
-## Coordinate spaces
+Os shaders estão em `src/caffeine/render/shaders/overlay2d.vert` e `overlay2d.frag`. O `drawRhi`
+só é compilado com `CF_HAS_SDL3` e sem `CF_HEADLESS`.
 
-- **world** — values in scene units; transformed with `Camera2D`.
-- **screen** — pixel offsets relative to the viewport origin; converted via `screenToWorld` for RHI meshes.
+Enquanto o pipeline não estiver registado, a tesselação continua a correr para que a lógica de
+gameplay possa ser testada; o upload é um no-op (o `drawRhi` tesselam e descarta os vértices).
+
+## Espaços de coordenadas
+
+- **world** — valores em unidades de cena; transformados com a `Camera2D`.
+- **screen** — deslocamentos em pixels relativos à origem do viewport; convertidos via
+  `screenToWorld` para comandos em espaço de mundo.

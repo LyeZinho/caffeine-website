@@ -1,5 +1,10 @@
 # ProjectStartupDialog + File Picker Implementation - Session Summary
 
+<div class="doc-meta">
+  <span class="doc-badge doc-badge--historical">Historical</span>
+  <span>Last updated: <time datetime="2026-11-18">2026-11-18</time></span>
+</div>
+
 **Date**: May 16, 2026  
 **Status**: ✅ Complete & Deployed  
 **Branch**: `121-44-audio-preview-spatial-placement`  

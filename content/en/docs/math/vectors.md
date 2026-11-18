@@ -1,23 +1,32 @@
 # Math Module
 
-> Documentation for Caffeine Engine Math module - Phase 1: Atomic Foundation
+<div class="doc-meta">
+  <span class="doc-badge doc-badge--reference">Reference</span>
+  <span class="doc-badge">Engine</span>
+  <span>Last verified: <time datetime="2026-11-18">2026-11-18</time></span>
+  <span>Source: <a href="https://github.com/devscafecommunity/caffeine/tree/main/src/caffeine/math"><code>src/caffeine/math</code></a></span>
+</div>
+
+<p class="doc-lede">The plain-struct vector, matrix and scalar helpers used by
+the runtime and editor, with a column-major <code>Mat4</code> layout ready for
+the GPU.</p>
 
 ## Overview
 
 The Math module provides vector and matrix types optimized for game development. All types are designed with cache locality and SIMD potential in mind.
 
-**Location:** `src/math/`
+**Location:** `src/caffeine/math`
 
 ## Files
 
 | File | Description | Status |
 |------|-------------|--------|
-| [`Vec2.hpp`](../../src/math/Vec2.hpp) | 2D vector (x, y) | ✅ Complete |
-| [`Vec3.hpp`](../../src/math/Vec3.hpp) | 3D vector (x, y, z) + `cross()` | ✅ Complete |
-| [`Vec4.hpp`](../../src/math/Vec4.hpp) | 4D vector (x, y, z, w) | ✅ Complete |
-| [`Mat4.hpp`](../../src/math/Mat4.hpp) | 4x4 matrix (column-major) | ✅ Complete |
-| [`Quat.hpp`](../../src/math/Quat.hpp) | Quaternion rotations | Complete — see [quaternions.md](quaternions.md) |
-| [`Math.hpp`](../../src/math/Math.hpp) | Utility functions ( `Caffeine::Math` ) | ✅ Complete |
+| [`Vec2.hpp`](https://github.com/devscafecommunity/caffeine/blob/main/src/caffeine/math/Vec2.hpp) | 2D vector (x, y) | ✅ Complete |
+| [`Vec3.hpp`](https://github.com/devscafecommunity/caffeine/blob/main/src/caffeine/math/Vec3.hpp) | 3D vector (x, y, z) + `cross()` | ✅ Complete |
+| [`Vec4.hpp`](https://github.com/devscafecommunity/caffeine/blob/main/src/caffeine/math/Vec4.hpp) | 4D vector (x, y, z, w) | ✅ Complete |
+| [`Mat4.hpp`](https://github.com/devscafecommunity/caffeine/blob/main/src/caffeine/math/Mat4.hpp) | 4x4 matrix (column-major) | ✅ Complete |
+| [`Quat.hpp`](https://github.com/devscafecommunity/caffeine/blob/main/src/caffeine/math/Quat.hpp) | Quaternion rotations | Complete — see [quaternions.md](quaternions.md) |
+| [`Math.hpp`](https://github.com/devscafecommunity/caffeine/blob/main/src/caffeine/math/Math.hpp) | Utility functions ( `Caffeine::Math` ) | ✅ Complete |
 
 ## Vector Types
 
@@ -29,7 +38,7 @@ The Math module provides vector and matrix types optimized for game development.
 Caffeine::Vec2 position(10.0f, 20.0f);
 Caffeine::Vec2 velocity(1.0f, -1.0f);
 Caffeine::Vec2 normalized = velocity.normalized();
-f32 length = velocity.length();
+Caffeine::f32 length = velocity.length();
 ```
 
 ### Vec3
@@ -85,9 +94,11 @@ Caffeine::Vec3 transformed = transform.transformPoint(point);
 | `operator()(row, col)` | Element access over `m[col * 4 + row]` (column-major) |
 | `operator*` | Matrix multiplication |
 
-> ⚠️ `inverted()` retorna identidade em matriz singular (fallback silencioso);
-> `lookAt()` degenera se `eye == target` (ver `AUDIT_REPORT.md` MA-2/MA-4).
-> None `Mat4::fromQuat` — use `Quat::toMatrix()` ([quaternions.md](quaternions.md)).
+> ⚠️ `inverted()` returns identity for a singular matrix (silent fallback).
+> `lookAt()` uses `Mat4::viewBasis()`, which substitutes a fallback forward or
+> up axis when `eye == target` or the up vector is parallel to the view
+> direction.
+> There is no `Mat4::fromQuat` — use `Quat::toMatrix()` ([quaternions.md](quaternions.md)).
 
 ## Math Utilities ( `Caffeine::Math` )
 
@@ -134,7 +145,7 @@ All math types work for both 2D and 3D:
 - [HISTORY.md](../HISTORY.md) - Phase 1 requirements and development rules
 - [architecture_specs.md](../architecture_specs.md) - Technical specifications
 - [API Reference](../api/README.md) - Complete API documentation
-- [Test Documentation](../../tests/test_math.cpp) - Math tests
+- [Test Documentation](https://github.com/devscafecommunity/caffeine/blob/main/tests/test_math.cpp) - Math tests
 
 ### Related Modules
 - [Core Module](../core/types.md) - Foundation types

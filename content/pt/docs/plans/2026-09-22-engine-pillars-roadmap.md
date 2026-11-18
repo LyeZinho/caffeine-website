@@ -1,5 +1,10 @@
 # 🏛️ Engine Pillars — Roadmap de Sistemas Fundamentais
 
+<div class="doc-meta">
+  <span class="doc-badge doc-badge--historical">Historical</span>
+  <span>Last updated: <time datetime="2026-11-18">2026-11-18</time></span>
+</div>
+
 > **Objetivo:** definir de forma **sólida e verificável** os subsistemas que a Caffeine Engine deve ter como base de produção — independentemente de features de editor ou plugins.  
 > **Critério de “completo”:** cada pilar tem requisitos, critérios de aceitação e estado atual documentados.  
 > **Última atualização:** 2026-10-01
@@ -7,7 +12,7 @@
 Este documento complementa:
 - [`2026-09-21-rendering-roadmap.md`](2026-09-21-rendering-roadmap.md) — detalhe técnico de rendering 3D
 - [`../HISTORY.md`](../HISTORY.md) — fases históricas de desenvolvimento
-- [`../../planning/caffeine-studio-ide.md`](../../planning/caffeine-studio-ide.md) — milestones do Doppio (IDE)
+- [`../../planning/caffeine-studio-ide.md`](milestones/caffeine-studio-ide.md) — milestones do Doppio (IDE)
 
 ---
 

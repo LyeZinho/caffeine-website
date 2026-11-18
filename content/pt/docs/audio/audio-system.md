@@ -1,21 +1,34 @@
 # 🎵 Audio System
 
-> **Fase:** 4 — O Cérebro  
-> **Namespace:** `Caffeine::Audio`  
-> **Arquivo:** `src/audio/AudioSystem.hpp`  
-> **Status:** ✅ Implementado  
-> **RF:** RF4.8
+<div class="doc-meta">
+  <span class="doc-badge doc-badge--stable">Stable</span>
+  <span class="doc-badge">Engine</span>
+  <span><strong>Namespace:</strong> <code>Caffeine::Audio</code></span>
+  <span>Atualizado em: <time datetime="2026-11-18">2026-11-18</time></span>
+  <span>Fonte: <a href="https://github.com/devscafecommunity/caffeine/blob/main/src/caffeine/audio/AudioSystem.hpp"><code>audio/AudioSystem.hpp</code></a></span>
+</div>
+
+<p class="doc-lede">Efeitos sonoros sobre SDL3 com um pool fixo de vozes, volume/pan/pitch
+por source e atenuação 2D simples por distância. O streaming de música não está
+implementado.</p>
 
 ---
 
 ## Visão Geral
 
-O Audio System usa `SDL_AudioStream` para streaming de música e pré-carregamento de SFX. Suporta posicionamento espacial 2D (pan + volume por distância).
+`AudioSystem` abre um dispositivo de reprodução SDL3 e possui um pool de objetos
+`AudioSource`. Cada source envolve um `SDL_AudioStream` ligado ao dispositivo:
 
-**Modelo:**
-- **SFX** — carregados inteiros em `PoolAllocator` (buffer fixo por canal)
-- **Música** — streaming em chunks de 64KB para economizar memória
-- **Spatial** — pan e volume calculados por distância listener ↔ emitter
+- **SFX** — o clipe inteiro é enviado para o stream. Uma source livre é reutilizada;
+  quando o pool esgota, `playSFX` devolve `nullptr` e o som é descartado.
+- **Vozes** — `init(sfxChannelCount, musicChannelCount)` dimensiona o pool de SFX. A
+  contagem de canais de música é aceite mas não usada; `Stats::musicPlaying` e
+  `musicVolume` são sempre `false` / `0`.
+- **Espacial** — uma posição de listener 2D dá queda linear de volume e um valor de pan
+  a partir do desvio horizontal. Não há atenuação 3D, cone nem Doppler.
+
+`AudioSystem` é um serviço normal da engine, não um `ECS::ISystem`: o host chama
+`update(dt)` uma vez por frame.
 
 ---
 
@@ -49,9 +62,9 @@ public:
     void stop();
     void seek(f32 seconds);
 
-    void setVolume(f32 v);
-    void setPan(f32 pan);
-    void setPitch(f32 pitch);
+    void setVolume(f32 v);   // clamped 0..1
+    void setPan(f32 pan);    // clamped -1..1
+    void setPitch(f32 pitch); // stored 0.1..4; not applied by SDL
     void setLoop(bool loop);
 
     bool isPlaying()   const;
@@ -63,6 +76,8 @@ public:
     f32  pan()         const;
     f32  pitch()       const;
     bool loop()        const;
+
+    void tick(f32 dt);
 };
 
 class AudioSystem {
@@ -70,14 +85,14 @@ public:
     bool init(u32 sfxChannelCount = 32, u32 musicChannelCount = 2);
     void shutdown();
 
-    AudioClip*   registerClip(const u8* data, u64 size,
-                               u32 sampleRate = 44100, u16 channels = 2,
-                               u16 bitsPerSample = 16, f32 duration = 0.0f);
+    AudioClip* registerClip(const u8* data, u64 size,
+                            u32 sampleRate = 44100, u16 channels = 2,
+                            u16 bitsPerSample = 16, f32 duration = 0.0f);
 
     AudioSource* playSFX(const AudioClip* clip,
                          f32 volume = 1.0f, f32 pan = 0.0f);
     AudioSource* playSFXAt(const AudioClip* clip, Vec2 worldPos,
-                            f32 maxDistance = 500.0f);
+                           f32 maxDistance = 500.0f);
 
     void setListenerPosition(Vec2 pos, Vec2 forward = {1.0f, 0.0f});
     void setSourcePosition(AudioSource* source, Vec2 worldPos,
@@ -106,44 +121,53 @@ public:
 }  // namespace Caffeine::Audio
 ```
 
+Todo o header está dentro de `#ifdef CF_HAS_SDL3`; sem SDL3 os tipos não existem.
+`registerClip` não copia os bytes: o chamador é dono do buffer enquanto o clipe for
+usado.
+
+`setPitch` guarda um valor, mas o caminho de gain do audio stream do SDL3 não faz
+resampling, pelo que o pitch é atualmente apenas informativo.
+
 ---
 
-## Componente ECS para Audio
+## Componente ECS de áudio
 
 ```cpp
-namespace Caffeine::Components {
+namespace Caffeine::Audio {
 
-// ============================================================================
-// @brief  Emitter de som no mundo 2D.
-//
-//  Usado pelo AudioSystem para calcular pan/volume por distância ao listener.
-// ============================================================================
+// Emitter data for a 2D sound in the world.
 struct AudioEmitter {
-    FixedString<128> clipPath;      // path do SFX
+    FixedString<128> clipPath;      // path to the SFX
     f32              volume       = 1.0f;
     f32              maxDistance  = 500.0f;  // pixels
     bool             loop         = false;
     bool             playOnSpawn  = true;
-    bool             spatial      = true;    // false = sem atenuação
+    bool             spatial      = true;    // false = no attenuation
 };
 
-}  // namespace Caffeine::Components
+}  // namespace Caffeine::Audio
 ```
+
+`AudioEmitter` é um componente em `Caffeine::Audio`, não em `Caffeine::Components`. A
+engine guarda-o com a entidade; um runtime ou ferramenta é responsável por registar o
+clipe e chamar `playSFXAt`.
 
 ---
 
 ## Spatial Audio
 
-```mermaid
-flowchart TD
-  Listener__Camera2D_position_["Listener (Camera2D position)"] --> m[""]
-  n[""] --> distance["distance"]
-  distance["distance"] --> _["│"]
-  n[""] --> _["│"]
-  n[""] --> AudioEmitter__worldPos_["AudioEmitter (worldPos)"]
-  n[""] --> m[""]
+```text
+distance = length(emitter.xy - listener.xy)
+volume   = clamp(1 - distance / maxDistance, 0, 1)
+pan      = clamp((emitter.x - listener.x) / maxDistance, -1, 1)
+
+listener position ──► setListenerPosition()
+emitter position  ──► playSFXAt() or setSourcePosition()
 ```
 
+`playSFXAt` aplica volume e pan uma vez, no início. `setSourcePosition` atualiza uma
+source já a tocar; chama-o em cada frame para um emitter em movimento. O parâmetro
+`forward` de `setListenerPosition` é atualmente ignorado.
 
 ---
 
@@ -153,16 +177,22 @@ flowchart TD
 Caffeine::Audio::AudioSystem audio;
 audio.init(32, 2);
 
+// bytes must stay alive while the clip is in use
 static const u8 jumpPCM[64] = {};
 auto* jumpSFX = audio.registerClip(jumpPCM, sizeof(jumpPCM), 44100, 2, 16, 0.5f);
 
+// Non-positional SFX.
 audio.playSFX(jumpSFX, 0.8f);
 
+// Positional SFX relative to the listener.
+audio.setListenerPosition(camera.position());
 audio.playSFXAt(jumpSFX, {300.0f, 150.0f}, 500.0f);
 
-audio.setListenerPosition(camera.position());
-
+// Per-frame upkeep: advances source timers and restarts looping clips.
 audio.update(dt);
+
+audio.setMasterVolume(0.7f);
+audio.setMasterPaused(paused);
 ```
 
 ---
@@ -171,27 +201,39 @@ audio.update(dt);
 
 | Decisão | Justificativa |
 |---------|-------------|
-| Pool de sources | Zero alloc em runtime — n sources pre-alocadas |
-| SFX inteiros em memória | Latência mínima — sem streaming de SFX curtos |
-| Música em streaming | Arquivos grandes não consomem RAM inteiros |
-| `update()` na main thread | Callbacks do SDL audio rodam em thread separada — sem race conditions |
+| Pool fixo de sources | Sem alocação durante a reprodução; número de vozes previsível |
+| SFX inteiro no stream | Latência mínima para sons curtos |
+| Sem streaming de música por agora | `musicChannelCount` e as stats de música estão reservados |
+| `update()` na main thread | O callback de áudio do SDL corre na sua própria thread; o estado das sources fica na main thread |
+| Queda linear 2D | Barata e previsível para side-scrollers e top-down |
+| PCM do chamador | `registerClip` evita uma cópia e deixa os assets viver no seu próprio armazenamento |
 
 ---
 
 ## Critério de Aceitação
 
-- [ ] 32 SFX simultâneos sem crackle/distorção
-- [ ] Audio pool sem alloc em runtime (PoolAllocator)
-- [ ] Spatial audio: volume/pan corretos por distância
-- [ ] Crossfade suave entre duas músicas
-- [ ] `update()` overhead < 0.5ms
+`tests/test_audio.cpp` cobre:
+
+- [x] Estado por omissão de `AudioClip`, `AudioEmitter` e `AudioSystem`
+- [x] `init` é idempotente; `shutdown` num sistema não inicializado é seguro
+- [x] O volume master faz clamp a 0..1
+- [x] A posição do listener e a flag de pausa são guardadas antes do init
+- [x] `playSFX(nullptr)` devolve `nullptr`
+- [x] `registerClip` devolve um ponteiro de clipe estável
+- [x] A atenuação chega a zero em `maxDistance` e a volume total no centro
+- [x] `setSourcePosition(nullptr)` não faz nada
+- [x] `update` e `shutdown` depois do init não fazem crash
+- [x] `stats().sfxPoolUsed` acompanha as sources ativas
+
+Não há teste de crossfade nem de streaming de música porque a funcionalidade não está
+implementada.
 
 ---
 
 ## Dependências
 
-- **Upstream:** [Asset Manager](../assets/asset-manager.md), `SDL3::SDL_AudioStream`
-- **Downstream:** [Event Bus](events.md) (responde a OnCollision2D, OnDeath)
+- **Upstream:** áudio SDL3 (`SDL_AudioStream`), [Asset Manager](../assets/asset-manager.md)
+- **Downstream:** código de gameplay que reage a eventos e chama `playSFXAt`
 
 ---
 
@@ -199,12 +241,12 @@ audio.update(dt);
 
 | Tópico | Descrição |
 |--------|-----------|
-| [Sistemas de Jogo]() | Audio como sistema ECS |
-| [Assets & Pipeline]() | Audio assets carregados via Asset Manager |
+| [ECS Core](../ecs/core.md) | Componentes e queries |
+| [Assets & Pipeline](../assets/asset-manager.md) | Como os bytes de áudio são carregados antes de `registerClip` |
 
 ## Referências
 
-- [`docs/architecture_specs.md`](../architecture_specs.md) — §11 Audio System
-- [`core/events.md`](events.md) — Audio reage a eventos de gameplay
-- [SDL3 Audio Documentation](https://wiki.libsdl.org/SDL3/CategoryAudio)
-- [Índice de Tópicos Transversais]()
+- [`src/caffeine/audio/AudioSystem.hpp`](https://github.com/devscafecommunity/caffeine/blob/main/src/caffeine/audio/AudioSystem.hpp) — dispositivo, sources e helpers espaciais
+- [`src/caffeine/audio/AudioComponents.hpp`](https://github.com/devscafecommunity/caffeine/blob/main/src/caffeine/audio/AudioComponents.hpp) — `AudioClip` e `AudioEmitter`
+- [`tests/test_audio.cpp`](https://github.com/devscafecommunity/caffeine/blob/main/tests/test_audio.cpp) — suite de comportamento
+- [Documentação de áudio do SDL3](https://wiki.libsdl.org/SDL3/CategoryAudio)

@@ -1,10 +1,32 @@
 # VC&M — Volumetric Clouds & Mist
 
-O VC&M é um **plugin do Doppio** que gera proceduralmente nuvens volumétricas e
-nevoa ao nível do solo. O plugin é dono do modelo meteorológico e da UI de autoria;
-a engine faz o ray-march da camada de nuvens no passe do céu.
+<div class="doc-meta">
+  <span class="doc-badge doc-badge--reference">Reference</span>
+  <span>Last updated: <time datetime="2026-11-18">2026-11-18</time></span>
+</div>
 
-![Nuvens volumétricas renderizadas pelo VC&M](../images/captures/vcm-clouds.png)
+<p class="doc-lede">Plugin opcional de nuvens volumétricas e névoa para o runtime e host legado.</p>
+
+
+
+<div class="doc-callout doc-callout--warning">
+  <p><strong>Host legado.</strong> O Doppio atual em Rust/Iced não carrega plugins C++.
+  Estas páginas documentam o SDK de plugins C++/ImGui e o seu host no editor C++ arquivado
+  (<code>doppio-archived/</code>). A engine continua a compilar todos os plugins do
+  submódulo, para que o SDK se mantenha testado na compilação.</p>
+</div>
+
+
+O VC&amp;M é um **plugin para o host C++/ImGui legado** que gera proceduralmente
+nuvens volumétricas e nevoeiro ao nível do solo. O plugin é dono do modelo
+meteorológico e da UI de autoria; a engine faz o ray-march da camada de nuvens no
+passe do céu.
+
+<figure class="doc-figure">
+  <img src="../images/captures/vcm-clouds.png" alt="Nuvens volumétricas renderizadas pelo VC&M" loading="lazy">
+  <figcaption>Nuvens volumétricas renderizadas pelo VC&M</figcaption>
+</figure>
+
 
 ## O que faz
 
@@ -54,7 +76,7 @@ cmake --build doppio-plugins/build --target volumetric_clouds_plugin
 cp doppio-plugins/build/plugins/volumetric_clouds_plugin.so build/plugins/
 ```
 
-Ative **VC&M** em **Plugins → Plugin Manager** e use
+Ativa **VC&amp;M** no **Plugins → Plugin Manager** do host legado e usa
 **Plugins → Create Volumetric Clouds & Mist** (cria o componente, ativa-o e abre o
 painel) ou **View → Volumetric Clouds & Mist**.
 

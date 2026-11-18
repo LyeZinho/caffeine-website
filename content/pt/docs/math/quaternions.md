@@ -1,10 +1,18 @@
 # 📐 3D Math Extension
 
-> **Fase:** 5 — Transição Dimensional  
-> **Namespace:** `Caffeine` (tipos) / `Caffeine::Math` (funções)  
-> **Arquivos:** `src/math/Quat.hpp`, `src/math/Mat4.hpp` (perspective, lookAt)  
-> **Status:** ✅ Implementado  
-> **Testes:** `tests/test_math.cpp` (48 casos, incl. slerp/toMatrix/fromMatrix)  
+<div class="doc-meta">
+  <span class="doc-badge doc-badge--stable">Stable</span>
+  <span class="doc-badge">Engine</span>
+  <span><strong>Namespace:</strong> <code>Caffeine</code> (tipos) / <code>Caffeine::Math</code> (funções)</span>
+  <span><strong>Arquivos:</strong> <code>src/caffeine/math/Quat.hpp</code>, <code>src/caffeine/math/Mat4.hpp</code> (perspective, lookAt)</span>
+  <span>Last verified: <time datetime="2026-11-18">2026-11-18</time></span>
+</div>
+
+<p class="doc-lede">Como os quaternions representam rotações 3D na Caffeine: a
+API de <code>Quat</code>, interpolação, conversão para matrizes e os componentes
+ECS que guardam dados de rotação.</p>
+
+> **Testes:** `tests/test_math.cpp` (49 casos, incl. slerp/toMatrix/fromMatrix)
 > **RF:** RF5.1
 
 ---
@@ -17,7 +25,7 @@ Extensão da biblioteca matemática da Fase 1 para suportar operações 3D compl
 
 ---
 
-## API Real
+## API
 
 ```cpp
 namespace Caffeine {
@@ -79,9 +87,12 @@ struct Quat {
 |---------------|---------|------------|--------------|---------|
 | **Euler** (pitch/yaw/roll) | 12B | Sim | Lerp (com artefatos) | Gimbal lock |
 | **Quaternion** | 16B | O(1) | SLERP suave | Visualização não intuitiva |
-| **Rotation Matrix** | 48B | O(n²) | Difícil | Redundante |
+| **Rotation Matrix** | 64B | O(n²) | Difícil | Redundante |
 
-**Caffeine usa Quaternion internamente** para rotações 3D; converte para Matrix apenas ao enviar ao shader.
+**A Caffeine representa rotações com quaternions** (`Quat`) e converte para
+matriz apenas ao enviar ao shader. O componente ECS `Rotation3D` guarda os
+mesmos componentes x/y/z/w num `Vec4`, não num `Quat`; converta explicitamente
+nessa fronteira.
 
 ---
 
@@ -121,7 +132,7 @@ struct Scale3D    { Vec3 scale = Vec3(1.0f, 1.0f, 1.0f); };
 ```
 
 > Não existem `Velocity3D` nem `WorldTransform3D` no código. Ver
-> `src/ecs/Components3D.hpp`.
+> `src/caffeine/ecs/Components3D.hpp`.
 
 ---
 

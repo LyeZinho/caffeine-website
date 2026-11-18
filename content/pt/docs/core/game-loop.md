@@ -1,10 +1,18 @@
 # 🎬 Game Loop
 
-> **Fase:** 2 — O Pulso e a Concorrência  
-> **Namespace:** `Caffeine` (não `Caffeine::Core`)  
-> **Arquivos:** `src/core/GameLoop.hpp`, `src/core/GameLoop.cpp`  
-> **Status:** ✅ Implementado  
-> **Testes:** `tests/test_gameloop.cpp`  
+<div class="doc-meta">
+  <span class="doc-badge doc-badge--stable">Stable</span>
+  <span class="doc-badge">Engine</span>
+  <span><strong>Namespace:</strong> <code>Caffeine</code> (não <code>Caffeine::Core</code>)</span>
+  <span><strong>Arquivos:</strong> <code>src/caffeine/core/GameLoop.hpp</code>, <code>src/caffeine/core/GameLoop.cpp</code></span>
+  <span>Last verified: <time datetime="2026-11-18">2026-11-18</time></span>
+</div>
+
+<p class="doc-lede">O acumulador de timestep fixo que separa atualizações de
+simulação determinísticas da renderização a ritmo variável, com pausa/retoma e
+interpolação.</p>
+
+> **Testes:** `tests/test_gameloop.cpp` (27 casos)
 > **RFs:** RF2.7, RF2.8
 
 ---
@@ -24,7 +32,7 @@ Inspirado em [Game Programming Patterns — Game Loop](https://gameprogrammingpa
 
 ---
 
-## API Real
+## API
 
 ```cpp
 namespace Caffeine {
@@ -146,7 +154,7 @@ deltaTime = std::min(deltaTime, m_config.maxFrameTime);  // default 250ms
 Sem interpolação, entidades "teletransportam" entre posições a cada fixed step:
 
 ```cpp
-Vec2 renderPos = lerp(entity.prevPos, entity.currPos, alpha);
+Caffeine::Vec2 renderPos = Caffeine::Math::lerp(entity.prevPos, entity.currPos, alpha);
 // alpha = 0.0 → início do step atual
 // alpha = 1.0 → fim do step atual
 ```
@@ -165,12 +173,12 @@ cfg.interpolation  = true;
 
 Caffeine::GameLoop loop(cfg);
 
-loop.onFixedUpdate = [&](f64 dt) {
+loop.onFixedUpdate = [&](Caffeine::f64 dt) {
     world.update(dt);
     eventBus.dispatch();
 };
 
-loop.onRender = [&](f64 alpha) {
+loop.onRender = [&](Caffeine::f64 alpha) {
     renderer.render(alpha);
 };
 
@@ -190,8 +198,8 @@ Com `IGameCallbacks` em vez de lambdas:
 
 ```cpp
 class MyGame : public Caffeine::IGameCallbacks {
-    void onFixedUpdate(f64 dt) override { world.update(dt); }
-    void onRender(f64 alpha) override { renderer.render(alpha); }
+    void onFixedUpdate(Caffeine::f64 dt) override { world.update(dt); }
+    void onRender(Caffeine::f64 alpha) override { renderer.render(alpha); }
 };
 MyGame game;
 loop.setCallbacks(&game);
@@ -243,15 +251,15 @@ stateDiagram-v2
 
 ## Dependências
 
-- **Upstream:** [Timer](timer.md) (chamador mede `dt`), tipos de [`src/core/Types.hpp`](../../src/core/Types.hpp)
+- **Upstream:** [Timer](timer.md) (chamador mede `dt`), tipos de [`src/caffeine/core/Types.hpp`](https://github.com/devscafecommunity/caffeine/blob/main/src/caffeine/core/Types.hpp)
 - **Downstream:** ECS World ([`../ecs/core.md`](../ecs/core.md)), Renderer, Input ([`../input/input-system.md`](../input/input-system.md)) — todos via callbacks, sem acoplamento
 
 ---
 
 ## Referências
 
-- [`src/core/GameLoop.hpp`](../../src/core/GameLoop.hpp) / [`src/core/GameLoop.cpp`](../../src/core/GameLoop.cpp)
-- [`tests/test_gameloop.cpp`](../../tests/test_gameloop.cpp)
+- [`src/caffeine/core/GameLoop.hpp`](https://github.com/devscafecommunity/caffeine/blob/main/src/caffeine/core/GameLoop.hpp) / [`src/caffeine/core/GameLoop.cpp`](https://github.com/devscafecommunity/caffeine/blob/main/src/caffeine/core/GameLoop.cpp)
+- [`tests/test_gameloop.cpp`](https://github.com/devscafecommunity/caffeine/blob/main/tests/test_gameloop.cpp)
 - [`docs/architecture_specs.md`](../architecture_specs.md) — §1 Game Loop
 - [`core/timer.md`](timer.md) — Mede o `dt` alimentado ao loop
 - [Game Programming Patterns — Game Loop](https://gameprogrammingpatterns.com/game-loop.html)

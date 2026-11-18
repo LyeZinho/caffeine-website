@@ -1,53 +1,65 @@
-# Containers Module
+# Módulo de Contentores
 
-> Documentation for Caffeine Engine Containers module - Phase 1: Atomic Foundation
+<div class="doc-meta">
+  <span class="doc-badge doc-badge--reference">Reference</span>
+  <span class="doc-badge">Engine</span>
+  <span>Last verified: <time datetime="2026-11-18">2026-11-18</time></span>
+  <span>Source: <a href="https://github.com/devscafecommunity/caffeine/tree/main/src/caffeine/containers"><code>src/caffeine/containers</code></a></span>
+</div>
 
-## Overview
+<p class="doc-lede">Quatro contentores pequenos e amigos da cache usados em todo
+o runtime: um vetor dinâmico, um mapa associativo linear, uma vista de string
+sem ownership e uma string de capacidade fixa inline.</p>
 
-The Containers module provides data structures optimized for game development with cache locality and zero heap allocations where possible.
+## Visão Geral
 
-**Location:** `src/containers/`
+O módulo Containers fornece estruturas de dados otimizadas para
+desenvolvimento de jogos, com localidade de cache e o mínimo de alocações no
+heap.
 
-## Files
+**Localização:** `src/caffeine/containers`
 
-| File | Description | Status |
+## Ficheiros
+
+| Ficheiro | Descrição | Estado |
 |------|-------------|--------|
-| [`Vector.hpp`](../../src/containers/Vector.hpp) | Dynamic array with cache-friendly contiguous memory | ✅ Complete |
-| [`HashMap.hpp`](../../src/containers/HashMap.hpp) | Hash table with O(1) lookup | ✅ Complete |
-| [`StringView.hpp`](../../src/containers/StringView.hpp) | String without ownership (zero-copy) | ✅ Complete |
-| [`FixedString.hpp`](../../src/containers/FixedString.hpp) | Inline buffer string (zero heap) | ✅ Complete |
+| [`Vector.hpp`](https://github.com/devscafecommunity/caffeine/blob/main/src/caffeine/containers/Vector.hpp) | Array dinâmico com memória contígua amiga da cache | ✅ Completo |
+| [`HashMap.hpp`](https://github.com/devscafecommunity/caffeine/blob/main/src/caffeine/containers/HashMap.hpp) | Mapa com pesquisa linear sobre `Vector<Pair>` | ✅ Completo |
+| [`StringView.hpp`](https://github.com/devscafecommunity/caffeine/blob/main/src/caffeine/containers/StringView.hpp) | String sem ownership (zero-copy) | ✅ Completo |
+| [`FixedString.hpp`](https://github.com/devscafecommunity/caffeine/blob/main/src/caffeine/containers/FixedString.hpp) | String com buffer inline (zero heap) | ✅ Completo |
 
 ## Vector<T>
 
-Dynamic array with automatic growth. Supports custom allocators or defaults to global `operator new`.
+Array dinâmico com crescimento automático. Aceita allocators personalizados ou
+usa o `operator new` global por omissão.
 
 ```cpp
-// Default construction (uses global new/delete)
+// Construção por omissão (usa new/delete global)
 Caffeine::Vector<int> vec;
 vec.pushBack(42);
 
-// With custom allocator
+// Com allocator personalizado
 Caffeine::LinearAllocator alloc(1024);
 Caffeine::Vector<int> vec2(&alloc);
 ```
 
-### Key Methods
+### Métodos Principais
 
-| Method | Complexity | Description |
+| Método | Complexidade | Descrição |
 |--------|------------|--------------|
-| `pushBack()` | O(1) amortized | Add element |
-| `operator[]` | O(1) | Access by index |
-| `reserve()` | O(n) | Pre-allocate capacity |
-| `clear()` | O(n) | Clear all elements |
-| `size()` | O(1) | Get element count |
-| `capacity()` | O(1) | Get allocated capacity |
+| `pushBack()` | O(1) amortizado | Adiciona um elemento |
+| `operator[]` | O(1) | Acesso por índice |
+| `reserve()` | O(n) | Pré-aloca capacidade |
+| `clear()` | O(n) | Destrói todos os elementos |
+| `size()` | O(1) | Número de elementos |
+| `capacity()` | O(1) | Capacidade alocada |
 
 ## HashMap<K, V>
 
-Small associative container backed by `Vector<Pair>` with **linear search**
-— O(n) `get`/`set`/`contains`/`remove`. There is no hashing and no open
-addressing; it is suited for small tables (dozens of entries), not hot paths
-over thousands of keys.
+Contentor associativo pequeno suportado por `Vector<Pair>` com **pesquisa
+linear** — `get`/`set`/`contains`/`remove` em O(n). Não há hashing nem open
+addressing; é adequado para tabelas pequenas (dezenas de entradas), não para
+hot paths com milhares de chaves.
 
 ```cpp
 Caffeine::HashMap<int, const char*> map;
@@ -59,64 +71,65 @@ bool exists = map.contains(1);
 map.remove(1);  // swap-with-back removal (unordered)
 ```
 
-### Key Methods
+### Métodos Principais
 
-| Method | Complexity | Description |
+| Método | Complexidade | Descrição |
 |--------|------------|--------------|
-| `set()` (lvalue + rvalue overloads) | O(n) | Insert or update |
-| `get()` (const + non-const) | O(n) | Pointer to value, `nullptr` if missing |
-| `contains()` | O(n) | Check key exists |
-| `remove()` | O(n) | Swap-with-back delete (order not preserved) |
-| `clear()` / `size()` / `empty()` | O(n) / O(1) / O(1) | Reset / count / check |
-| `begin()` / `end()` (const + non-const) | O(1) | Iterate pairs |
-| `explicit HashMap(usize capacity)` | — | Pre-reserve storage |
+| `set()` (overloads lvalue + rvalue) | O(n) | Insere ou atualiza |
+| `get()` (const + non-const) | O(n) | Ponteiro para o valor, `nullptr` se não existir |
+| `contains()` | O(n) | Verifica se a chave existe |
+| `remove()` | O(n) | Remove por troca com o último (ordem não preservada) |
+| `clear()` / `size()` / `empty()` | O(n) / O(1) / O(1) | Limpa / conta / verifica |
+| `begin()` / `end()` (const + non-const) | O(1) | Itera os pares |
+| `explicit HashMap(usize capacity)` | — | Pré-reserva armazenamento |
 
 ## StringView
 
-Zero-copy string reference (pointer + length, no ownership).
+Referência de string zero-copy (ponteiro + comprimento, sem ownership).
 
 ```cpp
 Caffeine::StringView sv("Hello World", 5); // "Hello"
-Caffeine::StringView full("Hello");        // length computed
+Caffeine::StringView full("Hello");        // comprimento calculado
 ```
 
-Provides `data()` / `length()` / `size()` / `empty()`, `operator[]`,
-and lexicographic `compare()` with `==`, `!=`, `<` operators.
-Not null-terminated — do not pass `data()` to `%s` APIs unless length is honored.
+Fornece `data()` / `length()` / `size()` / `empty()`, `operator[]` e
+`compare()` lexicográfico com os operadores `==`, `!=`, `<`.
+Não é terminada por nulo — não passe `data()` a APIs `%s` sem respeitar o
+comprimento.
 
 ## FixedString<N>
 
-Stack-allocated string with inline buffer. Single template parameter:
-`FixedString<32>`, **not** `FixedString<T, N>`.
+String na stack com buffer inline. Um único parâmetro de template:
+`FixedString<32>`, **não** `FixedString<T, N>`.
 
 ```cpp
 Caffeine::FixedString<32> fs;
 fs.append("Hello");
-const char* s = fs.cStr();  // always null-terminated
+const char* s = fs.cStr();  // sempre terminada por nulo
 ```
 
-Provides `cStr()` / `data()` / `length()` / `size()` / `capacity()` (returns `N`),
+Fornece `cStr()` / `data()` / `length()` / `size()` / `capacity()` (devolve `N`),
 `empty()` / `full()`, `clear()`, `append(const char*)` / `append(char)`,
-`==` / `!=`, `operator[]`. Appends **silently truncate** at `N - 1` chars
-(buffer always keeps room for `'\0'`).
+`==` / `!=`, `operator[]`. Os appends **truncam silenciosamente** em `N - 1`
+caracteres (o buffer reserva sempre espaço para `'\0'`).
 
 ## DOD (Data-Oriented Design)
 
-- **Vector<T>**: Contiguous memory, no fragmentation; optional `IAllocator*`
-  (defaults to global `new`/`delete` when none is given)
-- **HashMap<K,V>**: Linear search over contiguous pairs — cache-friendly but O(n)
-- **StringView**: Zero-copy, no allocation
-- **FixedString<N>**: Inline buffer, zero heap
+- **Vector<T>**: memória contígua, sem fragmentação; `IAllocator*` opcional
+  (usa `new`/`delete` global quando não é indicado)
+- **HashMap<K,V>**: pesquisa linear sobre pares contíguos — amigo da cache, mas O(n)
+- **StringView**: zero-copy, sem alocação
+- **FixedString<N>**: buffer inline, zero heap
 
-## See Also
+## Ver Também
 
-### Related Documentation
-- [HISTORY.md](../HISTORY.md) - Phase 1 requirements and development rules
-- [architecture_specs.md](../architecture_specs.md) - Technical specifications
-- [API Reference](../api/README.md) - Complete API documentation
-- [Test Documentation](../../tests/test_containers.cpp) - Container tests
+### Documentação Relacionada
+- [HISTORY.md](../HISTORY.md) - Requisitos e regras de desenvolvimento da Fase 1
+- [architecture_specs.md](../architecture_specs.md) - Especificações técnicas
+- [API Reference](../api/README.md) - Documentação completa da API
+- [Test Documentation](https://github.com/devscafecommunity/caffeine/blob/main/tests/test_containers.cpp) - Testes dos contentores
 
-### Related Modules
-- [Core Module](../core/types.md) - Foundation types
-- [Memory Module](../memory/allocators.md) - Allocators used by containers
-- [Math Module](../math/vectors.md) - Vector math types
+### Módulos Relacionados
+- [Core Module](../core/types.md) - Tipos fundamentais
+- [Memory Module](../memory/allocators.md) - Allocators usados pelos contentores
+- [Math Module](../math/vectors.md) - Tipos matemáticos

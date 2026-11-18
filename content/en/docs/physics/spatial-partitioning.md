@@ -1,48 +1,57 @@
-# 🌳 Spatial Partitioning
+# Spatial Partitioning
 
-> **Phase:**5 — Dimensional Transition
-> **Namespace:** `Caffeine::Spatial` 
-> **File:** `src/spatial/Octree.hpp` 
-> ** Status:** 
-> **RF:** RF5.4
+<div class="doc-meta">
+  <span class="doc-badge doc-badge--stable">Stable</span>
+  <span><strong>Namespace:</strong> `Caffeine::Spatial`</span>
+  <span>Last verified: <time datetime="2026-11-18">2026-11-18</time></span>
+  <span>Source: <a href="https://github.com/devscafecommunity/caffeine/blob/main/src/caffeine/spatial/Octree.hpp"><code>spatial/Octree.hpp</code></a></span>
+</div>
+
+<p class="doc-lede">The octree, AABB and frustum types used for broad-phase queries, frustum
+culling and ray or radius lookups in 3D.</p>
 
 ---
 
 ## Overview
 
-Spatial partitioning divides 3D space into regions to accelerate spatial Queries (broad-phase collection, frustum cooking, raycasts). Migra do **Quadtree** 2D (Phase 4, if implemented) for **Octree** 3D.
+Spatial partitioning divides 3D space into regions to accelerate spatial queries (broad-phase
+collection, frustum culling, raycasts). Caffeine ships a 3D **Octree**; there is no 2D
+quadtree, and `Physics2D` uses its own spatial hash grid.
 
 ---
 
-## API Planejada
+## API
 
 ```cpp
 namespace Caffeine::Spatial {
 
 // ============================================================================
-// @brief  AABB 3D — caixa alinhada por eixos.
+// @brief  AABB 3D — axis-aligned box.
 // ============================================================================
 struct AABB3D {
     Vec3 min = {0, 0, 0};
     Vec3 max = {0, 0, 0};
 
-    Vec3 center() const { return (min + max) * 0.5f; }
-    Vec3 size()   const { return max - min; }
+    Vec3 center() const;
+    Vec3 size()   const;
     bool contains(Vec3 p) const;
+    bool contains(const AABB3D& o) const;
     bool intersects(const AABB3D& o) const;
     bool intersectsRay(Vec3 origin, Vec3 dir, f32* tMin = nullptr) const;
 };
 
 // ============================================================================
-// @brief  Frustum para culling.
+// @brief  Frustum for culling.
 //
-//  Derivado da view-projection matrix.
-//  Planos: Near, Far, Left, Right, Top, Bottom.
+//  Planes stored as (A,B,C,D); d <= 0 is inside.
 // ============================================================================
 struct Frustum {
-    Vec4 planes[6];   // Ax + By + Cz + D = 0 (normalizados)
+    enum Plane { Left = 0, Right, Bottom, Top, Near, Far, PlaneCount };
+    Vec4 planes[PlaneCount];
 
-    static Frustum fromMatrix(const Math::Mat4& viewProj);
+    static Frustum fromMatrix(const Mat4& viewProj);
+    static Frustum fromCamera(Vec3 eye, Vec3 target, Vec3 up,
+                              f32 fovY, f32 aspect, f32 nearZ, f32 farZ);
 
     bool contains(Vec3 point)      const;
     bool intersects(const AABB3D& aabb) const;
@@ -50,11 +59,11 @@ struct Frustum {
 };
 
 // ============================================================================
-// @brief  Octree para particionamento 3D.
+// @brief  Octree for 3D spatial partitioning.
 //
-//  - Cada nó divide em 8 sub-nós quando excede maxEntities
-//  - Depth máxima configurável (default: 8)
-//  - Entidades inseridas por AABB
+//  - Each node subdivides into 8 children past maxEntitiesPerNode
+//  - Configurable max depth (default: 8)
+//  - Entities are stored by their AABB centre in leaf nodes
 // ============================================================================
 class Octree {
 public:
@@ -70,18 +79,13 @@ public:
     void insert(ECS::Entity entity, const AABB3D& bounds);
     void remove(ECS::Entity entity);
     void update(ECS::Entity entity, const AABB3D& newBounds);
-    void rebuild();   // rebuild completo (para quando muitas entidades moveram)
+    void rebuild();
 
     // ── Queries ────────────────────────────────────────────────
-    void queryAABB(const AABB3D& bounds,
-                   std::vector<ECS::Entity>& out) const;
-
-    void queryFrustum(const Frustum& frustum,
-                      std::vector<ECS::Entity>& out) const;   // RF5.6
-
+    void queryAABB(const AABB3D& bounds, std::vector<ECS::Entity>& out) const;
+    void queryFrustum(const Frustum& frustum, std::vector<ECS::Entity>& out) const;
     void queryRay(Vec3 origin, Vec3 dir, f32 maxDist,
                   std::vector<ECS::Entity>& out) const;
-
     void queryRadius(Vec3 center, f32 radius,
                      std::vector<ECS::Entity>& out) const;
 
@@ -89,21 +93,6 @@ public:
     u32 nodeCount()   const;
     u32 entityCount() const;
     u32 depth()       const;
-
-private:
-    struct Node {
-        AABB3D bounds;
-        std::vector<ECS::Entity>      entities;
-        std::unique_ptr<Node>          children[8];
-        bool                           isLeaf = true;
-        u32                            depth  = 0;
-
-        void subdivide();
-        int  childIndex(Vec3 point) const;
-    };
-
-    Node m_root;
-    Config m_config;
 };
 
 }  // namespace Caffeine::Spatial
@@ -111,40 +100,34 @@ private:
 
 ---
 
-## Frustum Culling (RF5.6)
+## Frustum culling
 
 - `Camera3D`
-  - `viewProjectionMatrix()`
+  - `viewProjectionMatrix()` or `frustum()`
 - `▼`
-- `Frustum::fromMatrix(viewProj)`
+- `Frustum::fromMatrix(viewProj)` / `Frustum::fromCamera(...)`
 - `▼`
 - `Octree::queryFrustum(frustum, visibleEntities)`
 - `▼`
-- `Apenas entidades DENTRO do frustum são enviadas ao MeshSystem`
-- `(entidades fora não geram draw calls)`
+- Only entities inside the frustum reach the renderer
+- (entities outside produce no draw calls)
 
 
-**Benefício:** Em uma cena com 10K objetos, apenas os ~100 visíveis geram draw calls.
+**Benefit:** in a scene with 10K objects, only the ~100 visible ones generate draw calls.
 
----
-
-## Quadtree 2D (Phase 4 → 5)
-
-Phase 4 can use a **Quadtree**2D for broad-phase collection 2D:
-
-```cpp
-// Fase 4 (opcional, para otimizar Physics2D com muitas entidades):
-class Quadtree {
-    void insert(ECS::Entity, Rect2D bounds);
-    void query(Rect2D area, std::vector<ECS::Entity>& out);
-};
-
-// Fase 5: Octree substitui/estende para 3D
-```
+`GpuSceneRenderer::gatherMeshDraws` currently tests each mesh AABB against the camera frustum
+directly; the octree is available for callers that need broad-phase queries.
 
 ---
 
-## Exemplos de Uso
+## No 2D quadtree
+
+`Physics2D` does its broad phase with a spatial hash grid (`kGridCellSize = 128`) instead of a
+quadtree. The octree is 3D-only; there is no `Quadtree` type in the engine.
+
+---
+
+## Usage examples
 
 ```cpp
 // ── Setup ─────────────────────────────────────────────────────
@@ -154,58 +137,42 @@ Caffeine::Spatial::Octree octree({
     .maxDepth = 8
 });
 
-// ── Popular com entidades ─────────────────────────────────────
-world.query(meshQuery, [&](ECS::Entity e, Position3D& pos, MeshRenderer& mr) {
-    AABB3D bounds = computeBounds(mr.mesh, pos);
+// ── Populate ──────────────────────────────────────────────────
+world.forEach<ECS::MeshFilterComponent>(meshQuery, [&](ECS::Entity e, ECS::MeshFilterComponent&) {
+    AABB3D bounds = computeBounds(e);
     octree.insert(e, bounds);
 });
 
 // ── Frustum culling ───────────────────────────────────────────
-Frustum frustum = Frustum::fromMatrix(camera3D.viewProjectionMatrix());
+Frustum frustum = camera3D.frustum();
 std::vector<ECS::Entity> visible;
 octree.queryFrustum(frustum, visible);
 
-// Apenas renderizar entidades visíveis:
-for (ECS::Entity e : visible) {
-    auto* mr = world.get<MeshRenderer>(e);
-    meshSystem.submitMesh(*mr->mesh, getWorldMatrix(e), cmd);
-}
-
-// ── Update quando entidades movem ────────────────────────────
-if (entity.get<Position3D>().changed) {
+// ── Update when entities move ────────────────────────────────
+if (entityMoved) {
     octree.update(entity, newBounds);
 }
 ```
 
 ---
 
-## Acceptance Criteria
+## Behaviour notes
 
-- [ ] `queryFrustum` exclui corretamente entidades fora do frustum
-- [ ] Performance: 10K entidades, query em < 1ms
-- [ ] `insert` / `remove` correct without corruption
-- [ ] Frustum cooking: entities outside the camera do not generate draw calls
+- `insert` descends to a leaf using the AABB centre; an AABB that straddles a split still goes
+  to one child, so queries also test the stored bounds.
+- `update` is `remove` + `insert`; `rebuild` re-inserts every stored entry after a full reset.
+- Query methods append to `out`; clear the vector first.
 
 ---
 
 ## Dependencies
 
-- **Upstream:** [Phase 4 — ECS](../ecs/core.md), [3D Math](3d-math.md)
-- **Downstream:** [Camera3D](camera3d.md) (fornece Frustum), [Mesh Loading](mesh-loading.md)
+- **Upstream:** [ECS](../ecs/core.md), [3D Math](../math/vectors.md)
+- **Downstream:** [Camera3D](../rendering/camera-3d.md) (provides the frustum), [Mesh Loading](../assets/mesh-loading.md)
 
 ---
 
 ## References
 
-## 🔗 Related Topics
-
-| Topic | Description |
-|--------|-----------|
-| [Rendering & Pipeline]() | Frustum culling com Octree |
-| [Sistemas de Jogo]() | Broad-phase for 3D physics |
-
-## References
-
-- [`docs/architecture_specs.md`](../architecture specs.md) — RF5.4 Octree spatial
-- [`docs/rendering/camera-3d.md`](../rendering/camera-3d.md) — provides Frustum for QueryFrustum
-- [Transversal Topic Index]()
+- [`architecture_specs.md`](../architecture_specs.md) — RF5.4 Octree spatial
+- [`camera-3d.md`](../rendering/camera-3d.md) — provides the frustum for `queryFrustum`

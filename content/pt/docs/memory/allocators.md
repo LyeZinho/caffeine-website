@@ -1,27 +1,38 @@
-# Memory Module
+# Módulo de Memória
 
-> Documentation for Caffeine Engine Memory module - Phase 1: Atomic Foundation
+<div class="doc-meta">
+  <span class="doc-badge doc-badge--reference">Reference</span>
+  <span class="doc-badge">Engine</span>
+  <span>Last verified: <time datetime="2026-11-18">2026-11-18</time></span>
+  <span>Source: <a href="https://github.com/devscafecommunity/caffeine/tree/main/src/caffeine/memory"><code>src/caffeine/memory</code></a></span>
+</div>
 
-## Overview
+<p class="doc-lede">Três allocators personalizados — linear, pool e stack — que
+partilham a interface <code>IAllocator</code> para memória temporária por frame,
+objetos de tamanho fixo e escopos aninhados.</p>
 
-The Memory module provides custom allocators for zero-dependency memory management. All allocators implement the `IAllocator` interface.
+## Visão Geral
 
-**Location:** `src/memory/`
+O módulo Memory fornece allocators personalizados para gestão de memória sem
+dependências externas. Todos os allocators implementam a interface `IAllocator`.
 
-**Namespace:** `Caffeine` (not `Caffeine::Memory` — allocators live directly in the root namespace).
+**Localização:** `src/caffeine/memory`
 
-## Files
+**Namespace:** `Caffeine` (não `Caffeine::Memory` — os allocators vivem
+diretamente no namespace raiz).
 
-| File | Description | Status |
+## Ficheiros
+
+| Ficheiro | Descrição | Estado |
 |------|-------------|--------|
-| [`Allocator.hpp`](../../src/memory/Allocator.hpp) | IAllocator interface | ✅ Complete |
-| [`LinearAllocator.hpp`](../../src/memory/LinearAllocator.hpp) | O(1) allocation, reset() clears all | ✅ Complete |
-| [`PoolAllocator.hpp`](../../src/memory/PoolAllocator.hpp) | Fixed-size slots, O(1) amortized | ✅ Complete |
-| [`StackAllocator.hpp`](../../src/memory/StackAllocator.hpp) | Markers, freeToMarker() | ✅ Complete |
+| [`Allocator.hpp`](https://github.com/devscafecommunity/caffeine/blob/main/src/caffeine/memory/Allocator.hpp) | Interface `IAllocator` | ✅ Completo |
+| [`LinearAllocator.hpp`](https://github.com/devscafecommunity/caffeine/blob/main/src/caffeine/memory/LinearAllocator.hpp) | Alocação O(1), `reset()` limpa tudo | ✅ Completo |
+| [`PoolAllocator.hpp`](https://github.com/devscafecommunity/caffeine/blob/main/src/caffeine/memory/PoolAllocator.hpp) | Slots de tamanho fixo, alloc/free O(1) | ✅ Completo |
+| [`StackAllocator.hpp`](https://github.com/devscafecommunity/caffeine/blob/main/src/caffeine/memory/StackAllocator.hpp) | Markers, `freeToMarker()` | ✅ Completo |
 
-## Architecture
+## Arquitetura
 
-### IAllocator Interface
+### Interface IAllocator
 
 ```cpp
 class IAllocator {
@@ -37,63 +48,63 @@ public:
     virtual const char* name() const = 0;
 };
 
-// Free helpers (Allocator.hpp)
+// Helpers livres (Allocator.hpp)
 inline usize calculatePadding(void* ptr, usize alignment);
 inline usize calculateAlignedSize(usize size, usize alignment);
 ```
 
-## Allocators Comparison
+## Comparação dos Allocators
 
-| Allocator | Allocation | Deallocation | Use Case |
+| Allocator | Alocação | Libertação | Caso de uso |
 |-----------|------------|--------------|----------|
-| **Linear** | O(1) | `reset()` only (`free()` is a no-op) | Frame scratch memory |
-| **Pool** | O(1) | O(1); `free(nullptr)` safe; **no double-free detection** | Fixed-size objects (particles) |
-| **Stack** | O(1) | `freeToMarker()` (`free()` is a no-op) | Scoped allocations |
+| **Linear** | O(1) | Apenas `reset()` (`free()` é no-op) | Memória temporária por frame |
+| **Pool** | O(1) | O(1); `free(nullptr)` é seguro; **sem deteção de double-free** | Objetos de tamanho fixo (partículas) |
+| **Stack** | O(1) | `freeToMarker()` (`free()` é no-op) | Alocações com escopo |
 
-## Semantics confirmed in code
+## Semântica confirmada no código
 
-- **Constructors:** each allocator can own its buffer (`explicit X(usize size)`,
-  allocated with `new u8[]`) or wrap an external buffer (`X(void* buffer, usize size)`,
-  no ownership transfer).
-- **Out of memory:** `alloc()` returns `nullptr` — always check the result.
-- **Pool specifics:** constructor asserts `alignment >= 8` and power-of-two;
-  `alloc()` ignores its `size`/`alignment` parameters (always returns one fixed
-  slot, asserts `size <= slotSize` in debug); slots must fit a pointer
-  (min. 8 bytes — free list is intrusive); `reset()` rebuilds the free list.
-  Introspection: `freeSlots()`, `slotSize()`, `maxSlots()`.
-- **Stack specifics:** `Marker` is a `usize` offset from the buffer start
-  (`setMarker()`); `freeToMarker()` ignores markers beyond the cursor and resets
-  the allocation count; `free(ptr)` does nothing.
-- **Stats:** `usedMemory()` / `totalSize()` / `peakMemory()` /
-  `allocationCount()` are tracked live; `reset()` zeroes the allocation count
-  (Linear/Stack) or the used count (Pool).
+- **Construtores:** cada allocator pode ser dono do seu buffer
+  (`explicit X(usize size)`, alocado com `new u8[]`) ou envolver um buffer
+  externo (`X(void* buffer, usize size)`, sem transferência de ownership).
+- **Out of memory:** `alloc()` retorna `nullptr` — verifique sempre o resultado.
+- **Especificidades do Pool:** o construtor exige `alignment >= 8` e potência de
+  dois; `alloc()` ignora os parâmetros `size`/`alignment` (devolve sempre um slot
+  fixo e verifica `size <= slotSize` em debug); os slots têm de comportar um
+  ponteiro (mínimo 8 bytes — a free list é intrusiva); `reset()` reconstrói a
+  free list. Introspeção: `freeSlots()`, `slotSize()`, `maxSlots()`.
+- **Especificidades do Stack:** `Marker` é um offset `usize` a partir do início
+  do buffer (`setMarker()`); `freeToMarker()` ignora markers além do cursor e
+  repõe a contagem de alocações; `free(ptr)` não faz nada.
+- **Estatísticas:** `usedMemory()` / `totalSize()` / `peakMemory()` /
+  `allocationCount()` são atualizados em tempo real; `reset()` zera a contagem
+  de alocações (Linear/Stack) ou a contagem de slots usados (Pool).
 
-## Usage Examples
+## Exemplos de Uso
 
 ### LinearAllocator
 
 ```cpp
-// Create 64KB linear allocator
+// Cria um allocator linear de 64KB
 Caffeine::LinearAllocator alloc(64 * 1024);
 
-// Allocate (O(1))
+// Aloca (O(1))
 void* ptr = alloc.alloc(1024, 8);
 
-// Reset all at once
+// Liberta tudo de uma vez
 alloc.reset();
 ```
 
 ### PoolAllocator
 
 ```cpp
-// Create pool for 100 particles of 64 bytes each
+// Cria um pool para 100 partículas de 64 bytes cada
 Caffeine::PoolAllocator pool(64 * 100, 64);
 
-// Allocate (O(1) amortized)
+// Aloca (O(1))
 void* p1 = pool.alloc(64);
 void* p2 = pool.alloc(64);
 
-// Free returns slot to pool
+// free devolve o slot ao pool
 pool.free(p1);
 ```
 
@@ -102,41 +113,42 @@ pool.free(p1);
 ```cpp
 Caffeine::StackAllocator stack(1024 * 1024); // 1MB
 
-// Set marker
+// Guarda um marker
 auto marker = stack.setMarker();
 
-// Allocate
+// Aloca
 void* ptr = stack.alloc(512);
 
-// Free to marker (frees everything after marker)
+// Liberta até ao marker (tudo o que está depois dele)
 stack.freeToMarker(marker);
 ```
 
 ## DOD (Data-Oriented Design)
 
-- All allocators use contiguous memory blocks
-- No dynamic memory after initial allocation
-- Not thread-safe for shared instances; use per-thread allocators or external synchronization
-- Zero heap allocations during normal operation
+- Todos os allocators usam blocos contíguos de memória
+- Sem memória dinâmica depois da alocação inicial
+- Não são thread-safe para instâncias partilhadas; use allocators por thread ou
+  sincronização externa
+- Zero alocações no heap durante a operação normal
 
-## Quick Reference
+## Referência Rápida
 
-| Class | Complexity | Key Method |
+| Classe | Complexidade | Método principal |
 |-------|------------|------------|
-| `LinearAllocator` | O(1) alloc, O(1) reset | `reset()` clears all |
-| `PoolAllocator` | O(1) amortized | `free()` returns slot |
+| `LinearAllocator` | O(1) alloc, O(1) reset | `reset()` limpa tudo |
+| `PoolAllocator` | O(1) | `free()` devolve o slot |
 | `StackAllocator` | O(1) alloc | `freeToMarker()` |
 
-## See Also
+## Ver Também
 
-### Related Documentation
-- [memory/memory-model.md](../memory/memory-model.md) - Detailed allocator specifications
-- [HISTORY.md](../HISTORY.md) - Phase 1 requirements and development rules
-- [architecture_specs.md](../architecture_specs.md) - Technical specifications
-- [API Reference](../api/README.md) - Complete API documentation
-- [Test Documentation](../../tests/test_allocators.cpp) - Allocator tests
+### Documentação Relacionada
+- [memory/memory-model.md](../memory/memory-model.md) - Especificação detalhada dos allocators
+- [HISTORY.md](../HISTORY.md) - Requisitos e regras de desenvolvimento da Fase 1
+- [architecture_specs.md](../architecture_specs.md) - Especificações técnicas
+- [API Reference](../api/README.md) - Documentação completa da API
+- [Test Documentation](https://github.com/devscafecommunity/caffeine/blob/main/tests/test_allocators.cpp) - Testes dos allocators
 
-### Related Modules
-- [Core Module](../core/types.md) - Foundation types (used by Memory)
-- [Containers Module](../memory/containers.md) - Vector uses allocators
-- [Math Module](../math/vectors.md) - Mathematical types
+### Módulos Relacionados
+- [Core Module](../core/types.md) - Tipos fundamentais (usados pela Memory)
+- [Containers Module](../memory/containers.md) - `Vector` usa allocators
+- [Math Module](../math/vectors.md) - Tipos matemáticos

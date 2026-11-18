@@ -1,5 +1,10 @@
 # ProjectStartupDialog Implementation Plan
 
+<div class="doc-meta">
+  <span class="doc-badge doc-badge--historical">Historical</span>
+  <span>Last updated: <time datetime="2026-11-18">2026-11-18</time></span>
+</div>
+
 > **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
 
 **Goal:** Create a blocking modal dialog that lets users create new projects or open existing ones before the Doppio editor starts.
@@ -13,7 +18,7 @@
 ## Task 1: Create ProjectStartupDialog header
 
 **Files:**
-- Create: `src/editor/ProjectStartupDialog.hpp`
+- Create: `doppio-archived/src/doppio/editor/ProjectStartupDialog.hpp`
 
 **Step 1: Write the header file**
 
@@ -112,7 +117,7 @@ The header is self-contained and doesn't require implementation yet. This sets u
 ## Task 2: Create ProjectStartupDialog implementation (Part 1: Data layer)
 
 **Files:**
-- Create: `src/editor/ProjectStartupDialog.cpp`
+- Create: `doppio-archived/src/doppio/editor/ProjectStartupDialog.cpp`
 
 **Step 1: Implement constructor and init()**
 
@@ -186,7 +191,7 @@ This part should compile without ImGui. Test by checking diagnostics.
 ## Task 3: Create ProjectStartupDialog implementation (Part 2: UI layer)
 
 **Files:**
-- Modify: `src/editor/ProjectStartupDialog.cpp` (add UI render methods)
+- Modify: `doppio-archived/src/doppio/editor/ProjectStartupDialog.cpp` (add UI render methods)
 
 **Step 1: Add render() main entry point**
 
@@ -489,8 +494,8 @@ Expected: No "ProjectStartupDialog" not found errors
 ## Task 5: Update SceneEditor::init() signature
 
 **Files:**
-- Modify: `src/editor/SceneEditor.hpp` (init method)
-- Modify: `src/editor/SceneEditor.cpp` (init implementation)
+- Modify: `doppio-archived/src/doppio/editor/SceneEditor.hpp` (init method)
+- Modify: `doppio-archived/src/doppio/editor/SceneEditor.cpp` (init implementation)
 
 **Step 1: Update header**
 
@@ -657,7 +662,7 @@ if (!editor.init(&device, &assetManager, selectedProject)) {
 ## Task 7: Add #include in SceneEditor.hpp
 
 **Files:**
-- Modify: `src/editor/SceneEditor.hpp`
+- Modify: `doppio-archived/src/doppio/editor/SceneEditor.hpp`
 
 **Step 1: Add ProjectManager include**
 

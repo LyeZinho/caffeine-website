@@ -1,10 +1,22 @@
 # Performance — Editor Viewport & GPU Scene
 
+<div class="doc-meta">
+  <span class="doc-badge doc-badge--historical">Historical</span>
+  <span>Last updated: <time datetime="2026-11-18">2026-11-18</time></span>
+</div>
+
+<p class="doc-lede">Registo histórico da sessão de optimização do viewport do editor C++: as
+medições, as regras GPU/CPU que produziu e que restrições ainda se aplicam.</p>
+
 > **Data:** 2026-09-23  
 > **Contexto:** Investigação de quedas de FPS no Doppio (~12 FPS, ~77 ms em `SceneEditor::render`)  
 > **Status:** ✅ Otimizações aplicadas + instrumentação de profiler
 
 ---
+
+<div class="doc-callout doc-callout--note">
+  <p><strong>Histórico.</strong> Esta página registra a sessão de otimização do editor C++. O viewport Rust atual usa readback offscreen <code>render_begin</code>/<code>render_poll</code>; veja <a href="../editor/scene-viewport.md">Scene viewport</a>.</p>
+</div>
 
 ## Resumo
 
@@ -203,14 +215,14 @@ Scopes adicionados para diagnóstico no painel **Profiler**:
 
 | Ficheiro | Alterações |
 |----------|------------|
-| `src/render/GpuSceneRenderer.cpp` | Shadow UBO 1×, cache terreno, binds obrigatórios |
-| `src/render/GpuSceneRenderer.hpp` | `terrainLodDistanceScale` |
-| `src/editor/SceneViewport.cpp` | GPU-only meshes, opções editor, scopes |
-| `src/editor/CameraPreviewPanel.cpp` | GPU-only / CPU fallback, throttle |
-| `src/editor/GameplayPreviewPanel.cpp` | Idem + resizeCanvas seguro |
-| `src/editor/EditorPanelUtils.hpp` | `editorPanelWorthGpuRender()` |
-| `src/render/SkyboxRenderer.cpp` | Cap resolução; raster sincronizado com câmera |
-| `src/terrain/TerrainLodSystem.cpp` | `lodDistanceScale` no gather |
+| `src/caffeine/render/GpuSceneRenderer.cpp` | Shadow UBO 1×, cache terreno, binds obrigatórios |
+| `src/caffeine/render/GpuSceneRenderer.hpp` | `terrainLodDistanceScale` |
+| `doppio-archived/src/doppio/editor/SceneViewport.cpp` | GPU-only meshes, opções editor, scopes |
+| `doppio-archived/src/doppio/editor/CameraPreviewPanel.cpp` | GPU-only / CPU fallback, throttle |
+| `doppio-archived/src/doppio/editor/GameplayPreviewPanel.cpp` | Idem + resizeCanvas seguro |
+| `doppio-archived/src/doppio/editor/EditorPanelUtils.hpp` | `editorPanelWorthGpuRender()` |
+| `src/caffeine/render/SkyboxRenderer.cpp` | Cap resolução; raster sincronizado com câmera |
+| `src/caffeine/terrain/TerrainLodSystem.cpp` | `lodDistanceScale` no gather |
 
 ---
 

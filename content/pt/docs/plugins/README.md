@@ -1,14 +1,36 @@
 # Plugins
 
-Doppio editor extensions are **shared libraries** built against the public
-`caffeine/plugin/` SDK. They live in the separate
-[doppio-plugins](https://github.com/devscafecommunity/doppio-plugins) repository,
-which is pinned as an engine submodule.
+<div class="doc-meta">
+  <span class="doc-badge doc-badge--reference">Reference</span>
+  <span>Last updated: <time datetime="2026-11-18">2026-11-18</time></span>
+</div>
 
-Doppio does not build or preload them. Install the libraries in a plugin directory
-and enable the ones you need from **Plugins → Plugin Manager**.
+<div class="doc-callout doc-callout--warning">
+  <p><strong>Host legado.</strong> O Doppio atual em Rust/Iced não carrega plugins C++.
+  Estas páginas documentam o SDK de plugins C++/ImGui e o seu host no editor C++ arquivado
+  (<code>doppio-archived/</code>). A engine continua a compilar todos os plugins do
+  submódulo, para que o SDK se mantenha testado na compilação.</p>
+</div>
 
-![Arquitetura de plugins do Doppio](../images/diagrams/plugin-architecture.svg)
+
+<p class="doc-lede">O catálogo de plugins, o contrato do SDK C++/ImGui e os passos de
+build e instalação para o host do editor legado.</p>
+
+As extensões do editor são **bibliotecas partilhadas** construídas contra o SDK público
+`caffeine/plugin/`. Vivem no repositório separado
+[doppio-plugins](https://github.com/devscafecommunity/doppio-plugins), fixado como
+submódulo da engine.
+
+O build da engine compila-as para `build/plugins/`; o host legado não carrega nenhuma
+no arranque. Instala as bibliotecas num diretório de plugins e ativa as que precisas no
+Plugin Manager desse host. O Doppio atual em Rust não procura nem carrega estas
+bibliotecas.
+
+<figure class="doc-figure">
+  <img src="../images/diagrams/plugin-architecture.svg" alt="Arquitetura de plugins do Doppio" loading="lazy">
+  <figcaption>Arquitetura de plugins do Doppio</figcaption>
+</figure>
+
 
 ## Catalog
 
@@ -49,4 +71,5 @@ cmake --build doppio-plugins/build -j
 cp doppio-plugins/build/plugins/*.so build/plugins/
 ```
 
-Then start Doppio and enable the plugin in the Plugin Manager.
+Depois arranca o host C++ legado e ativa o plugin no Plugin Manager desse host. As
+bibliotecas continuam a compilar contra a engine atual; apenas o host é legado.

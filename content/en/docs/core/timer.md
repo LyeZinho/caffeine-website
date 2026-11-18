@@ -1,36 +1,41 @@
 # ⏱️ High-Resolution Timer
 
-> **Phase:** 2 — Pulse and Competition
-> **Namespace:** `Caffeine::Core` 
-> **Files:** `src/core/Timer.hpp` , `src/core/Timer.cpp` 
-> **Status: ** Implemented
-> ** Tests:** `tests/test_timer.cpp` (~30 cases)
+<div class="doc-meta">
+  <span class="doc-badge doc-badge--stable">Stable</span>
+  <span class="doc-badge">Engine</span>
+  <span><strong>Namespace:</strong> <code>Caffeine::Core</code></span>
+  <span><strong>Files:</strong> <code>src/caffeine/core/Timer.hpp</code>, <code>src/caffeine/core/Timer.cpp</code></span>
+  <span>Last verified: <time datetime="2026-11-18">2026-11-18</time></span>
+</div>
+
+<p class="doc-lede">A small start/stop stopwatch and duration type used to
+measure frame deltas for the game loop and to instrument engine scopes.</p>
+
+> **Tests:** `tests/test_timer.cpp` (31 cases)
 
 ---
 
 ## Overview
 
-Timer provides high precision time measurements for [Game Loop](game-loop.md)
-and for manual performance instrumentation. Implementation uses
-`std::chrono::high_resolution_clock` — ** SDL — with ticks in
-**nanossegundos desde a epoch**.
+The Timer provides high-precision time measurements for the
+[Game Loop](game-loop.md) and for manual performance instrumentation. The
+implementation uses `std::chrono::high_resolution_clock` — **not** SDL — with
+ticks in **nanoseconds since the epoch**.
 
-* *Main purpose:**
-- Medir `deltaTime` entre frames para o Game Loop ( `Timer::tick()` )
-- Measure cumulative duration with start/stop cycles ( `Timer::elapsed()` )
-- Marcar escopos RAII ( `ScopeTimer` )
+**Main purpose:**
+- Measure `deltaTime` between frames for the Game Loop (`Timer::tick()`)
+- Measure cumulative duration with start/stop cycles (`Timer::elapsed()`)
+- Mark RAII scopes (`ScopeTimer`)
 
 ---
 
-## API Real
+## API
 
 ```cpp
 namespace Caffeine::Core {
 
-// ============================================================================
-// @brief  Ponto no tempo. ticks em nanossegundos (ver Timer.cpp).
-//         Comparações diretas; sem relógio próprio (não há TimePoint::now()).
-// ============================================================================
+// Time point. Ticks are nanoseconds (see Timer.cpp).
+// Direct comparisons; no clock of its own (there is no TimePoint::now()).
 struct TimePoint {
     u64 ticks = 0;
 
@@ -45,18 +50,15 @@ struct TimePoint {
     bool operator!=(const TimePoint&) const;
 };
 
-// ============================================================================
-// @brief  Diferença ABSOLUTA entre dois TimePoints.
+// ABSOLUTE difference between two TimePoints.
 //
-//  ⚠️ Assume ticks em MICROSSEGUNDOS (divide por 1e6). O Timer produz ticks
-//  em nanossegundos, portanto este operador NÃO é consistente com TimePoints
-//  vindos do Timer — prefira Timer::elapsed()/tick() para medições reais.
-// ============================================================================
+// Warning: this operator treats ticks as MICROSECONDS (divides by 1e6).
+// Timer produces ticks in nanoseconds, so it is not consistent with
+// TimePoints returned by the Timer — use Timer::elapsed()/tick() for real
+// measurements.
 inline Duration operator-(const TimePoint& a, const TimePoint& b);
 
-// ============================================================================
-// @brief  Duração em segundos (f64), com fábricas e aritmética.
-// ============================================================================
+// Duration in seconds (f64), with factories and arithmetic.
 struct Duration {
     f64 seconds = 0.0;
 
@@ -70,57 +72,53 @@ struct Duration {
 
     f64 millis() const;   // seconds * 1e3
     f64 micros() const;   // seconds * 1e6
-    f64 nanos()  const;   // seconds * 1e9 (retorna f64, não u64)
+    f64 nanos()  const;   // seconds * 1e9 (returns f64, not u64)
 
     Duration operator+(const Duration&) const;
     Duration operator-(const Duration&) const;
-    Duration operator*(f64 scalar) const;   // + forma livre scalar * Duration
+    Duration operator*(f64 scalar) const;   // plus the free scalar * Duration form
     Duration operator/(f64 scalar) const;
 
     bool operator<(const Duration&) const;
     bool operator<=(const Duration&) const;
     bool operator>(const Duration&) const;
     bool operator>=(const Duration&) const;
-    bool operator==(const Duration&) const;  // igualdade com epsilon 1e-15
+    bool operator==(const Duration&) const;  // equality with 1e-15 epsilon
     bool operator!=(const Duration&) const;
 };
 
-// ============================================================================
-// @brief  Cronômetro start/stop com acumulador.
+// Start/stop stopwatch with an accumulator.
 //
-//  - Nasce parado (isRunning() == false).
-//  - elapsed() acumula todos os ciclos start/stop desde o último reset().
-//  - tick() retorna o tempo desde o último tick/start e rearma a referência;
-//    retorna Duration(0) se parado.
-// ============================================================================
+//  - Starts stopped (isRunning() == false).
+//  - elapsed() accumulates every start/stop cycle since the last reset().
+//  - tick() returns the time since the last tick/start and re-arms the
+//    reference; returns Duration(0) while stopped.
 class Timer {
 public:
     Timer();
     ~Timer();
 
-    void start();   // idempotente: segundo start() sem stop() é ignorado
-    void stop();    // acumula ticks no total; parado mantém o acumulado
-    void reset();   // zera acumulado e para o timer
+    void start();   // idempotent: a second start() without stop() is ignored
+    void stop();    // accumulates ticks; while stopped the total is kept
+    void reset();   // clears the accumulator and stops the timer
 
-    Duration elapsed() const;  // não rearma (peek)
-    Duration tick();           // rearma a referência interna
+    Duration elapsed() const;  // does not re-arm (peek)
+    Duration tick();           // re-arms the internal reference
 
     bool isRunning() const;
 
 private:
     TimePoint m_start_time;
     TimePoint m_stop_time;
-    u64 m_accumulated_ticks;   // nanossegundos
+    u64 m_accumulated_ticks;   // nanoseconds
     bool m_is_running;
 };
 
-// ============================================================================
-// @brief  RAII: start() no construtor, stop() no destrutor.
+// RAII: start() in the constructor, stop() in the destructor.
 //
-//  ⚠️ Limitação atual: a medição NÃO é registrada em lugar nenhum
-//  (nem log, nem Profiler) e m_name não é usado. Serve hoje apenas como
-//  marcador de escopo; integração com o Profiler ainda está pendente.
-// ============================================================================
+// Current limitation: the measurement is NOT recorded anywhere (no log, no
+// Profiler) and m_name is unused. It only marks a scope today; Profiler
+// integration is still pending.
 class ScopeTimer {
 public:
     explicit ScopeTimer(const char* name);
@@ -136,10 +134,10 @@ private:
 
 ---
 
-## Exemplos de Uso
+## Usage Examples
 
 ```cpp
-// --- deltaTime por frame ---
+// --- deltaTime per frame ---
 Caffeine::Core::Timer timer;
 timer.start();
 while (running) {
@@ -147,18 +145,18 @@ while (running) {
     update(dt.seconds);
 }
 
-// --- tempo acumulado com pausas ---
+// --- accumulated time with pauses ---
 Caffeine::Core::Timer t;
 t.start();
-/* ... */ t.stop();   // pausa: elapsed() congela
-/* ... */ t.start();  // retoma acumulando
+/* ... */ t.stop();   // pause: elapsed() freezes
+/* ... */ t.start();  // resume accumulating
 Caffeine::Core::Duration total = t.elapsed();
 
-// --- fábricas e conversões ---
+// --- factories and conversions ---
 auto d = Caffeine::Core::Duration::fromMillis(16.666);
-LOG_INFO("dt = %.2f ms", d.millis());
+CF_INFO("Timer", "dt = %.2f ms", d.millis());
 
-// --- ScopeTimer (hoje: só marca escopo, sem saída) ---
+// --- ScopeTimer (today: marks the scope, produces no output) ---
 {
     Caffeine::Core::ScopeTimer timer("ECS::update");
     world.update(dt);
@@ -171,50 +169,50 @@ LOG_INFO("dt = %.2f ms", d.millis());
 
 ```mermaid
 flowchart TD
-  std__chrono__high_resolution_clock__now_["std::chrono::high_resolution_clock::now()"] --> m[""]
-  n[""] --> time_since_epoch___em_nanossegundos___Ti["time_since_epoch() em nanossegundos → TimePoint.ticks"]
+  NOW["std::chrono::high_resolution_clock::now()"] --> EPOCH["time_since_epoch()"]
+  EPOCH --> NANOS["duration_cast para nanoseconds"]
+  NANOS --> TICKS["TimePoint.ticks"]
 ```
 
-
-No SDL dependency. `Timer` is not thread-safe (without mutex/atomics);
-to read multiple systems, each system must have its own instance
-ou o acesso deve ser serializado pelo Game Loop.
+No SDL dependency. `Timer` is not thread-safe (no mutex or atomics). When
+several systems need timings, each system should own an instance or access must
+be serialized by the Game Loop.
 
 ---
 
 ## Design Decisions
 
-| Decision | Justificativa |
+| Decision | Rationale |
 |---------|---------------|
-| `std::chrono` em vez de SDL | Timer is core module without SDL dependency |
-| `u64 ticks` interno (ns) | No premature conversion to f64 |
-| `elapsed()` do not rearm | Permite `peek` repeated (see tests) |
-| Acumulador em start/stop | Suporta pausa/retomada sem perder tempo |
-| `Duration::operator==` com epsilon | Exact comparison of f64 is unstable |
+| `std::chrono` instead of SDL | Timer is a core module without an SDL dependency |
+| Internal `u64 ticks` (ns) | No premature conversion to f64 |
+| `elapsed()` does not re-arm | Allows repeated peeks (see tests) |
+| Accumulator on start/stop | Supports pause/resume without losing time |
+| `Duration::operator==` with epsilon | Exact f64 comparison is unstable |
 
 ---
 
 ## Acceptance Criteria
 
-- [x] `tests/test_timer.cpp` : TimePoint, Duration, Timer, ScopeTimer and integration (~30 cases)
-- [x] Accuracy of microseconds verified ( `sleep 1000us` → `millis() > 0.5` )
-- [ ] `ScopeTimer` integrated to Profiler (now record nothing)
-- [ ] Solve unit inconsistency of `operator-(TimePoint, TimePoint)` (assume µs; Timer produz ns)
-- [ ] `tick()` thread-safe for multiple system reading
+- [x] `tests/test_timer.cpp`: TimePoint, Duration, Timer, ScopeTimer and integration (31 cases)
+- [x] Microsecond accuracy verified (`sleep 1000us` → `millis() > 0.5`)
+- [ ] `ScopeTimer` integrated with the Profiler (it records nothing today)
+- [ ] Fix the unit inconsistency in `operator-(TimePoint, TimePoint)` (assumes µs; Timer produces ns)
+- [ ] Make `tick()` thread-safe for multiple readers
 
 ---
 
 ## Dependencies
 
-- **Upstream:** `Caffeine::Core::Types` ([`src/core/Types.hpp`](../../src/core/Types.hpp))
-- **Downstream:** [Game Loop](game-loop.md); Profiler planejado ([`../debug/debug-tools.md`](../debug/debug-tools.md))
-- **Externs:**only `<chrono>` da std
+- **Upstream:** `Caffeine::Core::Types` ([`src/caffeine/core/Types.hpp`](https://github.com/devscafecommunity/caffeine/blob/main/src/caffeine/core/Types.hpp))
+- **Downstream:** [Game Loop](game-loop.md); Profiler ([`../debug/debug-tools.md`](../debug/debug-tools.md))
+- **External:** only `<chrono>` from the standard library
 
 ---
 
 ## References
 
-- [`src/core/Timer.hpp`](../../src/core/Timer.hpp) / [`src/core/Timer.cpp`](../../src/core/Timer.cpp)
-- [`tests/test_timer.cpp`](../../tests/test_timer.cpp)
-- [`docs/architecture_specs.md`](../architecture specs.md) — §1 Game Loop
-- [`core/game-loop.md`] (game-loop.md) — Use Timer internally
+- [`src/caffeine/core/Timer.hpp`](https://github.com/devscafecommunity/caffeine/blob/main/src/caffeine/core/Timer.hpp) / [`src/caffeine/core/Timer.cpp`](https://github.com/devscafecommunity/caffeine/blob/main/src/caffeine/core/Timer.cpp)
+- [`tests/test_timer.cpp`](https://github.com/devscafecommunity/caffeine/blob/main/tests/test_timer.cpp)
+- [`docs/architecture_specs.md`](../architecture_specs.md) — §1 Game Loop
+- [`core/game-loop.md`](game-loop.md) — uses Timer internally

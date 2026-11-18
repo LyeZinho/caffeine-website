@@ -1,37 +1,57 @@
-# 🌋 Terrain Generator Plugin
+# Terrain Generator Plugin
 
-> **Tipo:** plugin do editor ( `terrain_plugin.so` ) 
-> **Algoritmo:** `assets/general-ultra-realistic-terrain-algorithm` 
-> **Host API:** `PluginHostApi::terrainGenerateUltra` , `terrainImportHeightmap`
+<div class="doc-meta">
+  <span class="doc-badge doc-badge--reference">Reference</span>
+  <span class="doc-badge">Plugin</span>
+  <span>Last verified: <time datetime="2026-11-18">2026-11-18</time></span>
+  <span>Source: <a href="https://github.com/devscafecommunity/caffeine/blob/main/doppio-plugins/plugins/terrain-generator/src/main.cpp"><code>doppio-plugins/plugins/terrain-generator</code></a></span>
+</div>
+
+<div class="doc-callout doc-callout--note">
+  <p><strong>Current path.</strong> The Rust Doppio has a native <strong>Terrain</strong> tab
+  (C ABI v8). This page documents the legacy <code>terrain_plugin</code> for the C++/ImGui host.</p>
+</div>
+
+<p class="doc-lede">The editor plugin that runs the Node.js terrain algorithm and imports the
+resulting heightmap into a <code>TerrainComponent</code>; sculpting and painting stay in the
+engine.</p>
+
+> **Type:** editor plugin (`terrain_plugin.so`)
+> **Algorithm:** `assets/general-ultra-realistic-terrain-algorithm`
+> **Services:** `terrain.generateUltra`, `terrain.importHeightmap`
 
 ---
 
 ## Overview
 
-The plugin **Terrain Generator** moves the procedural generation out of the core. It uses the Node.js pipeline with **domain warping** and **Geomorphological PDS** (more complete version than the old C++ generator removed from the engine).
+The **Terrain Generator** plugin moves procedural generation out of the core. It uses the
+Node.js pipeline with **domain warping** and **geomorphological PDEs** (a more complete version
+than the old C++ generator removed from the engine).
 
-**Fluxo:**
+**Flow:**
 
-1. Utilizador seleciona entidade com `TerrainComponent` .
+1. The user selects an entity with a `TerrainComponent`.
 2. Panel **Terrain Generator** → preset + world size + grid + seed.
-3. Host executa `node caffeine-export.js` in the algorithm directory.
-4. `heightmap.txt` + `meta.json` are imported via `TerrainHeightmapImporter` .
-5. `TerrainCache` reconstructs mesh render, LOD and collision mesh.
+3. The plugin runs `node caffeine-export.js` in the algorithm directory.
+4. `heightmap.txt` + `meta.json` are imported via `TerrainHeightmapImporter`.
+5. `TerrainCache` rebuilds the render mesh, LOD and collision mesh.
 
 ---
 
-> **Editing is native.** The **Terrain Editor** panel (sculpt, splat paint, undo and `.cterrain` I/O) is part of Caffeine core. This plugin only generates terrain procedurally and imports heightmaps; it does not register an editor panel.
+> **Editing is native.** The **Terrain Editor** panel (sculpt, splat paint, undo and
+> `.cterrain` I/O) is part of Caffeine core. This plugin only generates terrain procedurally
+> and imports heightmaps; it registers a generator panel, not the terrain editor.
 
 ## Presets
 
 | Preset | Description |
-|--------|-----------|
+|--------|-------------|
 | `default` | Erosion + balanced tectonic |
 | `alpine` | Tectonic + ice |
-| `mesa` | Caprock + deslizamentos |
-| `volcanic` | Cone + caldeira |
-| `glacial` | Vales em U |
-| `blend` | Alpine mix  |
+| `mesa` | Caprock + landslides |
+| `volcanic` | Cone + caldera |
+| `glacial` | U-shaped valleys |
+| `blend` | Alpine ⊕ mesa mix |
 
 ---
 
@@ -39,7 +59,7 @@ The plugin **Terrain Generator** moves the procedural generation out of the core
 
 ```bash
 cd assets/general-ultra-realistic-terrain-algorithm
-npm install          # primeira vez (simplex-noise)
+npm install          # first run (simplex-noise)
 node caffeine-export.js alpine \
   --out /tmp/heightmap.txt \
   --meta /tmp/meta.json \
@@ -48,43 +68,59 @@ node caffeine-export.js alpine \
   --seed 42
 ```
 
-`meta.json` inclui `minHeight` , `maxHeight` , `worldSize` , `gridSize` para o importador.
+`meta.json` contains `minHeight`, `maxHeight`, `worldSize` and `gridSize` for the importer.
 
 ---
 
 ## Host API (plugins)
 
+The plugin registers two named services through `PluginHostApi::registerService`; callers use
+`invokeService` with the request structs from `include/caffeine/plugin/PluginServices.hpp`:
+
 ```cpp
-struct PluginHostApi {
-    bool (*terrainGenerateUltra)(void* ctx, u32 entityId, const char* preset, u32 seed,
-                               float worldSizeMeters, u32 gridSize);
-    bool (*terrainImportHeightmap)(void* ctx, u32 entityId, const char* heightmapPath,
-                                   float worldSizeX, float worldSizeZ);
+struct TerrainGenerateUltraRequest {
+    CaffeinePluginU32 entityId = 0;
+    char preset[64] = "default";
+    CaffeinePluginU32 seed = 42;
+    float worldSizeMeters = 256.0f;
+    CaffeinePluginU32 gridSize = 257;
+};
+
+struct TerrainImportHeightmapRequest {
+    CaffeinePluginU32 entityId = 0;
+    char heightmapPath[512] = {};
+    float worldSizeX = 0.0f;
+    float worldSizeZ = 0.0f;
 };
 ```
 
-Implementation: `TerrainBridge` exposed via service `terrain.generateUltra` ( `PluginServiceRegistry` ).
+`terrain.generateUltra` and `terrain.importHeightmap` return a `bool` through the service
+handler; both run on the active world (`PluginActiveWorld`) and mark the scene dirty.
 
 ---
 
-## Desenvolvimento
+## Development
 
-| Ficheiro | Description |
-|----------|-----------|
-| `doppio-plugins/plugins/terrain-generator/src/main.cpp` | UI ImGui do plugin |
-| `doppio-plugins/plugins/terrain-generator/src/TerrainBridge.cpp` | Spawn Node + import (no Doppio core) |
-| `src/terrain/TerrainHeightmapImporter.cpp` | Parse `.txt` → heightmap |
+| File | Description |
+|------|-------------|
+| `doppio-plugins/plugins/terrain-generator/src/main.cpp` | ImGui plugin panel |
+| `doppio-plugins/plugins/terrain-generator/src/TerrainBridge.cpp` | Spawns Node + imports (not in the Doppio core) |
+| `doppio-plugins/plugins/terrain-generator/src/TerrainPluginServices.cpp` | Service handlers |
+| `src/caffeine/terrain/TerrainHeightmapImporter.cpp` | Parses `.txt` → heightmap |
 
-Build: `terrain_plugin` is built from `doppio-plugins`, installed in a `plugins/` directory, and enabled in the Plugin Manager.
+Build: `terrain_plugin` is built from `doppio-plugins`, installed in a `plugins/` directory, and
+enabled in the Plugin Manager.
 
 ---
 
-## Ancient core migration
+## Legacy core migration
 
-Removido de `caffeine-core` :
+Removed from `caffeine-core`:
 
-- `src/terrain/generation/*` (TerrainGenerator, noise, hydrology, geo sim)
+- The old procedural generator inside `src/caffeine/terrain/` (`TerrainGenerator`, noise,
+  hydrology, geo simulation) — the mesh, cache, sculpt, paint and `.cterrain` code remains
 - Procedural generation moved out of the native Terrain Editor; sculpt/paint remains in the core
-- Campo `TerrainComponent::generation`
+- Field `TerrainComponent::generation`
 
-Ancient scenes with blob v2–v8 still carry; generation parameters are ignored. Re-generate terrain with the plugin if necessary.
+Older scenes with blob v2–v8 still load; generation parameters are ignored. Re-generate terrain
+with the plugin if necessary.

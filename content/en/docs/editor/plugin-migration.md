@@ -1,5 +1,20 @@
 # Plugin migration guide
 
+<div class="doc-meta">
+  <span class="doc-badge doc-badge--reference">Reference</span>
+  <span>Last updated: <time datetime="2026-11-18">2026-11-18</time></span>
+</div>
+
+<p class="doc-lede">The move from in-tree plugins to the doppio-plugins submodule and the opt-in loader.</p>
+
+<div class="doc-callout doc-callout--warning">
+  <p><strong>Legacy host.</strong> The active Rust/Iced Doppio does not load C++ plugins.
+  These pages document the C++/ImGui plugin SDK and its host in
+  <code>caffeine-runtime</code> / <code>doppio-archived</code>. The engine still builds
+  every plugin from the submodule so the SDK stays compile-tested.</p>
+</div>
+
+
 This page documents the move from in-tree Doppio plugins to the standalone
 `doppio-plugins` repository and the opt-in loader.
 

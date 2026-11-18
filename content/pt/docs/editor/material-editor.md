@@ -1,62 +1,107 @@
-# Material Editor
+# Editor de materiais
 
-> **Painel:** Doppio → Material Editor  
-> **Core:** `Assets::MaterialSurface`, `MaterialFile` (`.mat`), `MaterialCache`, `Render::MaterialPreviewRenderer`  
-> **Shader:** `scene_lit.frag` / `terrain_lit.frag`
+<div class="doc-meta">
+  <span class="doc-badge doc-badge--stable">Stable</span>
+  <span class="doc-badge">Doppio</span>
+  <span class="doc-badge">Engine</span>
+  <span>Verificado em: <time datetime="2026-11-18">2026-11-18</time></span>
+  <span>Fonte: <a href="https://github.com/devscafecommunity/caffeine/blob/main/doppio/crates/ui/src/uikit/panels/material.rs"><code>panels/material.rs</code></a></span>
+</div>
 
-O editor de materiais vive no **core** da engine. O Doppio só abre o painel, publica alterações no `MaterialCache` e mostra a textura GPU devolvida pelo preview renderer.
+<p class="doc-lede">O separador Material edita assets PBR <code>.mat</code> no editor
+Rust, enquanto o motor detém o modelo de material, o renderer de pré-visualização e o
+formato <code>CAFMAT3</code>.</p>
 
----
+<figure class="doc-figure">
+  <img src="../images/editor/material-panel.png" alt="Separador Material com secções de superfície, mapas, UV, avançado e baker" loading="lazy">
+  <figcaption>O separador Material. Os valores são publicados imediatamente na cache de materiais do motor; o renderer usa a mesma superfície para o viewport e para a esfera de pré-visualização.</figcaption>
+</figure>
+
+## Onde vive
+
+<table class="doc-table">
+  <thead>
+    <tr><th>Parte</th><th>Dono</th><th>Localização</th></tr>
+  </thead>
+  <tbody>
+    <tr><td>Painel Material (UI Rust)</td><td>Doppio</td><td><code>uikit/panels/material.rs</code></td></tr>
+    <tr><td>Modelo e formato de material</td><td>Motor</td><td><code>src/caffeine/assets/MaterialTypes.hpp</code>, <code>MaterialFile.cpp</code></td></tr>
+    <tr><td>Pré-visualização offscreen</td><td>Motor</td><td><code>src/caffeine/render/MaterialPreviewRenderer.cpp</code></td></tr>
+    <tr><td>Shader PBR</td><td>Motor</td><td><code>scene_lit.frag</code> / <code>terrain_lit.frag</code></td></tr>
+  </tbody>
+</table>
+
+O `MaterialEditorPanel.cpp` C++ arquivado não é o editor atual. O Doppio lê e escreve
+materiais através da C ABI, e o painel é uma vista Rust pura sobre
+`doppio_engine::Material`.
 
 ## Fluxo de dados
 
-1. Abrir ou criar um `.mat` (`CAFMAT2`).
-2. Sliders e combos alteram `MaterialSurface` em memória.
-3. `publishLive()` grava no `MaterialCache` com a chave do ficheiro (ou `__caffeine_material_preview__.mat` durante edição).
-4. O viewport e o preview leem a revisão do cache; o carimbo da cena (`EditorPanelUtils`) inclui bytes do material para redesenhar sem mover a câmara.
-5. **File → Save** serializa `CAFMAT2` no disco.
+1. Abra ou crie um `.mat` (o ficheiro começa por `CAFMAT3`; `CAFMAT1` e `CAFMAT2` continuam a ser carregados).
+2. Uma edição de campo atualiza `MaterialSurface` em memória. A crate do motor
+   envolve `caffeine_material_save`, `caffeine_session_apply_material` e o par
+   assíncrono `caffeine_session_render_material_preview_begin` / `..._poll`.
+3. O motor atualiza a cache de materiais e pede um novo frame ao renderer de
+   pré-visualização; o viewport lê a mesma superfície.
+4. O renderer desenha uma esfera num pequeno chão com luz direcional e o céu da cena,
+   usando HDR, a stack de post-processing e probes de reflexão.
+5. **Save** escreve `CAFMAT3` em disco; o material fica disponível no asset browser e
+   nas cenas.
 
-Browse de texturas usa `Widgets::AssetField` + `BrowseSession` (mesmo fluxo que o Asset Browser).
-
----
+<div class="doc-callout doc-callout--note">
+  <p><strong>Nota.</strong> O albedo é guardado em sRGB como escolhido no editor. O
+  renderer lineariza no shader; não pré-linearize valores num script.</p>
+</div>
 
 ## Secções do painel
 
 | Secção | Campos |
-|--------|--------|
-| **Preset** | Lista agrupada por categoria (`MaterialPresets.hpp`: Mirror, Chrome, Gold, Clear Glass, …) |
-| **Surface** | Albedo (RGBA), metallic, roughness, reflectance |
-| **Maps & UV** | Albedo / normal / ORM / emission maps; normal strength; AO strength; UV tiling & offset |
-| **Transparency** | Alpha mode (Opaque / Cutout / Blend), cutoff, transmission, IOR |
-| **Clear coat** | Clearcoat, coat roughness |
-| **Sheen** | Cor, roughness (tecido/veludo) |
-| **Iridescence** | Força, espessura do filme (nm), IOR do filme |
-| **Emission** | Cor, strength, mapa de emissão |
+|---|---|
+| **Surface** | Albedo (RGBA), metallic, roughness, reflectance, cor e intensidade da emissão. |
+| **Maps** | Slots de albedo, normal, ORM e emissão com asset pickers, normal strength, AO strength e convenção DirectX da normal. |
+| **UV** | Tiling, offset e UVs com escala de objeto (um mesh a 2× mantém a densidade da textura). |
+| **Advanced** | Alpha mode e cutoff, transmission e IOR, clearcoat e roughness, cor e roughness do sheen, força/espessura/IOR da iridescência, controlos de reflexão e parallax/displacement. |
+| **Baker** | Bakes normal/AO/roughness/metallic/ORM, packings Unity, resolução e força. |
 
-Albedo no editor é **sRGB**; o renderer lineariza na GPU.
+A altura é lida do canal alpha do normal map. `heightScale` ativa parallax occlusion;
+`displacementMode = 1` passa a displacement geométrico com subdivisão do mesh, para a
+silhueta mudar e o relevo projetar sombras reais.
 
----
+## Pré-visualização
 
-## Pré-visualização GPU
+A esfera usa o mesmo shader `scene_lit` do viewport. Os controlos do painel escolhem a
+forma, o ambiente, a exposição, a geração de luz e o yaw/elevação/intensidade do sol.
+TAA, probes e auto-exposure pedem frames extra até a imagem convergir.
 
-`MaterialPreviewRenderer` monta um `World` mínimo (esfera + chão opcional, luz direcional, céu da cena ativa) e chama `GpuSceneRenderer` com:
+<figure class="doc-figure">
+  <img src="../images/editor/generator-red-brick.png" alt="Material Generator a fazer bake de um material de tijolo vermelho para o material aberto" loading="lazy">
+  <figcaption>O Material Generator pode construir um material a partir de um grafo e
+  fazer bake para o <code>.mat</code> aberto.</figcaption>
+</figure>
 
-- HDR + stack de pós-processamento (TAA por defeito)
-- **Reflection probes** (até 1 probe, resolução 32–256)
-- Mesmo `scene_lit` que o viewport
+## Material Generator
 
-Controles **Orbit**, **Height** e **Floor** no painel. O renderer pede frames extra enquanto `needsAnotherFrame()` (TAA, probes, auto-exposure).
+O separador **Material Generator** partilha o painel central com o viewport. É um grafo
+de nós sobre imagens, ruído, padrões, filtros, blends e saídas, com pré-visualização ao
+vivo, vistas de canal (base, normal, height, roughness, AO, emissive, opacity, metal) e
+channel packing para ORM e layouts Unity. **Bake to Material** escreve os mapas
+selecionados no material aberto.
 
-Ver [`../rendering/materials-pbr.md`](../rendering/materials-pbr.md) e [`../rendering/reflections.md`](../rendering/reflections.md).
+Veja o [material pipeline](https://github.com/devscafecommunity/caffeine/blob/main/doppio/docs/material-pipeline.md)
+e o [guia de materiais](https://github.com/devscafecommunity/caffeine/blob/main/doppio/docs/materials-guide.md).
 
----
-
-## Ficheiros
+## Formato de ficheiro
 
 | Ficheiro | Função |
-|----------|--------|
-| `src/assets/MaterialTypes.hpp` | `MaterialSurface`, `MaterialAlphaMode` |
-| `src/assets/MaterialFile.cpp` | Leitura/escrita `CAFMAT2`, `sanitizeMaterialSurface` |
-| `src/assets/MaterialPresets.hpp` | Presets nomeados |
-| `src/render/MaterialPreviewRenderer.cpp` | Preview offscreen |
-| `src/editor/MaterialEditorPanel.cpp` | UI ImGui |
+|---|---|
+| `MaterialTypes.hpp` | `MaterialSurface`, `MaterialAlphaMode`, defaults e validação. |
+| `MaterialFile.cpp` | Leitura/escrita `CAFMAT3` e `sanitizeMaterialSurface`. |
+| `MaterialPresets.hpp` | Presets nomeados (mirror, chrome, gold, glass…). |
+| `MaterialPreviewRenderer.cpp` | Mundo de preview offscreen, luzes e readback. |
+
+## Páginas relacionadas
+
+- [Materiais PBR](../rendering/materials-pbr.md)
+- [Reflexos](../rendering/reflections.md)
+- [Material pipeline](https://github.com/devscafecommunity/caffeine/blob/main/doppio/docs/material-pipeline.md)
+- [Guia do Texture Generator](https://github.com/devscafecommunity/caffeine/blob/main/doppio/docs/texture-generator-guide.md)

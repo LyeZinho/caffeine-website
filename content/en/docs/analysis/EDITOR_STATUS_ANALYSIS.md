@@ -1,5 +1,10 @@
 # Doppio Editor — Component Status Analysis
 
+<div class="doc-meta">
+  <span class="doc-badge doc-badge--historical">Historical</span>
+  <span>Last updated: <time datetime="2026-11-18">2026-11-18</time></span>
+</div>
+
 **Date**: 2026-05-16 
 **Analyzer**: Sisyphus
 **Status**: Complete investigation with actionable findings
@@ -355,7 +360,7 @@ No project initiation UI
 
 ## File Locations Quick Reference
 
-- `src/editor/`
+- `doppio-archived/src/doppio/editor/`
   - `AssetBrowser.{hpp,cpp} ✅ Complete`
   - `SceneEditor.{hpp,cpp} ⚠️ Missing startup`
   - `ProjectManager.{hpp,cpp} ⚠️ Code OK, no UI`

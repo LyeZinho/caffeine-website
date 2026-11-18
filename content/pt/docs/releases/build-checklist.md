@@ -1,5 +1,15 @@
 # ✅ Caffeine Engine - Build Checklist
 
+<div class="doc-meta">
+  <span class="doc-badge doc-badge--historical">Historical</span>
+  <span>Session record: 2026-05-21</span>
+  <span>Last updated: <time datetime="2026-11-18">2026-11-18</time></span>
+</div>
+
+<p class="doc-lede">Registo de uma sessão de build de maio de 2026, quando o editor era
+o Doppio C++/ImGui. Fica como contexto; os builds, binários e o editor atuais são
+diferentes.</p>
+
 **Data:** 21 de Maio de 2026  
 **Status:** 🟢 **CONCLUÍDO COM SUCESSO**
 

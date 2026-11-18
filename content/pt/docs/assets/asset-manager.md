@@ -1,10 +1,16 @@
 # 📦 Asset Manager
 
-> **Fase:** 3 — O Olho da Engine  
-> **Namespace:** `Caffeine::Assets`  
-> **Arquivos:** `src/assets/AssetManager.hpp`, `src/assets/AssetManager.cpp`, `src/assets/AssetHandle.hpp`, `src/assets/AssetTypes.hpp`  
-> **Status:** ✅ Implementado  
-> **RFs:** RF3.8, RF3.9
+<div class="doc-meta">
+  <span class="doc-badge doc-badge--stable">Stable</span>
+  <span><strong>Namespace:</strong> `Caffeine::Assets`</span>
+  <span><strong>Arquivos:</strong> `src/caffeine/assets/AssetManager.hpp`, `AssetManager.cpp`, `AssetHandle.hpp`, `AssetTypes.hpp`</span>
+  <span>Last verified: <time datetime="2026-11-18">2026-11-18</time></span>
+  <span>Source: <a href="https://github.com/devscafecommunity/caffeine/blob/main/src/caffeine/assets/AssetManager.hpp"><code>assets/AssetManager.hpp</code></a></span>
+</div>
+
+<p class="doc-lede">A cache de runtime para texturas, áudio, shaders, meshes e prefabs:
+carregamento <code>.caf</code> zero-copy, jobs assíncronos, handles com refcount, evicção LRU e
+hot-reload em debug.</p>
 
 ---
 
@@ -80,6 +86,20 @@ struct ShaderBlob {
     u32       stage;          // 0=vertex, 1=fragment, 2=compute
     const u8* bytecode;
     u64       bytecodeSize;
+};
+
+struct Mesh {
+    const Vertex3D* vertices;
+    u32             vertexCount;
+    const u32*      indices;
+    u32             indexCount;
+    u64             vertexDataSize;
+    u64             indexDataSize;
+};
+
+struct Prefab {
+    const u8* payloadData;
+    u64       payloadSize;
 };
 
 // ============================================================================
@@ -159,6 +179,10 @@ public:
     // ── Frame tick ─────────────────────────────────────────────
     void tick(u64 frameIndex = 0); // atualiza frame index + hot-reload + LRU
 
+    // Recarrega do disco um asset já carregado, pelo caminho .caf. Devolve o id
+    // do asset, ou ~0u se não estiver em cache. Thread-safe.
+    u32 reloadAsset(const char* path);
+
 private:
     // incRef / decRef / getStatus — usados por AssetHandle
     void       incRef(u32 id);
@@ -188,7 +212,7 @@ Cada asset carregado é representado por um `AssetEntry`:
   - `header            : const CafHeader*`
   - `metadata          : const void*      (TextureMetadata, AudioMetadata, etc.)`
   - `payload           : const void*      (pixels brutos, PCM, bytecode)`
-  - `resolved          : ResolvedData { Texture, AudioClip, ShaderBlob }`
+  - `resolved          : ResolvedData { Texture, AudioClip, ShaderBlob, Mesh, Prefab }`
   - `refCount          : std::atomic<u32>`
   - `generation        : u16 (incrementada em invalidateEntry, não em hot-reload)`
   - `sizeBytes         : u64`
@@ -337,7 +361,7 @@ const Texture* atlas = uiAtlas.get();  // pronto imediatamente
 - [x] `cacheStats()` retorna contagem por tipo, bytes totais, hit rate
 - [x] Hot-reload em debug builds via `tick()` → `checkHotReload()`
 - [x] Zero-copy: `BlobLoader` → `LinearAllocator` → resolved fields
-- [x] Tipos suportados: Texture, AudioClip, ShaderBlob
+- [x] Tipos suportados: Texture, AudioClip, ShaderBlob, Mesh, Prefab
 
 ---
 

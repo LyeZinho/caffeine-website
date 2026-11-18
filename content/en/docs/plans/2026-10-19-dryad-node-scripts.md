@@ -1,5 +1,10 @@
 # Dryad and node scripts
 
+<div class="doc-meta">
+  <span class="doc-badge doc-badge--historical">Historical</span>
+  <span>Last updated: <time datetime="2026-11-18">2026-11-18</time></span>
+</div>
+
 **Date:** 2026-10-19  
 **Namespace:** `Caffeine::Script`  
 **Language:** Dryad, in the separate `source/` repository, file extension `.dyd`  
@@ -81,13 +86,13 @@ Dryad commit `1e0eef2`:
 
 ### 1. Minimal host — done
 
-`src/script/DryadHost.hpp` loads the `.dyd` and calls the hooks. `ScriptSystem` splits `.lua` from `.dyd`. Tests: `onUpdate` writes `Transform` on 2D entities and `Position3D` on 3D entities.
+`src/caffeine/script/DryadHost.hpp` loads the `.dyd` and calls the hooks. `ScriptSystem` splits `.lua` from `.dyd`. Tests: `onUpdate` writes `Transform` on 2D entities and `Position3D` on 3D entities.
 
 Path resolution and hot reload are done. Still open: input bindings.
 
 ### 2. Emitter, no UI — done
 
-`src/script/nodes/NodeGraph.hpp` holds the in-memory graph (`nodes`, `edges`, canvas `x`/`y`). `NodeEmitter::emit` returns deterministic `.dyd` text and `.node.json`; `writeSiblingFiles` writes both next to the script path.
+`src/caffeine/script/nodes/NodeGraph.hpp` holds the in-memory graph (`nodes`, `edges`, canvas `x`/`y`). `NodeEmitter::emit` returns deterministic `.dyd` text and `.node.json`; `writeSiblingFiles` writes both next to the script path.
 
 Catalog (pin names in edges use `nodeId.pin`):
 

@@ -1,5 +1,12 @@
 # Lua runtime APIs (core)
 
+<div class="doc-meta">
+  <span class="doc-badge doc-badge--reference">Reference</span>
+  <span>Last updated: <time datetime="2026-11-18">2026-11-18</time></span>
+</div>
+
+<p class="doc-lede">The caffeine Lua table: lifecycle, time, picking, 2D drawing, UI, assets, events, map, native, post-process and materials.</p>
+
 > **VM:** `Script::ScriptEngine` (sol2) 
 > **Systems:** `ScriptSystem` (play mode)
 

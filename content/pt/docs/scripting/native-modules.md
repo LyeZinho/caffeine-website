@@ -1,5 +1,12 @@
 # Runtime native modules
 
+<div class="doc-meta">
+  <span class="doc-badge doc-badge--reference">Reference</span>
+  <span>Last updated: <time datetime="2026-11-18">2026-11-18</time></span>
+</div>
+
+<p class="doc-lede">Carregue módulos nativos pela C ABI estável e exponha-os a Lua e Dryad.</p>
+
 Caffeine can load **game simulation** libraries at play time. This is separate from **Doppio editor plugins** (`PluginAPI.hpp`).
 
 ## Layout

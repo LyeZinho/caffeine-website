@@ -1,5 +1,10 @@
 # Play Mode + Physics + Scripting + Tileset Implementation Plan
 
+<div class="doc-meta">
+  <span class="doc-badge doc-badge--historical">Historical</span>
+  <span>Last updated: <time datetime="2026-11-18">2026-11-18</time></span>
+</div>
+
 > **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
 
 **Goal:** Wire the already-implemented PhysicsSystem2D and ScriptEngine/Lua into the SceneEditor via a Play Mode, and add texture-based tileset loading to TilemapEditorPanel.
@@ -56,8 +61,8 @@ git commit -m "feat: enable Lua scripting by default for editor build"
 ## Task 2: Add Play Mode state + entity snapshot to SceneEditor
 
 **Files:**
-- Modify: `src/editor/SceneEditor.hpp`
-- Modify: `src/editor/SceneEditor.cpp`
+- Modify: `doppio-archived/src/doppio/editor/SceneEditor.hpp`
+- Modify: `doppio-archived/src/doppio/editor/SceneEditor.cpp`
 
 **Context:** We need three new state flags and an entity snapshot mechanism. The snapshot saves the `Position2D` , `Velocity2D` , and `Rotation` of all entities before play, and restors on stop. This matches Unity's behavior — edits in play mode are discarded.
 
@@ -119,7 +124,7 @@ git commit -m "feat(editor): add play mode state and system members to SceneEdit
 ## Task 3: Implement Play Mode logic in SceneEditor.cpp
 
 **Files:**
-- Modify: `src/editor/SceneEditor.cpp`
+- Modify: `doppio-archived/src/doppio/editor/SceneEditor.cpp`
 
 **Context:** `render(f32 deltaTime)` is called every frame. When playing, we tick physics and scripting here. `enterPlayMode` snapshots entity positions; `exitPlayMode` restores them.
 
@@ -257,8 +262,8 @@ git commit -m "feat(editor): implement play/pause/stop mode with entity snapshot
 ## Task 4: Physics Debug Overlay in SceneViewport
 
 **Files:**
-- Modify: `src/editor/SceneViewport.hpp`
-- Modify: `src/editor/SceneViewport.cpp`
+- Modify: `doppio-archived/src/doppio/editor/SceneViewport.hpp`
+- Modify: `doppio-archived/src/doppio/editor/SceneViewport.cpp`
 
 **Context:** `drawSprites` already has access to `ImDrawList*` via `ImGui::GetWindowDrawList()` . We add `drawPhysicsDebug` that draws collider outlines: green for static, cyan for dynamic, yellow for kinematic, red for triggers.
 
@@ -342,14 +347,14 @@ git commit -m "feat(editor): add physics collider debug overlay to scene viewpor
 ## Task 5: ScriptComponent Inspector drawer (script path + Load)
 
 **Files:**
-- Modify: `src/editor/InspectorPanel.cpp`
-- Modify: `src/editor/SceneEditor.cpp` (wire ScriptEngine to drawer)
+- Modify: `doppio-archived/src/doppio/editor/InspectorPanel.cpp`
+- Modify: `doppio-archived/src/doppio/editor/SceneEditor.cpp` (wire ScriptEngine to drawer)
 
 **Context:** `drawScript` already exists but is likely a stub. We need it to show the script path (editable text), a "Load" button, and error feedback. The drawer needs access to the `ScriptEngine` — pass it via the lambda capture when recording.
 
 **Step 1: Check current `drawScript` implementation**
 
-Read `src/editor/InspectorPanel.cpp` around line 274 to see the current stub.
+Read `doppio-archived/src/doppio/editor/InspectorPanel.cpp` around line 274 to see the current stub.
 
 **Step 2: Replace `drawScript` stub**
 
@@ -395,7 +400,7 @@ void InspectorPanel::drawScript(ECS::World& world, ECS::Entity e, EditorContext&
 
 **Step 3: Add `scriptEngine` to `EditorContext` **
 
-In `src/editor/EditorContext.hpp` , add:
+In `src/caffeine/scene/EditorContext.hpp` , add:
 ```cpp
 #ifdef CF_HAS_SCRIPTING
 #include "script/ScriptEngine.hpp"
@@ -422,15 +427,15 @@ git commit -m "feat(editor): add script component inspector drawer with path and
 ## Task 6: Tileset Asset loading
 
 **Files:**
-- Create: `src/editor/TilesetAsset.hpp`
-- Modify: `src/editor/TilemapEditor.hpp`
-- Modify: `src/editor/TilemapEditor.cpp`
+- Create: `doppio-archived/src/doppio/editor/TilesetAsset.hpp`
+- Modify: `doppio-archived/src/doppio/editor/TilemapEditor.hpp`
+- Modify: `doppio-archived/src/doppio/editor/TilemapEditor.cpp`
 
 **Context:** The current palette in `renderPalette()` shows numbers 0–63. We replace it with a property tilet: load a PNG, divide it into NxM tiles by pixel dimensions, and display each tile as an `ImGui::Image` button. We use SDL3's `SDL_LoadBMP` / `SDL_CreateTexture` or the existing `AssetManager` if available.
 
 **Step 1: Create TilesetAsset.hpp**
 
-Create `src/editor/TilesetAsset.hpp` :
+Create `doppio-archived/src/doppio/editor/TilesetAsset.hpp` :
 ```cpp
 #pragma once
 #include "core/Types.hpp"
@@ -619,7 +624,7 @@ git commit -m "feat(editor): add tileset asset loading with texture-based tile p
 ## Task 7: Wire tileset loader to SceneEditor (renderer access)
 
 **Files:**
-- Modify: `src/editor/SceneEditor.cpp` (init section)
+- Modify: `doppio-archived/src/doppio/editor/SceneEditor.cpp` (init section)
 
 **Context:** `loadTileset` needs an SDL_Renderer pointer. The `RenderDevice` holds the renderer. We expose a "Load Tileset" button in the Tilemap Editor toolbar that calls `m_tilemapEditor.loadTileset(path, renderer)` .
 

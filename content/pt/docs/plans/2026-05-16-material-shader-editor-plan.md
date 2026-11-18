@@ -1,5 +1,10 @@
 # Material & Shader Editor Implementation Plan
 
+<div class="doc-meta">
+  <span class="doc-badge doc-badge--historical">Historical</span>
+  <span>Last updated: <time datetime="2026-11-18">2026-11-18</time></span>
+</div>
+
 > **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
 
 **Goal:** Implement a Material & Shader Editor with ImNodes visual graph, text code editor, and real-time RHI preview for the Caffeine Studio IDE.
@@ -16,7 +21,7 @@
 
 **Files:**
 - Modify: `CMakeLists.txt` (add FetchContent for ImNodes near ImGui section)
-- Modify: `src/editor/ImGuiIntegration.hpp` (include imnodes.h)
+- Modify: `doppio-archived/src/doppio/editor/ImGuiIntegration.hpp` (include imnodes.h)
 
 **Step 1: Add ImNodes to CMakeLists.txt**
 
@@ -62,8 +67,8 @@ git commit -m "build: add ImNodes node graph dependency"
 ### Task 2: Create ShaderNode base and derived node classes
 
 **Files:**
-- Create: `src/editor/ShaderNode.hpp`
-- Create: `src/editor/ShaderNode.cpp`
+- Create: `doppio-archived/src/doppio/editor/ShaderNode.hpp`
+- Create: `doppio-archived/src/doppio/editor/ShaderNode.cpp`
 
 **Step 1: Write ShaderNode.hpp**
 
@@ -421,8 +426,8 @@ git commit -m "feat(editor): add ShaderNode hierarchy with code generation"
 ### Task 3: Implement ShaderGraph (graph management + compilation)
 
 **Files:**
-- Create: `src/editor/ShaderGraph.hpp`
-- Create: `src/editor/ShaderGraph.cpp`
+- Create: `doppio-archived/src/doppio/editor/ShaderGraph.hpp`
+- Create: `doppio-archived/src/doppio/editor/ShaderGraph.cpp`
 
 **Step 1: Write ShaderGraph.hpp**
 
@@ -680,11 +685,11 @@ git commit -m "feat(editor): add ShaderGraph with GLSL code generation"
 ### Task 4: Create MaterialEditorPanel (ImNodes integration)
 
 **Files:**
-- Create: `src/editor/MaterialEditorPanel.hpp`
-- Create: `src/editor/MaterialEditorPanel.cpp`
+- Create: `doppio-archived/src/doppio/editor/MaterialEditorPanel.hpp`
+- Create: `doppio-archived/src/doppio/editor/MaterialEditorPanel.cpp`
 - Modify: `CMakeLists.txt` (add new source files to doppio target)
-- Modify: `src/editor/SceneEditor.hpp` (include and member)
-- Modify: `src/editor/SceneEditor.cpp` (render + init)
+- Modify: `doppio-archived/src/doppio/editor/SceneEditor.hpp` (include and member)
+- Modify: `doppio-archived/src/doppio/editor/SceneEditor.cpp` (render + init)
 
 **Step 1: Write MaterialEditorPanel.hpp**
 
@@ -1109,7 +1114,7 @@ git commit -m "feat(editor): add Material Editor panel with ImNodes graph"
 ### Task 5: Connect RHI preview
 
 **Files:**
-- Modify: `src/editor/MaterialEditorPanel.cpp`
+- Modify: `doppio-archived/src/doppio/editor/MaterialEditorPanel.cpp`
 - Create: `src/editor/PreviewRenderer.hpp`
 - Create: `src/editor/PreviewRenderer.cpp`
 
@@ -1339,7 +1344,7 @@ git commit -m "build: add shader editor source files to test build"
 ### Task 7: Integration and edge case handling
 
 **Files:**
-- Modify: `src/editor/MaterialEditorPanel.cpp`
+- Modify: `doppio-archived/src/doppio/editor/MaterialEditorPanel.cpp`
 
 **Step 1: Handle edge cases**
 

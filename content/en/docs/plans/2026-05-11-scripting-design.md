@@ -1,5 +1,10 @@
 # Scripting Module — Design Document
 
+<div class="doc-meta">
+  <span class="doc-badge doc-badge--historical">Historical</span>
+  <span>Last updated: <time datetime="2026-11-18">2026-11-18</time></span>
+</div>
+
 > **Issue:** #44 — Scripting
 > **Phase:**6 — The Olympus
 > **Namespace:** `Caffeine::Script` 
@@ -28,7 +33,7 @@ ever appears in a public header.
 
 ## File Structure
 
-- `src/script/`
+- `src/caffeine/script`
   - `ScriptEngine.hpp # Public API — NO sol2/Lua types visible`
   - `ScriptEngine.cpp # Lua 5.4 + sol2 implementation + binding registration`
   - `ScriptTypes.hpp # ScriptComponent (ECS component)`

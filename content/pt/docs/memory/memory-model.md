@@ -1,9 +1,20 @@
 # 🧠 Memory Model — Especificação de Allocators
 
-> ⚠️ **Status:** Revisado contra o código em 2026-09-21.  
-> Seções A–B.1–B.3 e F descrevem código real (`src/memory/`).  
+<div class="doc-meta">
+  <span class="doc-badge doc-badge--reference">Reference</span>
+  <span class="doc-badge">Engine</span>
+  <span>Last verified: <time datetime="2026-11-18">2026-11-18</time></span>
+  <span>Source: <a href="https://github.com/devscafecommunity/caffeine/tree/main/src/caffeine/memory"><code>src/caffeine/memory</code></a></span>
+</div>
+
+<p class="doc-lede">A política de memória por trás dos allocators personalizados
+da engine: o que está implementado hoje, que sistemas injetam allocators e que
+peças continuam a ser intenção de design.</p>
+
+> ⚠️ **Status:** Revisto contra o código em 2026-11-18.
+> Seções A–B.1–B.3 e F descrevem código real (`src/caffeine/memory`).
 > **ProxyAllocator (§B.4) e AllocatorRegistry (§C) NÃO existem no código** —
-> estão marcados como planejados.  
+> estão marcados como planejados.
 > Para contexto completo, consulte [`../MASTER.md`](../MASTER.md) e
 > [`../architecture_specs.md`](../architecture_specs.md).
 
@@ -20,8 +31,8 @@ Este documento contém as **especificações técnicas detalhadas** dos sistemas
 | **Pool Allocator** | 1 | ✅ Completo | Blocos de tamanho fixo |
 | **Stack Allocator** | 1 | ✅ Completo | Escopos aninhados |
 | **Proxy Allocator** | 1 | 📅 Planejado | Wrappers com logging/debug |
-| **TLSF Allocator** | TBD | 💡 Ideia | Fallback para alocações gerais |
-| **Buddy Allocator** | TBD | 💡 Ideia | Para o sistema de levels |
+| **TLSF Allocator** | Planned | 💡 Ideia | Fallback para alocações gerais |
+| **Buddy Allocator** | Planned | 💡 Ideia | Para o sistema de levels |
 
 ---
 
@@ -54,7 +65,7 @@ flowchart TB
             P3["🔹 Shader bytecode"]
             P4["🏗️ ECS archetype storage"]
         end
-        
+
         subgraph POOL["🎯 POOL<br/><small>(tamanho fixo, rápido)</small>"]
             PL1["🔊 Audio voices/emitters"]
             PL2["🎨 UI widgets"]
@@ -62,7 +73,7 @@ flowchart TB
             PL4["✨ Particle instances"]
             PL5["🔉 Active audio buffers"]
         end
-        
+
         subgraph LIN["⚡ LINEAR / FRAME<br/><small>(reset a cada frame)</small>"]
             L1["💥 Contact manifolds<br/><small>physics</small>"]
             L2["🖼️ Debug draw primitives"]
@@ -70,7 +81,7 @@ flowchart TB
             L4["🔄 Temporary transforms"]
             L5["📋 Render command scratch"]
         end
-        
+
         subgraph STK["📚 STACK<br/><small>(escopo aninhado)</small>"]
             S1["🔓 Level load/unload"]
             S2["🔄 Scene transitions"]
@@ -78,44 +89,44 @@ flowchart TB
             S4["📊 Profiler markers"]
         end
     end
-    
+
     style PERS fill:#2d5016,stroke:#4a9,color:#fff,stroke-width:2px
     style POOL fill:#1a3a5c,stroke:#4af,color:#fff,stroke-width:2px
     style LIN fill:#5c2d1a,stroke:#fa4,color:#fff,stroke-width:2px
     style STK fill:#3a2d5c,stroke:#a4f,color:#fff,stroke-width:2px
     style MEM fill:#1a1a2e,stroke:#888,color:#fff
-    
+
     style P1 fill:#3d6b26,stroke:#6d9,color:#fff
     style P2 fill:#3d6b26,stroke:#6d9,color:#fff
     style P3 fill:#3d6b26,stroke:#6d9,color:#fff
     style P4 fill:#3d6b26,stroke:#6d9,color:#fff
-    
+
     style PL1 fill:#2d5a7f,stroke:#6df,color:#fff
     style PL2 fill:#2d5a7f,stroke:#6df,color:#fff
     style PL3 fill:#2d5a7f,stroke:#6df,color:#fff
     style PL4 fill:#2d5a7f,stroke:#6df,color:#fff
     style PL5 fill:#2d5a7f,stroke:#6df,color:#fff
-    
+
     style L1 fill:#7a4a2d,stroke:#d96,color:#fff
     style L2 fill:#7a4a2d,stroke:#d96,color:#fff
     style L3 fill:#7a4a2d,stroke:#d96,color:#fff
     style L4 fill:#7a4a2d,stroke:#d96,color:#fff
     style L5 fill:#7a4a2d,stroke:#d96,color:#fff
-    
+
     style S1 fill:#5a4a7f,stroke:#b8d,color:#fff
     style S2 fill:#5a4a7f,stroke:#b8d,color:#fff
     style S3 fill:#5a4a7f,stroke:#b8d,color:#fff
     style S4 fill:#5a4a7f,stroke:#b8d,color:#fff
 ```
 
-### A.2b Uso real verificado (código, 2026-09-21)
+### A.2b Uso real verificado (código, 2026-11-18)
 
 | Sistema | Uso real | Arquivo |
 |---|---|---|
-| **ECS** | `World`, `Archetype`/`ComponentPool`, `CommandBuffer` aceitam `IAllocator*` (opcional, pode ser `nullptr`) | `src/ecs/World.hpp`, `Archetype.hpp`, `CommandBuffer.hpp` |
-| **Assets** | `AssetManager` possui `LinearAllocator` próprio (arena por asset) | `src/assets/AssetManager.hpp` |
-| **IO** | `BlobLoader::load(path, IAllocator*)` carrega binários no allocator dado | `src/core/io/BlobLoader.hpp` |
-| **Containers** | `Vector<T>` aceita `IAllocator*`; sem allocator usa `new`/`delete` global | `src/containers/Vector.hpp` |
+| **ECS** | `World`, `Archetype`/`ComponentPool`, `CommandBuffer` aceitam `IAllocator*` (opcional, pode ser `nullptr`) | `src/caffeine/ecs/World.hpp`, `Archetype.hpp`, `CommandBuffer.hpp` |
+| **Assets** | `AssetManager` possui `LinearAllocator` próprio (arena por asset) | `src/caffeine/assets/AssetManager.hpp` |
+| **IO** | `BlobLoader::load(path, IAllocator*)` carrega binários no allocator dado | `src/caffeine/core/io/BlobLoader.hpp` |
+| **Containers** | `Vector<T>` aceita `IAllocator*`; sem allocator usa `new`/`delete` global | `src/caffeine/containers/Vector.hpp` |
 | **Testes/bench** | `tests/test_allocators.cpp`, `BENCHMARK`s em `tests/benchmarks.cpp` | `tests/` |
 
 Physics, EventBus, Render, JobSystem, Audio, UI e Debug **não** usam estes
@@ -553,7 +564,7 @@ private:
 ## 4. Proxy Allocator
 
 > ❌ **NÃO IMPLEMENTADO** — seção de especificação futura. Não existe
-> `ProxyAllocator` em `src/memory/` (apenas `Allocator`, `Linear`, `Pool`,
+> `ProxyAllocator` em `src/caffeine/memory` (apenas `Allocator`, `Linear`, `Pool`,
 > `Stack`). Mantido aqui como intenção de design.
 
 **Fase:** 1 (planejado)
@@ -608,46 +619,46 @@ flowchart TB
             GL1["Game Loop → Linear frame<br/>Event Bus → Linear frame"]
             GL2["Job System → Linear scratch<br/>Job System → Stack task scope"]
         end
-        
+
         subgraph INPUT["⌨️ Input & Events"]
             IN1["Input Manager → Pool<br/>Event Bus → Linear listener"]
         end
-        
+
         subgraph ECS["🏗️ ECS World"]
             ECS1["ECS World → Pool<br/>ECS World → Persistent archetype"]
         end
-        
+
         subgraph PHYS["⚙️ Physics & Collision"]
             PHYS1["Physics 2D → Linear frame<br/>Physics 2D → Pool proxies"]
         end
-        
+
         subgraph ASSET["📦 Asset & Rendering"]
             ASSET1["Asset Manager → Persistent registry<br/>Asset Manager → Linear load"]
             ASSET2["Render/RHI → Linear frame<br/>Batch Renderer → Linear frame"]
         end
-        
+
         subgraph AUDIO["🔊 Audio & Animation"]
             AUDIO1["Audio System → Pool instances<br/>Audio System → Persistent clips"]
             AUDIO2["Animation System → Pool instances"]
         end
-        
+
         subgraph UI["🎨 UI & Debug"]
             UI1["UI System → Pool widgets<br/>UI System → Persistent styles"]
             UI2["Debug Draw → Linear frame"]
         end
-        
+
         subgraph SCENE["🎭 Scene & Camera"]
             SCENE1["Scene Manager → Stack level<br/>Scene Manager → Persistent metadata"]
             SCENE2["Camera System → Linear frame"]
         end
-        
+
         subgraph SERIAL["💾 Profiler & Serializer"]
             SERIAL1["Debug Profiler → Stack markers<br/>Serializer → Linear frame"]
         end
     end
-    
+
     style SYSMAP fill:#1a1a2e,stroke:#888,color:#fff
-    
+
     style GL fill:#2d5016,stroke:#4a9,color:#fff,stroke-width:2px
     style INPUT fill:#1a3a5c,stroke:#4af,color:#fff,stroke-width:2px
     style ECS fill:#5c2d1a,stroke:#fa4,color:#fff,stroke-width:2px

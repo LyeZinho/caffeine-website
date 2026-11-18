@@ -1,30 +1,40 @@
 # Core Module
 
-> Documentation for Caffeine Engine Core module - Phase 1: Atomic Foundation
+<div class="doc-meta">
+  <span class="doc-badge doc-badge--reference">Reference</span>
+  <span class="doc-badge">Engine</span>
+  <span>Last verified: <time datetime="2026-11-18">2026-11-18</time></span>
+  <span>Source: <a href="https://github.com/devscafecommunity/caffeine/tree/main/src/caffeine/core"><code>src/caffeine/core</code></a></span>
+</div>
+
+<p class="doc-lede">The Core module defines the fixed-width types, platform and
+compiler detection, assertions and world-unit conventions that every other
+Caffeine module builds on.</p>
 
 ## Overview
 
 The Core module provides fundamental types, platform abstractions, and compiler detection. All other modules depend on Core.
 
-**Location:** `src/core/`
+**Location:** `src/caffeine/core`
 
 ## Files
 
 | File | Description | Status |
 |------|-------------|--------|
-| [`Types.hpp`](../../src/core/Types.hpp) | Fixed-width integer/float/char types, limit constants | ✅ Complete |
-| [`Platform.hpp`](../../src/core/Platform.hpp) | Platform and bitness detection macros | ✅ Complete |
-| [`Assertions.hpp`](../../src/core/Assertions.hpp) | Debug assertions | ✅ Complete |
-| [`Compiler.hpp`](../../src/core/Compiler.hpp) | Compiler detection and portability macros | ✅ Complete |
-| [`WorldUnits.hpp`](../../src/core/WorldUnits.hpp) | World-space convention (1 unit = 1 meter) and terrain scale helpers | ✅ Complete |
-| [`IDebugHooks.hpp`](../../src/core/IDebugHooks.hpp) / `DebugHookRegistry.cpp` | IDE extension point ( `FrameStats` , engine event hooks, zero overhead when unregistered) | ✅ Complete |
-| [`io/`](../../src/core/io) ( `BlobLoader` , `CafWriter` , `CafTypes` , `Crc32` , `FileWatcher` ) | Low-level binary I/O, CAF framing/CRC, file watching | ✅ Complete |
+| [`Types.hpp`](https://github.com/devscafecommunity/caffeine/blob/main/src/caffeine/core/Types.hpp) | Fixed-width integer/float/char types, limit constants | ✅ Complete |
+| [`Platform.hpp`](https://github.com/devscafecommunity/caffeine/blob/main/src/caffeine/core/Platform.hpp) | Platform and bitness detection macros | ✅ Complete |
+| [`Assertions.hpp`](https://github.com/devscafecommunity/caffeine/blob/main/src/caffeine/core/Assertions.hpp) | Debug assertions | ✅ Complete |
+| [`Compiler.hpp`](https://github.com/devscafecommunity/caffeine/blob/main/src/caffeine/core/Compiler.hpp) | Compiler detection and portability macros | ✅ Complete |
+| [`WorldUnits.hpp`](https://github.com/devscafecommunity/caffeine/blob/main/src/caffeine/core/WorldUnits.hpp) | World-space convention (1 unit = 1 meter) and terrain scale helpers | ✅ Complete |
+| [`IDebugHooks.hpp`](https://github.com/devscafecommunity/caffeine/blob/main/src/caffeine/core/IDebugHooks.hpp) / `DebugHookRegistry.cpp` | IDE extension point ( `FrameStats` , engine event hooks, zero overhead when unregistered) | ✅ Complete |
+| [`io/`](https://github.com/devscafecommunity/caffeine/blob/main/src/caffeine/core/io) ( `BlobLoader` , `CafWriter` , `CafTypes` , `Crc32` , `FileWatcher` ) | Low-level binary I/O, CAF framing/CRC, file watching | ✅ Complete |
 
 ## Dependencies
 
 ```
-Core has NO dependencies on other Caffeine modules.
-Core is the foundation for all other modules.
+The type, platform, compiler and assertion headers have no dependencies on other
+Caffeine modules. The io/ helpers depend on the memory allocator interface, and
+IDebugHooks.hpp includes ecs/Entity.hpp so hooks can pass an ECS::Entity.
 ```
 
 ## Quick Reference
@@ -88,16 +98,17 @@ default terrain scale constants ( `kDefaultTerrainSizeM = 512` , …) and
 ## Usage Example
 
 ```cpp
-#include <Caffeine.hpp>
+#include "core/Types.hpp"
+#include "core/Assertions.hpp"
 
 // Using types
 Caffeine::u32 count = 42;
 Caffeine::f32 health = 100.0f;
 
 // Limit constants
-if (count == Caffeine::u32_max) { /* saturado */ }
+if (count == Caffeine::u32_max) { /* saturated */ }
 
-// Using assertions (ativas apenas com CF_DEBUG)
+// Using assertions (active only with CF_DEBUG)
 CF_ASSERT(health > 0, "Health must be positive");
 CF_ASSERT_NOT_NULL(ptr);
 ```

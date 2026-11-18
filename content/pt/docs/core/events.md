@@ -1,10 +1,16 @@
 # 📢 Event Bus
 
-> **Fase:** 4 — O Cérebro
-> **Namespace:** `Caffeine::Events`
-> **Arquivos:** `src/events/EventBus.hpp`, `src/events/EventBus.cpp`, `src/events/Events.hpp`
-> **Status:** ✅ Implementado
-> **RF:** RF4.6
+<div class="doc-meta">
+  <span class="doc-badge doc-badge--stable">Stable</span>
+  <span class="doc-badge">Engine</span>
+  <span><strong>Namespace:</strong> <code>Caffeine::Events</code></span>
+  <span><strong>Arquivos:</strong> <code>src/caffeine/events/EventBus.hpp</code>, <code>src/caffeine/events/EventBus.cpp</code>, <code>src/caffeine/events/Events.hpp</code></span>
+  <span>Last verified: <time datetime="2026-11-18">2026-11-18</time></span>
+</div>
+
+<p class="doc-lede">Um bus publish/subscribe tipado que permite aos sistemas
+comunicar sem se conhecerem, com entrega imediata na main thread e uma fila
+diferida thread-safe consumida uma vez por frame.</p>
 
 ---
 
@@ -62,11 +68,15 @@ public:
 Cada tipo `T` recebe um ID único em runtime via endereço de variável static local — zero colisão prática, zero registro manual:
 
 ```cpp
+namespace Caffeine::Events::Detail {
+
 template<typename T>
 u32 eventTypeId() {
     static char s_sentinel = 0;
     return static_cast<u32>(reinterpret_cast<uintptr_t>(&s_sentinel));
 }
+
+} // namespace Caffeine::Events::Detail
 ```
 
 > Nota: o endereço de 64 bits é truncado para `u32`. Colisão teórica é
@@ -77,7 +87,7 @@ u32 eventTypeId() {
 
 ## Eventos Pré-definidos
 
-Todos em `src/events/Events.hpp`, namespace `Caffeine::Events`.
+Todos em `src/caffeine/events/Events.hpp`, namespace `Caffeine::Events`.
 
 ### ECS
 
@@ -145,6 +155,19 @@ struct OnActionPressed  { u32 actionId; u32 playerId; };
 struct OnActionReleased { u32 actionId; u32 playerId; };
 ```
 
+### Map surfaces
+
+```cpp
+struct OnMapSurfaceChunkRequest {
+    u32 surfaceEntityId = 0;
+    i32 chunkX = 0;
+    i32 chunkY = 0;
+    f32 worldMinX = 0.0f;
+    f32 worldMinY = 0.0f;
+    f32 chunkSize = 0.0f;
+};
+```
+
 ---
 
 ## Exemplos de Uso
@@ -202,7 +225,7 @@ bus.publishDeferred(OnCollision2D{ ... });
 ## Integração no GameLoop
 
 - `Frame N:`
-  - `InputManager.poll()`
+  - `InputManager.beginFrame()` + eventos injetados + `InputManager.endFrame()` (se usado)
   - `EventBus.dispatch()          ← entrega diferidos do frame N-1`
   - `World.update(fixedDt)`
     - `PhysicsSystem → publishDeferred(OnCollision2D)`
@@ -224,7 +247,7 @@ bus.publishDeferred(OnCollision2D{ ... });
 | Snapshot antes de iterar em `publish()` | Listener pode chamar `unsubscribe()` sem invalidar iteração |
 | Mutex apenas na fila deferred | `publish()` e `subscribe()` são main-thread only; só `publishDeferred()` precisa de lock |
 | `ListenerHandle = u32` | Sem ponteiros pendentes; unsubscribe por ID, não por referência |
-| `eventTypeId<T>()` via `static char` | Zero custo de registro; ID único garantido por endereço de static |
+| `Detail::eventTypeId<T>()` via `static char` | Zero custo de registro; ID único garantido por endereço de static |
 | `unsubscribe()` com busca linear | O(tipos × listeners); aceitável porque unsubscribe é raro (não hot path) |
 
 ---
@@ -255,7 +278,7 @@ bus.publishDeferred(OnCollision2D{ ... });
 
 ## Testes
 
-`tests/test_eventbus.cpp` — 18 test cases, 39 assertions:
+`tests/test_eventbus.cpp` — 18 casos de teste, 39 asserções:
 
 | Teste | Cobertura |
 |-------|-----------|
@@ -282,10 +305,10 @@ bus.publishDeferred(OnCollision2D{ ... });
 
 ## Dependências
 
-- **Upstream:** `Caffeine::Core::Types`, `src/math/Vec2.hpp`
-- **Downstream (uso real no código):** `PhysicsSystem2D` (`src/physics/`) publica colisão;
-  `ScriptEngine` (`src/script/`) expõe `on`/`emit` para Lua; `UISystem` (`src/ui/`)
-  e `SceneEditor` (`src/editor/`) consomem eventos
+- **Upstream:** `Caffeine::Core::Types`, `src/caffeine/math/Vec2.hpp`
+- **Downstream (uso real no código):** `PhysicsSystem2D` (`src/caffeine/physics`) publica colisão;
+  `ScriptEngine` (`src/caffeine/script`) expõe `on`/`emit` para Lua; `UISystem` (`src/caffeine/ui`)
+  e `SceneEditor` (`doppio-archived/src/doppio/editor/`) consomem eventos
 - **Docs relacionados:** [Physics 2D](../physics/physics-2d.md), [Audio](../audio/audio-system.md),
   [Game UI](../ui/game-ui.md), [GameLoop](../core/game-loop.md) (chama `dispatch()`)
 

@@ -1,10 +1,31 @@
 # Natural Fluids
 
-O Natural Fluids é um **plugin do Doppio** para água animada e fluidos reais.
-Adiciona um `NaturalFluidComponent` às entidades e quatro níveis de autoria, de um
-plano de água parado a um volume de fluido Euleriano 3D.
+<div class="doc-meta">
+  <span class="doc-badge doc-badge--reference">Reference</span>
+  <span>Last updated: <time datetime="2026-11-18">2026-11-18</time></span>
+</div>
 
-![Água e fogo do Natural Fluids](../images/captures/natural-fluids.png)
+<p class="doc-lede">Plugin opcional de fluidos naturais (água, fogo, fumo) para o runtime e host legado.</p>
+
+
+
+<div class="doc-callout doc-callout--warning">
+  <p><strong>Host legado.</strong> O Doppio atual em Rust/Iced não carrega plugins C++.
+  Estas páginas documentam o SDK de plugins C++/ImGui e o seu host no editor C++ arquivado
+  (<code>doppio-archived/</code>). A engine continua a compilar todos os plugins do
+  submódulo, para que o SDK se mantenha testado na compilação.</p>
+</div>
+
+
+O Natural Fluids é um **plugin para o host C++/ImGui legado** para água animada e
+fluidos reais. Adiciona um `NaturalFluidComponent` às entidades e quatro níveis de
+autoria, de um plano de água parado a um volume de fluido Euleriano 3D.
+
+<figure class="doc-figure">
+  <img src="../images/captures/natural-fluids.png" alt="Água e fogo do Natural Fluids" loading="lazy">
+  <figcaption>Água e fogo do Natural Fluids</figcaption>
+</figure>
+
 
 ## Quatro níveis
 
@@ -63,4 +84,6 @@ cmake --build doppio-plugins/build --target natural_fluids_plugin
 cp doppio-plugins/build/plugins/natural_fluids_plugin.so build/plugins/
 ```
 
-Ativa **Natural Fluids** em **Plugins → Plugin Manager**.
+Ativa **Natural Fluids** no **Plugins → Plugin Manager** do host legado. O componente
+e a simulação do lado da engine continuam a funcionar em cenas abertas pelo Doppio em
+Rust ou pelo runtime; só falta o painel do plugin.

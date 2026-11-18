@@ -1,5 +1,10 @@
 # BuildSystem Implementation Plan
 
+<div class="doc-meta">
+  <span class="doc-badge doc-badge--historical">Historical</span>
+  <span>Last updated: <time datetime="2026-11-18">2026-11-18</time></span>
+</div>
+
 **Date:** May 16, 2026
 ** Status:** In Progress
 **Milestone:**M4 — Advanced Tools & Polish
@@ -18,7 +23,7 @@ This plan breaks down the BuildSystem Integration into 8 bite-sized implementati
 
 ### Task 1: Create BuildSystem Core Header (5 min)
 
-**File:** `src/editor/BuildSystem.hpp`
+**File:** `doppio-archived/src/doppio/editor/BuildSystem.hpp`
 
 **What to do:**
 - Define namespace `Caffeine::Editor`
@@ -53,7 +58,7 @@ cd build && cmake .. && make BuildSystem.hpp.o 2>&1 | grep -i error
 
 ### Task 2: Create BuildSystem Core Implementation (10 min)
 
-**File:** `src/editor/BuildSystem.cpp`
+**File:** `doppio-archived/src/doppio/editor/BuildSystem.cpp`
 
 **What to do:**
 - Implement all 7 pipeline stages as private static methods
@@ -96,7 +101,7 @@ lsp_diagnostics /home/pedro/repo/caffeine/src/editor/BuildSystem.cpp
 
 ### Task 3: Create BuildDialog Header (5 min)
 
-**File:** `src/editor/BuildDialog.hpp`
+**File:** `doppio-archived/src/doppio/editor/BuildDialog.hpp`
 
 **What to do:**
 - Declare `class BuildDialog : public EditorPanel` (inherit from existing panel class)
@@ -132,7 +137,7 @@ cd build && cmake .. && make
 
 ### Task 4: Create BuildDialog Implementation Part 1 (10 min)
 
-**File:** `src/editor/BuildDialog.cpp` — Builder and `render()`
+**File:** `doppio-archived/src/doppio/editor/BuildDialog.cpp` — Builder and `render()`
 
 **What to do:**
 - Implement `BuildDialog()` constructor:
@@ -172,7 +177,7 @@ lsp_diagnostics /home/pedro/repo/caffeine/src/editor/BuildDialog.cpp
 
 ### Task 5: Create BuildDialog Implementation Part 2 (8 min)
 
-**File:** `src/editor/BuildDialog.cpp` — UI Sections
+**File:** `doppio-archived/src/doppio/editor/BuildDialog.cpp` — UI Sections
 
 **What to do:**
 - Implement `renderConfigSection()` :
@@ -219,7 +224,7 @@ cd build && cmake .. && make
 
 ### Task 6: Create AssetCooker Header & Stubs (8 min)
 
-**File:** `src/editor/AssetCooker.hpp` + `src/editor/AssetCooker.cpp`
+**File:** `doppio-archived/src/doppio/editor/AssetCooker.hpp` + `doppio-archived/src/doppio/editor/AssetCooker.cpp`
 
 **Header What to do:**
 - Declare `class AssetCooker`

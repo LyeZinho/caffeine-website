@@ -1,12 +1,36 @@
-# Plugin Manager and opt-in loading
+# Plugin Manager (legacy host)
 
-Doppio ships **without** bundled feature plugins. The editor core does not build,
-copy or preload terrain, procedural, Git, post-processing or AI plugins. It only
-provides the plugin host (`PluginManager` + `PluginServiceRegistry`).
+<div class="doc-meta">
+  <span class="doc-badge doc-badge--reference">Reference</span>
+  <span>Last updated: <time datetime="2026-11-18">2026-11-18</time></span>
+</div>
 
-![Doppio plugin architecture](../images/diagrams/plugin-architecture.svg)
+<p class="doc-lede">How the legacy C++ host discovers and enables plugin libraries, and why the Rust Doppio does not load them.</p>
 
-![Plugin lifecycle](../images/diagrams/plugin-lifecycle.svg)
+<div class="doc-callout doc-callout--warning">
+  <p><strong>Legacy host.</strong> The active Rust/Iced Doppio does not load C++ plugins.
+  These pages document the C++/ImGui plugin SDK and its host in
+  <code>caffeine-runtime</code> / <code>doppio-archived</code>. The engine still builds
+  every plugin from the submodule so the SDK stays compile-tested.</p>
+</div>
+
+
+The engine build compiles **every** plugin from the `doppio-plugins` submodule into
+`build/plugins/`, but the **legacy C++ host** does not load them until the user enables each
+one in its Plugin Manager. The editor core only provides the host (`PluginManager` +
+`PluginServiceRegistry`); no feature plugin is hardcoded.
+
+<figure class="doc-figure">
+  <img src="../images/diagrams/plugin-architecture.svg" alt="Doppio plugin architecture" loading="lazy">
+  <figcaption>Doppio plugin architecture</figcaption>
+</figure>
+
+
+<figure class="doc-figure">
+  <img src="../images/diagrams/plugin-lifecycle.svg" alt="Plugin lifecycle" loading="lazy">
+  <figcaption>Plugin lifecycle</figcaption>
+</figure>
+
 
 ## Where plugins live
 
@@ -55,7 +79,7 @@ is copied into the folder later stays disabled until you enable it.
 
 | Before | Now |
 |--------|-----|
-| Plugins built inside the engine CMake | Built from `doppio-plugins` against the public SDK |
+| Plugins built inside the engine tree | Built from the `doppio-plugins` submodule against the public SDK |
 | Every `.so` loaded on startup | Only user-enabled plugins load |
 | Core referenced plugin identifiers | Core exposes generic host services only |
 | Plugin UI coupled to Doppio internals | Plugin UI uses `Caffeine::UIKit` and opaque host callbacks |

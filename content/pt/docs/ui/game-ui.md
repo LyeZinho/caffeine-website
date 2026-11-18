@@ -1,18 +1,31 @@
 # 🖼️ UI System
 
-> **Fase:** 4 — O Cérebro  
-> **Namespace:** `Caffeine::UI`  
-> **Arquivos:** `src/ui/UIComponents.hpp`, `src/ui/UISystem.hpp`  
-> **Status:** ✅ Implementado  
-> **RF:** RF4.11
+<div class="doc-meta">
+  <span class="doc-badge doc-badge--stable">Stable</span>
+  <span class="doc-badge">Engine</span>
+  <span><strong>Namespace:</strong> <code>Caffeine::UI</code></span>
+  <span>Atualizado em: <time datetime="2026-11-18">2026-11-18</time></span>
+  <span>Fonte: <a href="https://github.com/devscafecommunity/caffeine/blob/main/src/caffeine/ui/UISystem.hpp"><code>ui/UISystem.hpp</code></a></span>
+</div>
+
+<p class="doc-lede">UI retained-mode sobre ECS para HUDs e menus de jogo: os widgets são
+entidades, o layout resolve retângulos de âncoras em cada frame e bindings de valor
+podem conduzir progress bars e sliders a partir do estado do jogo.</p>
 
 ---
 
 ## Visão Geral
 
-Sistema de UI **retained mode** — widgets são entidades ECS com componentes de UI. Isso permite que UI seja afetada por ECS systems (ex: HealthBar reflete automaticamente o valor de um `Health` component via `bindValue`).
+A UI de jogo é **retained mode**: widgets são entidades ECS com um componente
+`UIWidget` mais um componente específico (`UIButton`, `UILabel`, …). Em cada frame o
+`UISystem`:
 
-**Fase 6** adiciona Dear ImGui para a interface do editor — ver [`docs/fase6/embedded-ui.md`](../ui/editor-ui.md).
+1. Corre os bindings de valor e escreve `UIProgressBar::currentValue` / `UISlider::currentValue`.
+2. Resolve os offsets das âncoras em `UIWidget::computedRect` (até 8 passagens).
+3. Faz hit-test do rato, dispara callbacks de hover/click e atualiza o estado dos botões.
+
+Esta é a UI de jogo em runtime. O editor Doppio usa componentes Rust/Iced, não este
+sistema; o host ImGui legado está documentado em [ImGui host](../ui/editor-ui.md).
 
 ---
 
@@ -20,49 +33,54 @@ Sistema de UI **retained mode** — widgets são entidades ECS com componentes d
 
 ### `UIColor`
 
-Cor RGBA com canais `f32` em `[0, 1]`. Presets estáticos: `white()`, `black()`, `transparent()`, `red()`, `green()`, `blue()`.
+Cor RGBA com canais `f32` em `[0, 1]`. Presets estáticos: `white()`, `black()`,
+`transparent()`, `red()`, `green()`, `blue()`.
 
 ### `UIRect`
 
-Rect de tela com `position` e `size` (`Vec2`). Métodos: `contains(Vec2)`, `isValid()`.
+Retângulo de ecrã com `position` e `size` (`Vec2`). Métodos: `contains(Vec2)`,
+`isValid()` (verdadeiro quando ambas as componentes de `size` são positivas).
 
 ### `RectTransform`
 
-Layout relativo ao parent. `anchorMin`/`anchorMax` são frações do tamanho do parent; `offsetMin`/`offsetMax` são deltas em pixels.
+Layout relativo ao parent. `anchorMin` / `anchorMax` são frações do tamanho do parent;
+`offsetMin` / `offsetMax` são deltas em píxeis a partir desses cantos.
 
 ```mermaid
 stateDiagram-v2
   anchorMin=anchorMax={0,0}, offsetMin={px,py}, offsetMax={px+w,py+h} --> widget fixo em (px,py) tamanho (w,h)
 ```
 
-
 ### `UIStyle`
 
-Aparência visual: `backgroundColor`, `textColor`, `borderColor`, `borderWidth`, `borderRadius`, `fontSize`, `textAlignment`.
+Aparência visual: `backgroundColor`, `textColor`, `borderColor`, `borderWidth`,
+`borderRadius`, `fontSize`, `textAlignment` (um `Vec2` em `[0, 1]`).
 
 ### `UIWidget`
 
-Componente base presente em toda entidade UI:
+Componente base presente em todas as entidades de UI:
 
 | Campo | Tipo | Descrição |
 |-------|------|-----------|
 | `type` | `UIWidgetType` | Canvas, Panel, Button, Label, ProgressBar, Checkbox, Slider |
-| `parentId` | `u32` | ID do parent; `kUIInvalidParent` para canvas raiz |
-| `visible` | `bool` | Se false, não é processado nem retornado por hitTest |
-| `interactable` | `bool` | Se false, ignorado por hitTest |
-| `siblingOrder` | `i32` | Desempata hitTest quando dois widgets se sobrepõem |
-| `computedRect` | `UIRect` | Preenchido a cada frame por `layoutWidgets()` |
+| `parentId` | `u32` | Id do parent; `kUIInvalidParent` para um canvas raiz |
+| `visible` | `bool` | Se falso, não é disposto nem devolvido por `hitTest` |
+| `interactable` | `bool` | Se falso, `hitTest` ignora-o |
+| `siblingOrder` | `i32` | Valor maior vence quando dois widgets se sobrepõem |
+| `style` | `UIStyle` | Cores, bordo e tamanho de fonte |
+| `transform` | `RectTransform` | Âncoras e offsets usados pelo layout |
+| `computedRect` | `UIRect` | Preenchido em cada frame por `layoutWidgets()` |
 | `onClick` | `std::function<void(Entity)>` | Disparado ao clicar |
-| `onHoverEnter` | `std::function<void(Entity)>` | Disparado ao entrar com o mouse |
-| `onHoverExit` | `std::function<void(Entity)>` | Disparado ao sair com o mouse |
-| `onValueChanged` | `std::function<void(Entity, f32)>` | Disparado por bindValue |
+| `onHoverEnter` | `std::function<void(Entity)>` | Disparado quando o rato entra |
+| `onHoverExit` | `std::function<void(Entity)>` | Disparado quando o rato sai |
+| `onValueChanged` | `std::function<void(Entity, f32)>` | Disparado por `bindValue` |
 
 ### Componentes específicos
 
 | Struct | Campos relevantes |
 |--------|-------------------|
-| `UIButton` | `labelText`, `idleColor`, `hoverColor`, `pressedColor`, `isHovered`, `isPressed` |
-| `UILabel` | `text`, `wordWrap` |
+| `UIButton` | `labelText` (`FixedString<64>`), `idleColor`, `hoverColor`, `pressedColor`, `isHovered`, `isPressed` |
+| `UILabel` | `text` (`FixedString<256>`), `wordWrap` |
 | `UIProgressBar` | `minValue`, `maxValue`, `currentValue`, `showText`, `fillColor` |
 | `UISlider` | `minValue`, `maxValue`, `currentValue`, `snapToInt` |
 | `UICheckbox` | `checked`, `checkedColor` |
@@ -79,16 +97,17 @@ public:
     explicit UISystem(Events::EventBus* eventBus = nullptr);
 
     void onUpdate(ECS::World& world, f32 dt) override;
+    void layout(ECS::World& world);   // resolve rects without consuming input
 
     ECS::Entity createCanvas(ECS::World& world, Vec2 size = {1280.0f, 720.0f});
     ECS::Entity createPanel(ECS::World& world, u32 parentId, UIRect rect);
     ECS::Entity createButton(ECS::World& world, u32 parentId, const char* text,
-                              Vec2 pos, Vec2 size = {120.0f, 40.0f});
+                             Vec2 pos, Vec2 size = {120.0f, 40.0f});
     ECS::Entity createLabel(ECS::World& world, u32 parentId, const char* text, Vec2 pos);
     ECS::Entity createProgressBar(ECS::World& world, u32 parentId,
-                                   Vec2 pos, Vec2 size = {200.0f, 20.0f});
+                                  Vec2 pos, Vec2 size = {200.0f, 20.0f});
     ECS::Entity createSlider(ECS::World& world, u32 parentId,
-                              Vec2 pos, Vec2 size = {200.0f, 20.0f});
+                             Vec2 pos, Vec2 size = {200.0f, 20.0f});
     ECS::Entity createCheckbox(ECS::World& world, u32 parentId, Vec2 pos);
 
     void bindValue(ECS::Entity widget, std::function<f32(ECS::World&)> getter);
@@ -102,22 +121,29 @@ public:
 }  // namespace Caffeine::UI
 ```
 
+`bindValue` atualiza um `UIProgressBar` ou um `UISlider`; os outros tipos de widget são
+ignorados. A lista de bindings vive na instância do `UISystem`, não no componente, pelo
+que não é serializada.
+
 ---
 
 ## Hierarquia de Widgets
 
-- `Canvas (root)`
+- `Canvas (raiz)`
   - `Panel (HUD)`
-    - `ProgressBar (health)   ← bindValue → retorna Health.current`
+    - `ProgressBar (health) ← bindValue → devolve Health.current`
     - `Label (score)`
     - `Label (fps counter)`
   - `Panel (inventory)`
-    - `[slots dinamicamente criados]`
-  - `Panel (pause menu — visible=false por default)`
+    - `[slots criados dinamicamente]`
+  - `Panel (pause menu — visible=false por omissão)`
   - `Button "Resume"`
   - `Button "Options"`
   - `Button "Quit"`
 
+Um painel também pode ser parent de um widget através de `Scene::Parent` quando
+`parentId` é `kUIInvalidParent`; nesse caso `layoutWidgets` recorre à hierarquia da
+cena.
 
 ---
 
@@ -127,13 +153,13 @@ public:
 UISystem uiSys;
 
 Entity canvas   = uiSys.createCanvas(world, {1280.0f, 720.0f});
-Entity hudPanel = uiSys.createPanel(world, canvas.id(), {{0,0},{1280,720}});
+Entity hudPanel = uiSys.createPanel(world, canvas.id(), {{0, 0}, {1280, 720}});
 
 Entity healthBar = uiSys.createProgressBar(world, hudPanel.id(), {20.0f, 700.0f}, {200.0f, 20.0f});
 world.get<UIProgressBar>(healthBar)->fillColor = {0.9f, 0.2f, 0.2f, 1.0f};
 
 uiSys.bindValue(healthBar, [&](ECS::World& w) {
-    return w.get<Health>(playerEntity)->current;
+    return static_cast<f32>(w.get<Health>(playerEntity)->current);
 });
 
 Entity scoreLabel = uiSys.createLabel(world, hudPanel.id(), "Score: 0", {1100.0f, 700.0f});
@@ -143,10 +169,13 @@ world.get<UIWidget>(playBtn)->onClick = [&](ECS::Entity) {
     sceneManager.switchScene("assets/scenes/level1.caf");
 };
 
+// Once per frame: bindings, layout, input.
 uiSys.injectMousePosition(mousePos);
 uiSys.injectMouseClick(isMouseDown);
 uiSys.onUpdate(world, dt);
 ```
+
+`Health::current` é `u32`; o getter devolve `f32`, por isso faz o cast.
 
 ---
 
@@ -154,34 +183,37 @@ uiSys.onUpdate(world, dt);
 
 | Decisão | Justificativa |
 |---------|-------------|
-| Retained mode | UI persiste entre frames sem reconstrução |
-| Widgets como entidades ECS | UI pode ser afetada por systems (bindings automáticos) |
-| `bindValue` com getter `f32` | Evita reflexão em C++ — getter lambda é suficiente para ProgressBar/Slider |
-| `UIColor` com `f32` (não `Color` do engine) | `Color` do engine usa `u8`; UI precisa de precisão float |
-| Layout em 8 passes BFS | ECS forEach não garante ordem topológica; passes extras resolvem hierarquias profundas |
-| `kUIInvalidParent = 0xFFFFFFFFu` | Sentinel de "sem parent" compatível com `u32` |
+| Retained mode | A UI persiste entre frames sem reconstrução |
+| Widgets como entidades ECS | A UI pode ser consultada e afetada por sistemas |
+| `bindValue` com getter `f32` | Evita reflexão em C++; suficiente para progress bars e sliders |
+| `UIColor` com `f32` | O `Scene::Color` da engine usa `u8`; a UI quer precisão float |
+| Até 8 passagens de layout | `forEach` não garante ordem topológica, por isso hierarquias profundas assentam ao longo de passagens |
+| `kUIInvalidParent = 0xFFFFFFFFu` | Sentinela compatível com ids `u32` |
+| Sem serialização no `UISystem` | Bindings são código, não dados de cena; os componentes dos widgets são serializados pelo serializador de cenas |
 
 ---
 
 ## Critério de Aceitação
 
-- [x] Canvas cria entidade com `UIWidgetType::Canvas` e `computedRect` correto
-- [x] `createButton`, `createLabel`, `createProgressBar`, `createSlider`, `createCheckbox` retornam entidades válidas com componentes corretos
-- [x] `onUpdate` em world vazio não crasha
-- [x] Layout calcula `computedRect` correto para filhos diretos do canvas
-- [x] `hitTest` retorna entidade correta para ponto dentro do rect
-- [x] `hitTest` ignora widgets com `visible=false` ou `interactable=false`
-- [x] `hitTest` desempata por `siblingOrder` (maior vence)
-- [x] `onClick` dispara ao clicar no widget
-- [x] `onHoverEnter` dispara ao entrar com o mouse
-- [x] `bindValue` atualiza `UIProgressBar::currentValue` no mesmo frame
+`tests/test_ui.cpp` cobre:
+
+- [x] Presets e igualdade de `UIColor`
+- [x] `UIRect::contains` dentro, fora e na borda; `isValid`
+- [x] Defaults de `UIWidget`, `UIButton`, `UILabel`, `UIProgressBar`, `UISlider` e `UICheckbox`
+- [x] `createCanvas`, `createPanel`, `createButton`, `createLabel`, `createProgressBar` e `createSlider` devolvem entidades válidas com os componentes esperados
+- [x] `onUpdate` num world vazio e com vários canvases não faz crash
+- [x] `hitTest` devolve o widget sob o ponto; `INVALID` sem widgets ou fora de todos os retângulos
+- [x] Widgets com `visible = false` não são devolvidos por `hitTest`
+- [x] `onClick` dispara dentro do widget e não fora
+- [x] `onHoverEnter` dispara quando o rato entra
+- [x] `bindValue` atualiza `UIProgressBar::currentValue`
 
 ---
 
 ## Dependências
 
-- **Upstream:** [ECS Core](ecs.md), [Fase 1 — Memory, Containers](../memory/allocators.md)
-- **Downstream:** [Fase 6 — Embedded UI (ImGui)](../ui/editor-ui.md)
+- **Upstream:** [ECS Core](../ecs/core.md), [Event Bus](../core/events.md)
+- **Downstream:** HUDs e menus de jogo; o editor Doppio usa Iced, não este sistema
 
 ---
 
@@ -189,11 +221,12 @@ uiSys.onUpdate(world, dt);
 
 | Tópico | Descrição |
 |--------|-----------|
-| [Sistemas de Jogo]() | UI retained mode como sistema ECS |
-| [Editor & Debug]() | UI do jogo (F4) vs UI do editor (F6) |
+| [ImGui host](../ui/editor-ui.md) | O host immediate-mode legado usado pelo runtime e por plugins antigos |
+| [Workspace and theme](../editor/workspace-and-theme.md) | A UI do editor em Rust/Iced |
+| [ECS Core](../ecs/core.md) | Componentes e queries |
 
 ## Referências
 
-- [`docs/architecture_specs.md`](../architecture_specs.md) — §14 UI System
-- [`docs/fase6/embedded-ui.md`](../ui/editor-ui.md) — Dear ImGui para editor
-- [Índice de Tópicos Transversais]()
+- [`src/caffeine/ui/UIComponents.hpp`](https://github.com/devscafecommunity/caffeine/blob/main/src/caffeine/ui/UIComponents.hpp) — componentes dos widgets
+- [`src/caffeine/ui/UISystem.hpp`](https://github.com/devscafecommunity/caffeine/blob/main/src/caffeine/ui/UISystem.hpp) — layout, input e bindings
+- [`tests/test_ui.cpp`](https://github.com/devscafecommunity/caffeine/blob/main/tests/test_ui.cpp) — suite de comportamento

@@ -1,5 +1,10 @@
 # Unified Caffeine Ecosystem Build & caf-pack Implementation
 
+<div class="doc-meta">
+  <span class="doc-badge doc-badge--historical">Historical</span>
+  <span>Last updated: <time datetime="2026-11-18">2026-11-18</time></span>
+</div>
+
 > **Historical note:** Convoy and WaveShaper are no longer part of the Caffeine repository. The references below describe the original plan.
 
 > **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.

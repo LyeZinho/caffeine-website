@@ -1,16 +1,21 @@
 # 🎥 Camera System
 
-> **Fase:** 3 — O Olho da Engine  
-> **Namespace:** `Caffeine::Render`  
-> **Arquivo:** `src/render/Camera2D.hpp`  
-> **Status:** ✅ Implementado  
-> **RF:** RF3.7
+<div class="doc-meta">
+  <span class="doc-badge doc-badge--stable">Stable</span>
+  <span><strong>Fase:</strong> 3 — O Olho da Engine</span>
+  <span><strong>Namespace:</strong> `Caffeine::Render`</span>
+  <span><strong>Arquivo:</strong> `src/caffeine/render/Camera2D.hpp`</span>
+  <span>Last updated: <time datetime="2026-11-18">2026-11-18</time></span>
+</div>
+
+<p class="doc-lede">A câmara 2D ortográfica: conversão mundo/ecrã, follow, shake e limites de
+mapa para sprites e camadas de HUD.</p>
 
 ---
 
 ## Visão Geral
 
-O Camera System fornece a projeção matemática entre o **espaço do mundo** (coordenadas do jogo) e o **espaço da tela** (pixels). A `Camera2D` usa projeção ortográfica para jogos 2D. Na Fase 5, `Camera3D` adicionará perspectiva.
+O Camera System fornece a projeção matemática entre o **espaço do mundo** (coordenadas do jogo) e o **espaço da tela** (pixels). A `Camera2D` usa projeção ortográfica para jogos 2D; a [`Camera3D`](camera-3d.md) trata do caminho perspectiva.
 
 ---
 
@@ -49,7 +54,6 @@ public:
     void setZoom(f32 zoom);             // 1.0 = normal, 2.0 = 2x zoom in
     void setRotation(f32 degrees);
     void setViewport(Rect2D viewport);  // pixels (x, y, width, height)
-    void setAspectRatio(f32 aspect);
 
     // ── Follow ─────────────────────────────────────────────────
     void follow(ECS::Entity target, f32 smoothing = 0.1f);  // lerp per frame
@@ -119,7 +123,7 @@ Projection Matrix (ortho):
     Mat4::ortho(left, right, bottom, top, near, far)
 
 View Matrix:
-    Mat4::translate(-position) * Mat4::rotateZ(-rotation)
+    Mat4::rotationZ(-rotation) * Mat4::translation(-position)
 ```
 
 **Nota:** A projeção ortográfica não possui perspectiva — objetos distantes têm o mesmo tamanho que objetos próximos. Correto para jogos 2D.
@@ -182,20 +186,21 @@ if (!camera.isVisible(entityBounds)) return;  // skip render
 
 ---
 
-## Camera 3D (Fase 5)
+## Relação com a Camera 3D
 
-Na Fase 5, `Camera3D` será adicionada com a mesma interface mas projeção perspectiva:
+A `Camera3D` segue as mesmas convenções com projecção perspectiva:
 
 ```cpp
-// Fase 5:
 class Camera3D {
     Mat4 viewMatrix()       const;  // lookAt(eye, target, up)
     Mat4 projectionMatrix() const;  // perspective(fovY, aspect, near, far)
-    // ... mesma interface de setPosition/setZoom → será setFOV
+    // ... os mesmos setters de posição/orientação; setFOV substitui setZoom
 };
 ```
 
-O [Batch Renderer](batch-renderer.md) aceita `Camera2D` e `Camera3D` via polimorfismo.
+O [`BatchRenderer`](batch-renderer.md) aceita apenas uma `Camera2D`; o caminho 3D usa o
+`GpuSceneRenderer` com uma `GpuSceneCamera` (posição, focus, view/projecção). Não há conversão
+implícita de `Camera3D` para `GpuSceneCamera`.
 
 ---
 
@@ -236,7 +241,6 @@ O [Batch Renderer](batch-renderer.md) aceita `Camera2D` e `Camera3D` via polimor
 
 ## Referências
 
-- [`docs/architecture_specs.md`](../architecture_specs.md) — §10 Camera System
-- [`docs/fase3/batch-renderer.md`](batch-renderer.md) — usa viewProjectionMatrix()
-- [`docs/fase5/camera3d.md`](../rendering/camera-3d.md) — extensão para 3D
-- [Índice de Tópicos Transversais]()
+- [`architecture_specs.md`](../architecture_specs.md) — §10 Camera System
+- [`batch-renderer.md`](batch-renderer.md) — usa viewProjectionMatrix()
+- [`camera-3d.md`](camera-3d.md) — extensão para 3D

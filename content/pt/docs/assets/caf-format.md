@@ -1,10 +1,27 @@
 # 📄 Formato .caf — Caffeine Asset Format
 
+<div class="doc-meta">
+  <span class="doc-badge doc-badge--reference">Reference</span>
+  <span>Last verified: <time datetime="2026-11-18">2026-11-18</time></span>
+  <span>Source: <a href="https://github.com/devscafecommunity/caffeine/blob/main/src/caffeine/core/io/CafTypes.hpp"><code>core/io/CafTypes.hpp</code></a></span>
+</div>
+
+<p class="doc-lede">O layout binário <code>.caf</code> usado dentro do engine: um cabeçalho de
+32 bytes, um bloco de metadata tipado, o payload e um footer CRC do ficheiro inteiro.</p>
+
 > **Fases:** 3 (fundação) + 4 (Prefabs/Scenes)
 > **Namespace:** `Caffeine`, `Caffeine::IO`
-> **Arquivos:** `src/core/io/CafTypes.hpp`, `src/core/io/BlobLoader.hpp/.cpp`, `src/core/io/CafWriter.hpp/.cpp`, `src/core/io/Crc32.hpp`
+> **Arquivos:** `src/caffeine/core/io/CafTypes.hpp`, `src/caffeine/core/io/BlobLoader.hpp` / `.cpp`, `src/caffeine/core/io/CafWriter.hpp` / `.cpp`, `src/caffeine/core/io/Crc32.hpp`
 > **Status:** ✅ Implementado
 > **RF:** RF3.0, RF4.5
+
+<div class="doc-callout doc-callout--note">
+  <p><strong>Âmbito.</strong> Este header ainda define o <code>.caf</code> interno do engine
+  usado para serialização de cenas e prefabs (magic <code>0xCAFECAFE</code>). Os packs de assets
+  de runtime (<code>.cap</code>) e os assets importados usam o <code>caf-pack</code> como fonte
+  única de verdade (magic <code>0x43414621</code>, <code>"CAF!"</code>); ver
+  <a href="../architecture/cafpack.md">Cafpack</a>.</p>
+</div>
 
 ---
 
@@ -176,7 +193,7 @@ struct ShaderMetadata {
 
 ---
 
-## `Crc32` — `src/core/io/Crc32.hpp`
+## `Crc32` — `src/caffeine/core/io/Crc32.hpp`
 
 IEEE 802.3 CRC32 com lookup table `constexpr`. Zero dependências externas.
 
@@ -194,7 +211,7 @@ constexpr u32 crc32Continue(u32 runningCrc, const void* data, usize size);
 
 ---
 
-## `BlobLoader` — `src/core/io/BlobLoader.hpp`
+## `BlobLoader` — `src/caffeine/core/io/BlobLoader.hpp`
 
 Loader de baixo nível. Um único `fread`, zero seeks, zero cópias extras.
 
@@ -238,7 +255,7 @@ private:
 
 ---
 
-## `CafWriter` — `src/core/io/CafWriter.hpp`
+## `CafWriter` — `src/caffeine/core/io/CafWriter.hpp`
 
 Escreve um arquivo `.caf` completo com header, metadata, payload e footer CRC32.
 

@@ -1,5 +1,10 @@
 # Backlog Editor — Phase B–D (Oct 2026)
 
+<div class="doc-meta">
+  <span class="doc-badge doc-badge--historical">Historical</span>
+  <span>Last updated: <time datetime="2026-11-18">2026-11-18</time></span>
+</div>
+
 Phase A (materials save, asset previews, ImGui IDs) landed in the same sprint. This document tracks items 4–7 from the product list.
 
 ## 4. Image Manager tab
@@ -21,7 +26,7 @@ Phase A (materials save, asset previews, ImGui IDs) landed in the same sprint. T
 
 **Proposed slices:**
 
-1. **Core ( `src/animation/` ):** `AnimationClip` (keyframes: transform, sprite frame, morph), `AnimationPlayer` component, clock/evaluator shared by 2D/3D.
+1. **Core ( `src/caffeine/animation` ):** `AnimationClip` (keyframes: transform, sprite frame, morph), `AnimationPlayer` component, clock/evaluator shared by 2D/3D.
 2. **Editor tab:** timeline already stubbed ( `animationTimeline` , `animatorController` ) — Wire to core assets ( `.anim` , `.controller` ).
 3. **Animator:** graph nodes (states, transitions, conditions: float/bool/trigger), blend trees for 3D.
 4. **API:** C++ public headers in `caffeine-core` ; Lua bindings mirroring `AnimationPlayer` + `AnimatorController` setters.
