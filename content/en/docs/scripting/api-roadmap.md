@@ -90,14 +90,14 @@ panel or the component picker yet; see the roadmap.
 
 ## 3c. Coverage: what the engine has and scripts cannot reach
 
-The registry now documents every binding (**210 functions, 26 namespaces**, see the
+The registry now documents every binding (**232 functions, 29 namespaces**, see the
 [API reference](api/index.md)). Measured against engine modules, the scriptable surface still misses:
 
 | Engine module | Scripts today | Missing |
 |---|---|---|
 | 3D physics (`PhysicsWorld3D`) | `caffeine.physics3d`: raycast, forces, impulse, velocity, gravity | overlap queries and collision/trigger callbacks. The runtime now steps `PhysicsSystem3D` (it did not before) |
-| Audio (`AudioSystem`) | none | play, stop, volume, 3D emitters |
-| Scenes (`SceneManager`) | none | load, reload, additive load |
+| Audio (`AudioSystem`) | `caffeine.audio`: WAV play, positional 2D, handles, volume, loop | OGG/MP3, 3D emitters, the `AudioEmitter` component, per-sound pitch |
+| Scenes | `caffeine.scene` (load, reload, current) and `caffeine.session` (data across scenes), runtime app only | additive load, transitions, the editor's play mode |
 | Camera and lights | components via `caffeine.component` | helpers: `screenToRay`, `worldToScreen`, look-at |
 | Terrain, water, fluids | components only | height queries, `water_height`, splat painting |
 | Prefabs | none | instantiate with overrides |

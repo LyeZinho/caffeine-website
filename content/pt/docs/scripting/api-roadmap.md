@@ -90,14 +90,14 @@ painel Assets nem ao seletor de componentes; ver o roadmap.
 
 ## 3c. Cobertura: o que o engine tem e os scripts não alcançam
 
-O registo documenta agora todos os bindings (**210 funções, 26 namespaces**, ver a
+O registo documenta agora todos os bindings (**232 funções, 29 namespaces**, ver a
 [Referência da API](api/index.md)). Comparada com os módulos do engine, a superfície scriptável ainda não tem:
 
 | Módulo do engine | Scripts hoje | Em falta |
 |---|---|---|
 | Física 3D (`PhysicsWorld3D`) | `caffeine.physics3d`: raycast, forças, impulso, velocidade, gravidade | consultas de overlap e callbacks de colisão/trigger. O runtime passa a correr o `PhysicsSystem3D` (antes não corria) |
-| Áudio (`AudioSystem`) | nenhum | play, stop, volume, emissores 3D |
-| Cenas (`SceneManager`) | nenhum | carregar, recarregar, carregar aditivo |
+| Áudio (`AudioSystem`) | `caffeine.audio`: play de WAV, 2D posicional, handles, volume, loop | OGG/MP3, emissores 3D, o componente `AudioEmitter`, pitch por som |
+| Cenas | `caffeine.scene` (load, reload, current) e `caffeine.session` (dados entre cenas), só na aplicação runtime | carregamento aditivo, transições, o modo play do editor |
 | Câmara e luzes | componentes via `caffeine.component` | helpers: `screenToRay`, `worldToScreen`, look-at |
 | Terreno, água, fluidos | só componentes | consultas de altura, `water_height`, pintura de splat |
 | Prefabs | nenhum | instanciar com overrides |

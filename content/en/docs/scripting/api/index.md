@@ -7,7 +7,7 @@
 
 <p class="doc-lede">Every function the engine exposes to scripts, grouped like a standard library. Lua names are shown as caffeine.&lt;namespace&gt;.&lt;function&gt;; the Dryad native is shown when one exists.</p>
 
-210 functions across 26 namespaces.
+232 functions across 29 namespaces.
 
 ## Core
 
@@ -41,9 +41,12 @@
 | Namespace | Functions | Description |
 |---|---|---|
 | [Assets](assets.md) | 1 | Read project assets from scripts. |
+| [Audio](audio.md) | 13 | Plays WAV files from the project. Play returns a handle you use to control that sound while it is playing. Without an audio device every call is a safe no-op (0 or false). Handles are only valid while the sound plays: after it ends, the slot may be reused by another sound. |
 | [Events](events.md) | 3 | A simple named-event bus: subscribe, emit and unsubscribe. |
 | [Game state](gameState.md) | 5 | An optional push/pop stack of named game states. |
 | [Native modules](native.md) | 2 | Load and call native modules through JSON. |
+| [Scene](scene.md) | 4 | Switching between scenes. A request is deferred: the world is replaced after the current frame's scripts finish, so call it freely from any hook. The runtime app handles requests; other hosts may not. A scene change removes every entity, so keep data you need in `caffeine.session`. |
+| [Session](session.md) | 5 | A key-value store that survives scene changes for as long as the game runs (score, settings, choices). Values are numbers, booleans or text. It is not saved to disk. |
 
 ## World
 

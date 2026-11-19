@@ -7,7 +7,7 @@
 
 <p class="doc-lede">Todas as funções que o engine expõe aos scripts, agrupadas como uma biblioteca padrão. Os nomes Lua aparecem como caffeine.&lt;namespace&gt;.&lt;função&gt;; o native Dryad é mostrado quando existe.</p>
 
-210 funções em 26 namespaces.
+232 funções em 29 namespaces.
 
 ## Core
 
@@ -41,9 +41,12 @@
 | Namespace | Funções | Descrição |
 |---|---|---|
 | [Recursos](assets.md) | 1 | Ler recursos do projeto a partir de scripts. |
+| [Áudio](audio.md) | 13 | Reproduz ficheiros WAV do projeto. O play devolve um handle para controlar esse som enquanto toca. Sem dispositivo de áudio, todas as chamadas são no-ops seguros (0 ou false). Os handles só são válidos enquanto o som toca: depois de acabar, o espaço pode ser reutilizado por outro som. |
 | [Eventos](events.md) | 3 | Um barramento simples de eventos nomeados: subscrever, emitir e cancelar a subscrição. |
 | [Estado de jogo](gameState.md) | 5 | Uma pilha opcional de estados de jogo nomeados. |
 | [Módulos nativos](native.md) | 2 | Carregar e chamar módulos nativos através de JSON. |
+| [Cena](scene.md) | 4 | Mudança entre cenas. O pedido é diferido: o mundo é substituído depois dos scripts do frame atual, por isso pode chamá-lo de qualquer hook. A aplicação runtime trata os pedidos; outros hosts podem não tratar. Uma mudança de cena remove todas as entidades, por isso guarde em `caffeine.session` os dados de que precisa. |
+| [Sessão](session.md) | 5 | Um armazenamento chave-valor que sobrevive às mudanças de cena enquanto o jogo corre (pontuação, definições, escolhas). Os valores são números, booleanos ou texto. Não é gravado em disco. |
 
 ## World
 
