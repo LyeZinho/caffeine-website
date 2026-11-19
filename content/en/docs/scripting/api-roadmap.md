@@ -57,6 +57,58 @@ pass, and the ordered plan to grow the API without letting the two drift apart.<
 `radians`, `degrees`, `pi`, `epsilon`. Vector functions accept `{x, y}` or `{x, y, z}`; the result has `z`
 only when an operand does, so existing 2D scripts are unchanged.
 
+## 3b. The Script component
+
+`ScriptComponent` is no longer just a path. Fields (all in the Inspector through reflection, all saved in
+the scene; older scenes load with the defaults):
+
+| Field | Default | Meaning |
+|---|---|---|
+| `Script` | empty | `.lua` or `.dyd` path, relative to the project |
+| `Enabled` | on | a disabled script is skipped entirely: no `onCreate`, no updates |
+| `Order` | 0 | lower runs first within a frame; ties keep entity order (stable) |
+| `Properties` | empty | per-entity overrides of the script's exposed variables, e.g. `speed=4.5; god=true; label=hi` (Lua and Dryad) |
+| `Isolated` | off | Lua: this entity runs its own copy of the script, with private globals |
+
+`Properties` entries are separated by `;` or a new line. A value is a boolean for `true`/`false`, a number when
+it parses fully, and text otherwise; malformed entries are skipped. They are applied before every hook
+of that entity. Limits: without `Isolated`, Lua state is shared per script file, so overrides set inputs, they
+do not give each entity private globals; Dryad state is always shared per file. Isolated copies are not freed when
+their entity is destroyed yet.
+
+### Grouping scripts
+
+Scripts are classified in groups and subgroups, two ways (`ScriptCatalog.hpp`):
+
+1. **Header tags** in the first 40 lines, after `--`, `//` or `#`:
+   `@group Gameplay/Combat/Melee`, `@name Sword swing`, `@description ...`, `@tags weapon, player`.
+2. **Folders**: with no `@group`, `scripts/Gameplay/AI/patrol.lua` is in group `Gameplay/AI`.
+
+`scanScripts(projectRoot)` reads every `.lua` and `.dyd` under `scripts/`; `buildScriptTree` returns a sorted tree
+(`find("Gameplay/Combat")`, `totalScripts()`), with loose scripts under **Ungrouped**. Not wired into the Assets
+panel or the component picker yet; see the roadmap.
+
+## 3c. Coverage: what the engine has and scripts cannot reach
+
+The registry now documents every binding (**210 functions, 26 namespaces**, see the
+[API reference](api/index.md)). Measured against engine modules, the scriptable surface still misses:
+
+| Engine module | Scripts today | Missing |
+|---|---|---|
+| 3D physics (`PhysicsWorld3D`) | `caffeine.physics3d`: raycast, forces, impulse, velocity, gravity | overlap queries and collision/trigger callbacks. The runtime now steps `PhysicsSystem3D` (it did not before) |
+| Audio (`AudioSystem`) | none | play, stop, volume, 3D emitters |
+| Scenes (`SceneManager`) | none | load, reload, additive load |
+| Camera and lights | components via `caffeine.component` | helpers: `screenToRay`, `worldToScreen`, look-at |
+| Terrain, water, fluids | components only | height queries, `water_height`, splat painting |
+| Prefabs | none | instantiate with overrides |
+| Assets | text only | load textures, meshes, materials; hot reload hooks |
+| Photon and render features | forward-render and post-process | Photon quality, reflection and probe controls |
+| Coroutines and timers | none | `after`, `every`, `wait` |
+| Save data, JSON, string utilities | none | persistent storage, parsing |
+
+Added so far in this pass: `caffeine.entity` (names, lookup), `caffeine.hierarchy` (parent, children, root, cycle-safe),
+`caffeine.random` (deterministic), each in Lua and Dryad from one shared implementation.
+
 ## 4. Roadmap
 
 Each step ships with tests in both languages and a page in this section.
@@ -66,7 +118,7 @@ Each step ships with tests in both languages and a page in this section.
 - [ ] Dryad `onDestroy`, `onCollision(entity, other)` and `onPostProcess`; dispatch from `ScriptSystem`.
 - [ ] Dryad events: `caffeine_events_emit/on/off` over the `EventBus`.
 - [ ] Lua `caffeine.world.hasComponent` through the reflection registry (it only knows four names today).
-- [ ] Entity lookup: `find(name)`, `findAll(name)`, `findWith(component)`, `parent`, `children`.
+- [x] Entity lookup by name and hierarchy (`caffeine.entity`, `caffeine.hierarchy`); `findWith(component)` remains.
 - [ ] Prefabs: `instantiate(prefab, position)`, `destroyAfter(entity, seconds)`.
 
 ### Phase S2 — Structure and ergonomics
@@ -75,7 +127,7 @@ Each step ships with tests in both languages and a page in this section.
       same natives, plus `Vec3` and `Quat` userdata with operators, replacing plain tables.
 - [ ] Timers and coroutines: `caffeine.timer.after/every/cancel`, `caffeine.wait(seconds)` inside a
       coroutine scheduler ticked by `ScriptSystem`; the Dryad equivalent as natives.
-- [ ] Per-script exposed variables, edited in the Inspector, for both languages (Lua has `listExposedVars`).
+- [x] Per-entity exposed-variable overrides (`Properties`), Lua only; Dryad support remains.
 - [ ] Module system for Dryad (`import`) resolved against the project root, as `caffeine.require` does.
 - [ ] Error reporting: script name, line and a Console entry for every failure, never a silent no-op.
 
@@ -89,8 +141,9 @@ Each step ships with tests in both languages and a page in this section.
 
 ### Phase S4 — Tooling
 
-- [ ] Generated API reference from one binding table (names, signatures, docs) for both languages and
-      editor autocompletion; the parity matrix above is generated from it.
+- [x] API reference generated from one registry (`src/caffeine/script/api/*.json`), checked by a test; editor
+      autocompletion and a generated parity matrix remain.
 - [ ] Sandbox limits: instruction budget per frame, memory cap, a stuck-script watchdog.
 - [ ] Hot reload that keeps script state where the exposed variables allow it.
 - [ ] Debugging: breakpoints and a variable view in the script editor (Lua first).
+- [ ] Show the script group tree in the Assets panel and the Add Component picker; group filter and search by tag.

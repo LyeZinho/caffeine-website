@@ -57,6 +57,58 @@ nesta passagem e o plano ordenado para crescer a API sem deixar as duas divergir
 `radians`, `degrees`, `pi`, `epsilon`. As funções de vetor aceitam `{x, y}` ou `{x, y, z}`; o resultado só tem `z`
 quando um operando o tem, por isso os scripts 2D existentes não mudam.
 
+## 3b. O componente Script
+
+O `ScriptComponent` já não é só um caminho. Campos (todos no Inspector por reflexão e guardados na cena;
+cenas antigas carregam com os valores por omissão):
+
+| Campo | Omissão | Significado |
+|---|---|---|
+| `Script` | vazio | caminho `.lua` ou `.dyd`, relativo ao projeto |
+| `Enabled` | ligado | um script desativado é ignorado por completo: sem `onCreate`, sem updates |
+| `Order` | 0 | o menor corre primeiro no frame; empates mantêm a ordem das entidades (estável) |
+| `Properties` | vazio | overrides por entidade das variáveis expostas do script, ex.: `speed=4.5; god=true; label=hi` (Lua e Dryad) |
+| `Isolated` | desligado | Lua: esta entidade corre a sua própria cópia do script, com globais privadas |
+
+As entradas de `Properties` separam-se com `;` ou nova linha. O valor é booleano para `true`/`false`, número
+quando converte por inteiro e texto caso contrário; entradas malformadas são ignoradas. São aplicadas
+antes de cada hook dessa entidade. Limites: sem `Isolated`, o estado Lua é partilhado por ficheiro, por isso
+os overrides definem entradas, não dão globais privadas; o estado Dryad é sempre partilhado por ficheiro. As cópias
+isoladas ainda não são libertadas quando a entidade é destruída.
+
+### Agrupar scripts
+
+Os scripts classificam-se em grupos e subgrupos, de duas formas (`ScriptCatalog.hpp`):
+
+1. **Etiquetas no cabeçalho**, nas primeiras 40 linhas, após `--`, `//` ou `#`:
+   `@group Gameplay/Combat/Melee`, `@name Sword swing`, `@description ...`, `@tags weapon, player`.
+2. **Pastas**: sem `@group`, `scripts/Gameplay/AI/patrol.lua` fica no grupo `Gameplay/AI`.
+
+`scanScripts(projectRoot)` lê todos os `.lua` e `.dyd` em `scripts/`; `buildScriptTree` devolve uma árvore
+ordenada (`find("Gameplay/Combat")`, `totalScripts()`), com os soltos em **Ungrouped**. Ainda não está ligado ao
+painel Assets nem ao seletor de componentes; ver o roadmap.
+
+## 3c. Cobertura: o que o engine tem e os scripts não alcançam
+
+O registo documenta agora todos os bindings (**210 funções, 26 namespaces**, ver a
+[Referência da API](api/index.md)). Comparada com os módulos do engine, a superfície scriptável ainda não tem:
+
+| Módulo do engine | Scripts hoje | Em falta |
+|---|---|---|
+| Física 3D (`PhysicsWorld3D`) | `caffeine.physics3d`: raycast, forças, impulso, velocidade, gravidade | consultas de overlap e callbacks de colisão/trigger. O runtime passa a correr o `PhysicsSystem3D` (antes não corria) |
+| Áudio (`AudioSystem`) | nenhum | play, stop, volume, emissores 3D |
+| Cenas (`SceneManager`) | nenhum | carregar, recarregar, carregar aditivo |
+| Câmara e luzes | componentes via `caffeine.component` | helpers: `screenToRay`, `worldToScreen`, look-at |
+| Terreno, água, fluidos | só componentes | consultas de altura, `water_height`, pintura de splat |
+| Prefabs | nenhum | instanciar com overrides |
+| Assets | só texto | carregar texturas, malhas, materiais; hooks de hot reload |
+| Photon e render features | forward-render e post-process | qualidade do Photon, controlos de reflexos e probes |
+| Corrotinas e temporizadores | nenhum | `after`, `every`, `wait` |
+| Dados de save, JSON, utilitários de texto | nenhum | armazenamento persistente, parsing |
+
+Acrescentado até agora: `caffeine.entity` (nomes, procura), `caffeine.hierarchy` (pai, filhos, raiz, sem ciclos),
+`caffeine.random` (determinístico), cada um em Lua e Dryad a partir de uma implementação partilhada.
+
 ## 4. Roadmap
 
 Cada passo chega com testes nas duas linguagens e uma página nesta secção.
@@ -66,7 +118,7 @@ Cada passo chega com testes nas duas linguagens e uma página nesta secção.
 - [ ] `onDestroy`, `onCollision(entity, other)` e `onPostProcess` no Dryad; despacho a partir do `ScriptSystem`.
 - [ ] Eventos no Dryad: `caffeine_events_emit/on/off` sobre o `EventBus`.
 - [ ] `caffeine.world.hasComponent` do Lua via registo de reflexão (hoje só conhece quatro nomes).
-- [ ] Procura de entidades: `find(name)`, `findAll(name)`, `findWith(component)`, `parent`, `children`.
+- [x] Procura por nome e hierarquia (`caffeine.entity`, `caffeine.hierarchy`); falta `findWith(component)`.
 - [ ] Prefabs: `instantiate(prefab, position)`, `destroyAfter(entity, seconds)`.
 
 ### Fase S2 — Estrutura e ergonomia
@@ -75,7 +127,7 @@ Cada passo chega com testes nas duas linguagens e uma página nesta secção.
       mesmos natives, mais userdata `Vec3` e `Quat` com operadores, em vez de tabelas simples.
 - [ ] Temporizadores e corrotinas: `caffeine.timer.after/every/cancel`, `caffeine.wait(seconds)` num
       agendador de corrotinas movido pelo `ScriptSystem`; o equivalente Dryad como natives.
-- [ ] Variáveis expostas por script, editadas no Inspector, nas duas linguagens (o Lua tem `listExposedVars`).
+- [x] Overrides por entidade das variáveis expostas (`Properties`), só Lua; falta o Dryad.
 - [ ] Sistema de módulos para o Dryad (`import`) resolvido a partir da raiz do projeto, como o `caffeine.require`.
 - [ ] Relatório de erros: nome do script, linha e uma entrada na Consola por cada falha, nunca um no-op silencioso.
 
@@ -89,8 +141,9 @@ Cada passo chega com testes nas duas linguagens e uma página nesta secção.
 
 ### Fase S4 — Ferramentas
 
-- [ ] Referência da API gerada a partir de uma tabela de bindings (nomes, assinaturas, docs) para as duas linguagens e
-      autocompletar no editor; a matriz de paridade acima é gerada a partir dela.
+- [x] Referência da API gerada a partir de um registo (`src/caffeine/script/api/*.json`), verificado por um teste;
+      faltam o autocompletar no editor e a matriz de paridade gerada.
 - [ ] Limites de sandbox: orçamento de instruções por frame, limite de memória, watchdog de scripts presos.
 - [ ] Hot reload que mantém o estado do script onde as variáveis expostas o permitem.
 - [ ] Depuração: breakpoints e vista de variáveis no editor de scripts (Lua primeiro).
+- [ ] Mostrar a árvore de grupos de scripts no painel Assets e no seletor Add Component; filtro por grupo e pesquisa por etiqueta.
