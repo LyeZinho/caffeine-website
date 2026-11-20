@@ -1,0 +1,21 @@
+{
+  "name": "caffeine-website",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Static documentation site for the Caffeine engine and the Doppio editor (caffeine.devscafe.org)",
+  "type": "module",
+  "scripts": {
+    "build": "node site/build.mjs",
+    "dev": "node site/build.mjs --serve",
+    "check": "node site/build.mjs --check",
+    "audit": "python3 scripts/audit-docs.py --include-engine && python3 scripts/audit-docs-i18n.py"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "highlight.js": "^11.11.0",
+    "markdown-it": "^14.1.0",
+    "mermaid": "^12.3.0"
+  }
+}
