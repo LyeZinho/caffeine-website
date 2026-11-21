@@ -10,6 +10,39 @@ Documentation, plans, screenshots and books for the **Caffeine Engine** and
 **Doppio** editor. This repository is included in the engine as the
 `caffeine-website` submodule; the engine tree contains no user-facing Markdown.
 
+## The site (caffeine.devscafe.org)
+
+The documentation is published as a static site at **https://caffeine.devscafe.org**
+(English at `/en/`, Portuguese at `/pt/`). It is generated from `content/` by a small
+Node script, with no framework and no client-side rendering.
+
+```bash
+pnpm install          # markdown-it, highlight.js, mermaid
+pnpm dev              # build, serve http://localhost:4173 and rebuild on change
+pnpm build            # write dist/
+pnpm check            # build and fail on broken links or missing images
+```
+
+| Path | Purpose |
+|------|---------|
+| `site/config.json` | Section groups, folder titles (EN/PT), domain and repository URLs |
+| `site/build.mjs` | Markdown to HTML, link and image resolution, navigation, search index, sitemap |
+| `site/templates.mjs` | Page, landing and home templates and the UI strings |
+| `site/assets/` | Stylesheet, behaviour (search, theme, copy, image zoom) and logo |
+| `Dockerfile`, `nginx.conf` | Static image for Coolify; the deploy goes through staging and main |
+
+How pages are placed:
+
+- A folder is a section; its `README.md` (or `index.md`) is the section page. Relative links
+  between `.md` files and to images are rewritten to clean URLs, so keep writing them the way
+  `DOCS_STYLE.md` describes.
+- Add a folder to a group in `site/config.json` (`groups[].items`) to put it in the top
+  navigation, and give it a title in `titles` when the folder name is not enough.
+- The first `#` heading is the page title, `##` and `###` build the right-hand table of
+  contents, and the `doc-lede` paragraph is the search and social description.
+- Images are click-to-zoom; `mermaid` fences load Mermaid only on pages that use them.
+- Search is built at publish time (`/<lang>/search.json`); press <kbd>Ctrl</kbd>+<kbd>K</kbd> or <kbd>/</kbd>.
+
 ## Layout
 
 | Path | Contents |
@@ -19,6 +52,7 @@ Documentation, plans, screenshots and books for the **Caffeine Engine** and
 | `tex/` | LaTeX books and PDF sources |
 | `captures/` | Legacy screenshot manifest and fixture project |
 | `scripts/` | Docs audits, translation and diagram helpers |
+| `site/` | Static site generator, templates and assets |
 | `DOCS_STYLE.md` | Authoring standard (HTML-first Markdown) |
 
 ## Where to write

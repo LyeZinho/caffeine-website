@@ -114,9 +114,7 @@ cmake --build build
 |--------|--------|
 | `caf-pack-lib` | Submodule caf-pack |
 | `caf-pack` | CLI |
-| `doppio` | IDE (liga `caf-pack-lib`, `CF_HAS_CAF_PACK=1`) |
-
-Convoy e WaveShaper já não são submódulos nem targets CMake neste repositório.
+| `doppio-ui` | IDE Rust; chama a CLI `caf-pack` no Pack |
 
 ---
 

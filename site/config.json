@@ -1,0 +1,73 @@
+{
+  "name": "Caffeine",
+  "url": "https://caffeine.devscafe.org",
+  "repo": "https://github.com/devscafecommunity/caffeine",
+  "siteRepo": "https://github.com/devscafecommunity/caffeine-website",
+  "defaultLanguage": "en",
+  "languages": [
+    { "code": "en", "label": "English", "short": "EN" },
+    { "code": "pt", "label": "Português", "short": "PT" }
+  ],
+  "groups": [
+    {
+      "id": "start",
+      "title": { "en": "Getting started", "pt": "Primeiros passos" },
+      "description": { "en": "Build the engine, open Doppio and run your first project.", "pt": "Compile o motor, abra o Doppio e execute o seu primeiro projeto." },
+      "items": ["getting-started"]
+    },
+    {
+      "id": "editor",
+      "title": { "en": "Doppio editor", "pt": "Editor Doppio" },
+      "description": { "en": "Panels, viewport, materials, generators, plugins and headless testing.", "pt": "Painéis, viewport, materiais, geradores, plugins e testes headless." },
+      "items": ["editor", "assets", "plugins"]
+    },
+    {
+      "id": "scripting",
+      "title": { "en": "Scripting", "pt": "Scripting" },
+      "description": { "en": "Lua and Dryad scripts, hooks, components and the full generated API reference.", "pt": "Scripts Lua e Dryad, hooks, componentes e a referência completa da API gerada." },
+      "items": ["scripting", "api"]
+    },
+    {
+      "id": "engine",
+      "title": { "en": "Engine", "pt": "Motor" },
+      "description": { "en": "Architecture, ECS, rendering, physics, audio, memory and the rest of the runtime.", "pt": "Arquitetura, ECS, renderização, física, áudio, memória e o resto do runtime." },
+      "items": ["architecture", "core", "ecs", "math", "memory", "physics", "rendering", "terrain", "audio", "animation", "input", "ui", "debug", "performance", "concurrency"]
+    },
+    {
+      "id": "project",
+      "title": { "en": "Project", "pt": "Projeto" },
+      "description": { "en": "Releases, roadmaps, history and design plans.", "pt": "Versões, roteiros, história e planos de design." },
+      "items": ["releases", "plans", "analysis", "HISTORY.md", "ECOSYSTEM_WORKFLOW.md", "architecture_specs.md", "AUDIT_REPORT.md", "MASTER.md"]
+    }
+  ],
+  "titles": {
+    "getting-started": { "en": "Getting started", "pt": "Primeiros passos" },
+    "editor": { "en": "Editor", "pt": "Editor" },
+    "assets": { "en": "Assets", "pt": "Assets" },
+    "plugins": { "en": "Plugins", "pt": "Plugins" },
+    "scripting": { "en": "Scripting", "pt": "Scripting" },
+    "scripting/api": { "en": "API reference", "pt": "Referência da API" },
+    "api": { "en": "Engine API", "pt": "API do motor" },
+    "architecture": { "en": "Architecture", "pt": "Arquitetura" },
+    "core": { "en": "Core", "pt": "Núcleo" },
+    "ecs": { "en": "ECS and scenes", "pt": "ECS e cenas" },
+    "math": { "en": "Math", "pt": "Matemática" },
+    "memory": { "en": "Memory", "pt": "Memória" },
+    "physics": { "en": "Physics", "pt": "Física" },
+    "rendering": { "en": "Rendering", "pt": "Renderização" },
+    "terrain": { "en": "Terrain", "pt": "Terreno" },
+    "audio": { "en": "Audio", "pt": "Áudio" },
+    "animation": { "en": "Animation", "pt": "Animação" },
+    "input": { "en": "Input", "pt": "Entrada" },
+    "ui": { "en": "UI", "pt": "Interface" },
+    "debug": { "en": "Debugging", "pt": "Depuração" },
+    "performance": { "en": "Performance", "pt": "Desempenho" },
+    "concurrency": { "en": "Concurrency", "pt": "Concorrência" },
+    "releases": { "en": "Releases", "pt": "Versões" },
+    "plans": { "en": "Plans", "pt": "Planos" },
+    "plans/milestones": { "en": "Milestones", "pt": "Marcos" },
+    "plans/archive": { "en": "Archive", "pt": "Arquivo" },
+    "analysis": { "en": "Analysis", "pt": "Análise" }
+  },
+  "githubDocsPath": "content"
+}
